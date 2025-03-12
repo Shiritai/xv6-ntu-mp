@@ -1,3 +1,7 @@
+#pragma once
+
+#include "kernel/param.h"
+
 struct file {
   enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE } type;
   int ref; // reference count
@@ -7,6 +11,10 @@ struct file {
   struct inode *ip;  // FD_INODE and FD_DEVICE
   uint off;          // FD_INODE
   short major;       // FD_DEVICE
+
+#ifdef MP2_TEST
+  int fat_element[MP2_FILE_MAGIC_N];
+#endif // _MP2_TEST_
 };
 
 #define major(dev)  ((dev) >> 16 & 0xFFFF)
@@ -36,5 +44,8 @@ struct devsw {
 };
 
 extern struct devsw devsw[];
+
+// print medata of a file object
+void fileprint_metadata(void *f);
 
 #define CONSOLE 1
