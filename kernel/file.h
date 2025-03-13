@@ -1,6 +1,7 @@
 #pragma once
 
 #include "kernel/param.h"
+#include "kernel/slab.h"
 
 struct file {
   enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE } type;
@@ -45,6 +46,7 @@ struct devsw {
 
 extern struct devsw devsw[];
 
+extern struct kmem_cache *file_cache;
 // print medata of a file object
 void fileprint_metadata(void *f);
 

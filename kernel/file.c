@@ -25,6 +25,8 @@ struct {
   struct file file[NFILE];
 } ftable;
 
+struct kmem_cache *file_cache;
+
 void
 fileinit(void)
 {
