@@ -217,7 +217,6 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
 
   // TODO: mention in spec
   printf("[SLAB] Object %p in slab %p (%s) is allocated and initialized\n", obj, s, cache->name);
-  printf("[SLAB] Factor: %ld\n", sizeof(struct slab) / sizeof(void *));
 
   // TODO: mention in spec
   return obj;
