@@ -6,7 +6,7 @@
 * **Release Date**: March 18, 2025
 * **Due Date**: April 1, 2025
 * **TA Email**: ntuos@googlegroups.com
-* **TA Hours**: Wednesday 1:00–2:00 p.m., Friday 11:00 a.m.–12:00 p.m.
+* **TA Hours**: Wednesday 1:00–2:00 p.m., Friday 11:00 a.m.–12:00 p.m., at B04
 
 [TOC]
 
@@ -67,8 +67,8 @@ The total score for this assignment is **140%**, comprising **basic requirements
 - **[SLAB Design](#struct-slab-design) (5%)**
 - **Functionality Tests (Public Tests) (45%)**
   - [`kmem_cache_create`](#kmem_cache_create-creating-kmem_cache) (5%)
-  - [`kmem_cache_alloc`](#kmem_cache_alloc-allocating-objects) (15%)
-  - [`kmem_cache_alloc`](#kmem_cache_alloc-allocating-objects) + [`kmem_cache_free`](#kmem_cache_free-freeing-objects) (25%)
+  - [`kmem_cache_alloc`](#kmem_cache_alloc-allocating-objects) (20%)
+  - [`kmem_cache_alloc`](#kmem_cache_alloc-allocating-objects) + [`kmem_cache_free`](#kmem_cache_free-freeing-objects) (20%)
 - **Hidden Tests (Private Tests) (40%)**
 
 #### Bonus Items
@@ -438,13 +438,13 @@ This assignment offers students significant flexibility to customize the `slab` 
 
 * **Ensure your student ID is filled in the `student_id.txt` file**.
 * Modification of the following restricted files is prohibited:
-  * Restricted Git branch: `ntuos/mp2/submit`
+  * Restricted Git branch: `ntuos/mp2-submit`
   * Restricted files:
     - `kernel/file.h`
     - `kernel/list.h`
     - `kernel/random.h`
     - All code in the `user/` directory
-  * If restricted files in the `ntuos/mp2/submit` branch show modification records, it will be considered a violation, resulting in a score of zero.
+  * If restricted files in the `ntuos/mp2-submit` branch show modification records, it will be considered a violation, resulting in a score of zero.
   * Modifications are allowed in other Git branches.
   * Local changes to these files are permitted but must not be committed to the restricted branch.
 * `kernel/param.h` file:
@@ -575,6 +575,8 @@ When allocating objects, follow the flowchart below and output corresponding inf
 - **`<slab_addr>`**: Memory address of the Slab containing the object.
 - **`<obj_addr>`**: Memory address of the allocated object.
 
+In addition, students can also print other customized debug messages, as long as they do not conflict with the print format in the flowchart. As suggestion, one can print custom debug messages with other prefixes (such as lowercase `[slab]`, etc.).
+
 ### `kmem_cache_free`: Freeing Objects
 
 When freeing objects, follow the flowchart below and output corresponding information. Ensure output complies with specifications, replacing variables in **angle brackets (`<>`)**, with all messages prefixed with `[SLAB] ` and words separated by a single space.
@@ -588,6 +590,8 @@ When freeing objects, follow the flowchart below and output corresponding inform
 - **`<after>`**: State of the object’s Slab after freeing (`full/partial/free/cache`).
 
 Additionally, if **the number of (`partial` + `free`) Slabs exceeds `MIN_AVAIL_SLAB`** and the object’s Slab becomes fully free (`free`), release the Slab to reclaim memory.
+
+In addition, students can also print other customized debug messages, as long as they do not conflict with the print format in the flowchart. As suggestion, one can print custom debug messages with other prefixes (such as lowercase `[slab]`, etc.).
 
 ### Applying the Slab Allocator to `struct file` Management
 
@@ -679,7 +683,7 @@ Field definitions:
 - `<SPACE>`: Any number of spaces or tabs (`\t`).
 - `<slab_type>`: Classified as `full`, `partial`, `free`, or [`cache`](#kmem_cache-internal-fragmentation-issue).
   - All types may be printed during debugging.
-  - Only `partial` and `cache` (if implemented) are checked in actual tests.
+  - ***Only `partial` and `cache` (if implemented) are checked in actual tests.***
 - `<slab_addr>`: Memory address of the slab.
 - `<harden>`: Value of `MP2_FREELIST_HARDENED` (`0` or `1`), see [`freelist` security enhancements](#freelist-security-enhancements).
 - `<rand>`: Value of `MP2_FREELIST_RANDOMIZATION` (`0` or `1`), see [`freelist` security enhancements](#freelist-security-enhancements).
