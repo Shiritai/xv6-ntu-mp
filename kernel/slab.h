@@ -11,37 +11,50 @@
 /**
  * struct slab - Represents a slab in the slab allocator.
  * @freelist: Linked list of free objects.
+ * @in_use: Number of allocated objects.
+ * @list: List pointer for linking slabs in the cache.
  */
 struct slab
 {
   // TODO: Choose the type of freelist from
   //    1. void **
   //    2. struct run *
-  // <ptr> freelist;             // Linked list of free objects
+  void **freelist;             // Linked list of free objects
+  // struct run *freelist;        // Linked list of free objects
 
   // TODO: Design how to link the slabs
-  // ...
-
+  // struct slab *next;
+  // struct slab *prev;
+  struct list_head list; // List pointer for linking slabs in the cache
+  
   // TODO: you can add other members
   // ...
+  unsigned short in_use;            // Number of allocated objects
 };
 
 /**
  * struct kmem_cache - Represents a cache of slabs.
  * @name: Cache name (e.g., "file").
  * @object_size: Size of a single object.
+ * @full: Completely allocated slabs.
+ * @partial: Partially allocated slabs.
  * @lock: Lock for cache management.
  */
 struct kmem_cache
 {
-  char name[32];        // Cache name (e.g., "file")
-  uint object_size;     // Size of a single object
-  struct spinlock lock; // Lock for cache management
+  char name[32];            // Cache name (e.g., "file")
+  uint object_size;         // Size of a single object
+  struct spinlock lock;     // Lock for cache management
 
   // TODO: Add slab list(s)
   // <TYPE> full     // Completely allocated slabs (Optional)
   // <TYPE> partial  // Partially allocated slabs
   // <TYPE> free     // Free slabs (Optional)
+  struct list_head partial; // Partially allocated slabs
+  struct list_head full;    // Completely allocated slabs
+  uint partial_cnt;
+  uint full_cnt;
+  // struct list_head free;    // Free slabs
 };
 
 /**

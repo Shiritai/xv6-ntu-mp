@@ -20,10 +20,10 @@ void fileprint_metadata(void *f) {
 }
 
 struct devsw devsw[NDEV];
-struct {
-  struct spinlock lock;
-  struct file file[NFILE];
-} ftable;
+// struct {
+//   struct spinlock lock;
+//   struct file file[NFILE];
+// } ftable;
 
 struct kmem_cache *file_cache;
 
@@ -31,7 +31,8 @@ void
 fileinit(void)
 {
   printf("[FILE] fileinit\n");
-  initlock(&ftable.lock, "ftable");
+  // initlock(&ftable.lock, "ftable");
+  file_cache = kmem_cache_create("file", sizeof(struct file));
 }
 
 // Allocate a file structure.
@@ -40,28 +41,38 @@ filealloc(void)
 {
   printf("[FILE] filealloc\n");
   struct file *f;
+  f = (struct file *) kmem_cache_alloc(file_cache);
+  acquire(&file_cache->lock);
+  f->ref = 1;
+  release(&file_cache->lock);
+  
+  return f;
+  
+  // struct file *f;
 
-  acquire(&ftable.lock);
-  for(f = ftable.file; f < ftable.file + NFILE; f++){
-    if(f->ref == 0){
-      f->ref = 1;
-      release(&ftable.lock);
-      return f;
-    }
-  }
-  release(&ftable.lock);
-  return 0;
+  // acquire(&ftable.lock);
+  // for(f = ftable.file; f < ftable.file + NFILE; f++){
+  //   if(f->ref == 0){
+  //     f->ref = 1;
+  //     release(&ftable.lock);
+  //     return f;
+  //   }
+  // }
+  // release(&ftable.lock);
+  // return 0;
 }
 
 // Increment ref count for file f.
 struct file*
 filedup(struct file *f)
 {
-  acquire(&ftable.lock);
+  acquire(&file_cache->lock);
+  // acquire(&ftable.lock);
   if(f->ref < 1)
     panic("filedup");
   f->ref++;
-  release(&ftable.lock);
+  release(&file_cache->lock);
+  // release(&ftable.lock);
   return f;
 }
 
@@ -70,20 +81,23 @@ void
 fileclose(struct file *f)
 {
   struct file ff;
-
-  acquire(&ftable.lock);
+  
+  acquire(&file_cache->lock);
+  // acquire(&ftable.lock);
   if(f->ref < 1)
     panic("fileclose");
   if(--f->ref > 0){
-    release(&ftable.lock);
+    // release(&ftable.lock);
+    release(&file_cache->lock);
     return;
   }
   printf("[FILE] fileclose\n");
   ff = *f;
   f->ref = 0;
   f->type = FD_NONE;
-  release(&ftable.lock);
-
+  // release(&ftable.lock);
+  release(&file_cache->lock);
+  
   if(ff.type == FD_PIPE){
     pipeclose(ff.pipe, ff.writable);
   } else if(ff.type == FD_INODE || ff.type == FD_DEVICE){
@@ -91,6 +105,7 @@ fileclose(struct file *f)
     iput(ff.ip);
     end_op();
   }
+  kmem_cache_free(file_cache, f);
 }
 
 // Get metadata about file f.

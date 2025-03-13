@@ -20,3 +20,6 @@
 #define SYS_link   19
 #define SYS_mkdir  20
 #define SYS_close  21
+
+/* MP2 */
+#define SYS_printfslab 22 // peek file slab cache
