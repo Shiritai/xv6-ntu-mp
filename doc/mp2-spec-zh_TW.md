@@ -702,7 +702,7 @@ fileclose(struct file *f)
 
 舉例如下。
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 9px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, harden: 0, rand: 1 }
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.5px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, harden: 0, rand: 1 }
 [SLAB]    [ Full    slabs (head: 0x0000000087f59058) ]
 [SLAB]    [ Partial slabs (head: 0x0000000087f59040) ]
 [SLAB]        [ slab 0x0000000087f4e000 ] { freelist: 0x0000000087f4ede8, prev: 0x0000000087f59040, next: 0x0000000087f32008 }
@@ -731,7 +731,7 @@ fileclose(struct file *f)
 
 舉例如下。
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 7.7px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;">
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 4.7px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;">
 [SLAB] kmem_cache { rand: 0, name: file, some_thing: meow, object_size: 504, another_thing: 123, harden: 1 }
 [SLAB]    [ Full    slabs (head: 0x0000000087f59058) ]
 [SLAB]    [ Partial slabs (head: 0x0000000087f59040) ]
