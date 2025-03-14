@@ -98,7 +98,7 @@
 
 若能利用這些系統物件大小相同的特性，核心預先分配一個乃至數個連續的頁面，並將其內部空間以 `40B` 為單位進行切割，便能盡可能地利用整個頁面的空間，減少內部碎裂，由於可能短時間內對相同頁面重複訪問，且大多數的配置可以重複利用舊的頁面而非配置新頁面，也能加速配置所需的時間。
 
-> ![](./img/slab-alloc.png)
+> <img src="./img/slab-alloc.png" style="zoom:30%;" />
 > 回顧課程投影片。
 
 Slab 便是這樣一個系統，源自 SunOS 原始碼，為過去 Linux kernel 實現小型系統物件記憶體配置的機制。本作業將引導學生 **設計並實作一個新的 Slab 記憶體配置系統**，以提升小型物件的記憶體管理效能。
@@ -702,8 +702,7 @@ fileclose(struct file *f)
 
 舉例如下。
 
-```log
-[SLAB] kmem_cache { name: file, object_size: 504, harden: 0, rand: 1 }
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 9px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, harden: 0, rand: 1 }
 [SLAB]    [ Full    slabs (head: 0x0000000087f59058) ]
 [SLAB]    [ Partial slabs (head: 0x0000000087f59040) ]
 [SLAB]        [ slab 0x0000000087f4e000 ] { freelist: 0x0000000087f4ede8, prev: 0x0000000087f59040, next: 0x0000000087f32008 }
@@ -715,7 +714,7 @@ fileclose(struct file *f)
 [SLAB]            { addr: 0x0000000087f4e9f8, as_ptr: 0x0000000087f4e800, as_obj: { tp: -2013992960, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800357b8, off: 0, major: 0 } }
 [SLAB]            { addr: 0x0000000087f4ebf0, as_ptr: 0x0000000087f4e9f8, as_obj: { tp: -2013992456, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035840, off: 0, major: 0 } }
 [SLAB]            { addr: 0x0000000087f4ede8, as_ptr: 0x0000000087f4ebf0, as_obj: { tp: -2013991952, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800358c8, off: 0, major: 0 } }
-```
+</code></pre>
 
 學生可在列印的資訊中自由添加除要求外的信息，只要包含必列的資訊即可，且順序可自行調整。
 
@@ -732,7 +731,7 @@ fileclose(struct file *f)
 
 舉例如下。
 
-```log
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 7.7px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;">
 [SLAB] kmem_cache { rand: 0, name: file, some_thing: meow, object_size: 504, another_thing: 123, harden: 1 }
 [SLAB]    [ Full    slabs (head: 0x0000000087f59058) ]
 [SLAB]    [ Partial slabs (head: 0x0000000087f59040) ]
@@ -745,7 +744,7 @@ fileclose(struct file *f)
 [SLAB]            { addr: 0x0000000087f4e9f8, as_ptr: 0x0000000087f4e800, as_obj: { tp: -2013992960, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800357b8, off: 0, major: 0 } }
 [SLAB]            { addr: 0x0000000087f4ebf0, as_ptr: 0x0000000087f4e9f8, as_obj: { tp: -2013992456, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035840, off: 0, major: 0 }, whoami: meow }
 [SLAB]            { 0: 0, addr: 0x0000000087f4ede8, as_ptr: 0x0000000087f4ebf0, 2: 2, as_obj: { tp: -2013991952, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800358c8, off: 0, major: 0 } }
-```
+</pre>
 
 ### 實作 system call `sys_printfslab`
 
