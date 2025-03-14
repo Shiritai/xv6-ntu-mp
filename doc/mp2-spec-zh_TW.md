@@ -291,14 +291,14 @@ struct slab {
 struct slab *s = ...;
 // 取得第一個可用物件的指標
 struct run *r = s->freelist;
-// 由於第一個可用物件中 `next` 成員藏有下一個可用物件的地址，可以解引用後取得地址
+// 由於第一個可用物件中 `next` 成員藏有下一個可用物件的地址
 struct run *r_next = r->next;
 // 重新解釋記憶體為特定的系統物件 (比如 struct file)
 struct file *f = (struct file *) r;
 struct file *f_after_f = (struct file *) r_next;
 ```
 
-同學們也可以在一個核心物件的空間內放兩個指標，實現雙向鏈結序列。請根據 [Slab 配置器的實作要求](#slab-配置器的實作要求)，為 freelist 設計合適資料結構。
+同學們也可以在一個核心物件的空間內放兩個指標，實現雙向鏈結串列。請根據 [Slab 配置器的實作要求](#slab-配置器的實作要求)，為 freelist 設計合適資料結構。
 
 ### `freelist` 的元素數量
 
@@ -425,9 +425,10 @@ Linux 核心使用 XOR 運算將原始指標 (指向下一個空閒物件的地�
 
 當同學在 [`param.h`](../kernel/param.h) 中定義 `MP2_FREELIST_RANDOMIZATION = 1` 時：
 
-- `freelist` 的初始化順序將由 [`kernel/random.h`](../kernel/random.h) 提供之隨機數生成器 (線性同餘生成器 LCG) 生成。
-- `freelist` 初始化的順序需為上述隨機數生成器所能生成的序列之一。
-- 每個 `slab` 的 `freelist` 初始化順序將不同，增加攻擊難度。我們會檢查初始化起始值的分布。
+- `freelist` 的初始化順序將由偽隨機數生成器生成。
+- 偽隨機數生成器請自行實作，推薦可以實作於 [`kernel/random.h`](../kernel/random.h) 中，作為 xv6 核心功能的擴展，未來將可能提供給其他核心開發者使用。
+- 每個 `slab` 的 `freelist` 初始化順序將不同，增加攻擊難度。
+- 我們會檢查初始化起始值的分布。
 
 
 ### `kmem_cache` 的內部碎裂問題 (加分項目)
@@ -448,7 +449,6 @@ Linux 核心使用 XOR 運算將原始指標 (指向下一個空閒物件的地�
   * 受限制的檔案：
     - `kernel/file.h`
     - `kernel/list.h`
-    - `kernel/random.h`
     - `user/` 目錄內的所有程式碼
   * 若 `ntuos/mp2-submit` 分支內的受限制檔案存在修改紀錄，將視為違規行為，成績以零分計算。
   * 允許在其他 Git 分支進行修改。
@@ -659,7 +659,7 @@ fileclose(struct file *f)
 }
 ```
 
-另外請同學們注意，**請勿更動** 在 `file.c` 中添加的 **列印相關程式碼**，在 `fileinit`、`filealloc` 和 `fileclose` (ref 降至 0 時) 應該印出以 `[FILE] ` 為前綴的除錯訊息。
+請同學們 **不要更動** 在 `file.c` 中添加的 **列印相關程式碼**，在 `fileinit`、`filealloc` 和 `fileclose` (ref 降至 0 時) 應該印出以 `[FILE] ` 為前綴的除錯訊息。
 
 ### `print_kmem_cache` 列印 `struct kmem_cache` 的資訊
 
@@ -691,6 +691,7 @@ fileclose(struct file *f)
 - `<slab_type>`：分類為 `full`、`partial`、`free` 或 [`cache`](#kmem_cache-的內部碎裂問題)。
   - 除錯時可列印所有類型。
   - ***實際測試僅檢查 `partial` 和 `cache`（若有實現）的部分。***
+  - `full` 和 `free` slab 可以透過推論來追蹤，故不必印出
 - `<slab_addr>`：slab 在記憶體中的地址。
 - `<harden>`：`MP2_FREELIST_HARDENED` 的值（`0` 或 `1`），請參考 [`freelist` 安全性議題](#freelist-的安全性議題)。
 - `<rand>`：`MP2_FREELIST_RANDOMIZATION` 的值（`0` 或 `1`），請參考 [`freelist` 安全性議題](#freelist-的安全性議題)。
