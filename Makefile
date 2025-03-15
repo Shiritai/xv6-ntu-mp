@@ -140,6 +140,7 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
+	$U/_tee\
 	$U/_mp2\
 
 fs.img: mkfs/mkfs README $(UPROGS)
@@ -179,4 +180,7 @@ qemu: $K/kernel fs.img
 qemu-gdb: $K/kernel .gdbinit fs.img
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
+print-gdbport:
+	@echo $(GDBPORT)
 

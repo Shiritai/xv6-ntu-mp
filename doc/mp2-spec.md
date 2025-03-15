@@ -97,7 +97,7 @@ Imagine the kernel needs to allocate 100 system objects of size `40B`, such as `
 
 By leveraging the fact that these system objects are of the same size, the kernel could pre-allocate one or more contiguous pages and divide their internal space into `40B` units. This approach maximizes page space utilization, reduces internal fragmentation, and speeds up allocation by reusing existing pages rather than allocating new ones, especially given the likelihood of repeated access to the same page in a short time.
 
-> ![](./img/slab-alloc.png)
+> <img src="./img/slab-alloc.png" style="zoom:30%;" />
 > Review the course slides.
 
 The Slab system, originating from SunOS source code, was used in early Linux kernels to manage memory allocation for small system objects. This assignment will guide students in **designing and implementing a new Slab memory allocation system** to improve memory management efficiency for small objects.
@@ -695,8 +695,7 @@ Field definitions:
 
 Example:
 
-```log
-[SLAB] kmem_cache { name: file, object_size: 504, harden: 0, rand: 1 }
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.5px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, harden: 0, rand: 1 }
 [SLAB]    [ Full    slabs (head: 0x0000000087f59058) ]
 [SLAB]    [ Partial slabs (head: 0x0000000087f59040) ]
 [SLAB]        [ slab 0x0000000087f4e000 ] { freelist: 0x0000000087f4ede8, prev: 0x0000000087f59040, next: 0x0000000087f32008 }
@@ -708,7 +707,7 @@ Example:
 [SLAB]            { addr: 0x0000000087f4e9f8, as_ptr: 0x0000000087f4e800, as_obj: { tp: -2013992960, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800357b8, off: 0, major: 0 } }
 [SLAB]            { addr: 0x0000000087f4ebf0, as_ptr: 0x0000000087f4e9f8, as_obj: { tp: -2013992456, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035840, off: 0, major: 0 } }
 [SLAB]            { addr: 0x0000000087f4ede8, as_ptr: 0x0000000087f4ebf0, as_obj: { tp: -2013991952, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800358c8, off: 0, major: 0 } }
-```
+</code></pre>
 
 Students may add extra information beyond the required fields, adjusting the order as desired, provided all mandatory information is included.
 
@@ -725,7 +724,7 @@ Students may add extra information beyond the required fields, adjusting the ord
 
 Example:
 
-```log
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 4.7px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;">
 [SLAB] kmem_cache { rand: 0, name: file, some_thing: meow, object_size: 504, another_thing: 123, harden: 1 }
 [SLAB]    [ Full    slabs (head: 0x0000000087f59058) ]
 [SLAB]    [ Partial slabs (head: 0x0000000087f59040) ]
@@ -738,7 +737,7 @@ Example:
 [SLAB]            { addr: 0x0000000087f4e9f8, as_ptr: 0x0000000087f4e800, as_obj: { tp: -2013992960, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800357b8, off: 0, major: 0 } }
 [SLAB]            { addr: 0x0000000087f4ebf0, as_ptr: 0x0000000087f4e9f8, as_obj: { tp: -2013992456, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035840, off: 0, major: 0 }, whoami: meow }
 [SLAB]            { 0: 0, addr: 0x0000000087f4ede8, as_ptr: 0x0000000087f4ebf0, 2: 2, as_obj: { tp: -2013991952, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800358c8, off: 0, major: 0 } }
-```
+</pre>
 
 ### Implementing System Call `sys_printfslab`
 
