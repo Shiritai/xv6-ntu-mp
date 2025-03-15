@@ -139,6 +139,7 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
 
     // TODO: mention in spec
     printf("[SLAB] Allocated %p from partial slab (%s)\n", obj, cache->name);
+    printf("[SLAB] Object %p in slab %p (%s) is allocated and initialized\n", obj, s, cache->name);
     return obj;
   }
 
