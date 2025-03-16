@@ -12,11 +12,12 @@
 #include "file.h"
 #include "stat.h"
 #include "proc.h"
+#include "debug.h"
 
 void fileprint_metadata(void *f) {
   struct file *file = (struct file *) f;
-  printf("tp: %d, ref: %d, readable: %d, writable: %d, pipe: %p, ip: %p, off: %d, major: %d",
-         file->type, file->ref, file->readable, file->writable, file->pipe, file->ip, file->off, file->major);
+  debug("tp: %d, ref: %d, readable: %d, writable: %d, pipe: %p, ip: %p, off: %d, major: %d",
+        file->type, file->ref, file->readable, file->writable, file->pipe, file->ip, file->off, file->major);
 }
 
 struct devsw devsw[NDEV];
@@ -30,7 +31,7 @@ struct kmem_cache *file_cache;
 void
 fileinit(void)
 {
-  printf("[FILE] fileinit\n");
+  debug("[FILE] fileinit\n");
   initlock(&ftable.lock, "ftable");
 }
 
@@ -38,7 +39,7 @@ fileinit(void)
 struct file*
 filealloc(void)
 {
-  printf("[FILE] filealloc\n");
+  debug("[FILE] filealloc\n");
   struct file *f;
 
   acquire(&ftable.lock);
@@ -78,7 +79,7 @@ fileclose(struct file *f)
     release(&ftable.lock);
     return;
   }
-  printf("[FILE] fileclose\n");
+  debug("[FILE] fileclose\n");
   ff = *f;
   f->ref = 0;
   f->type = FD_NONE;
