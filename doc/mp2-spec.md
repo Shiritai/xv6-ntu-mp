@@ -361,6 +361,38 @@ struct kmem_cache {
 
 Here, `<ptr>` can be `struct slab *`, `void *`, or `struct list_head`, the latter being a Linux-style doubly linked list management approach provided in [`kernel/list.h`](../kernel/list.h). For usage details, refer to the documentation comments in that file. Students implementing Slab lists with `struct list_head` from this library will have a bonus opportunity.
 
+### Relationship Between Core Objects, `struct slab`, and `struct kmem_cache`
+
+In the SLAB allocator for MP2, there are three key components whose relationships should be clearly understood.
+
+#### Kernel Objects
+
+Kernel objects refer to the data structures managed by the kernel, such as `struct file`. Each kernel object has a fixed size.
+
+#### `struct slab`
+
+- **Occupies a single page of memory**, where a portion of the space is allocated for **metadata**, while the remaining space is divided into equal-sized units, forming a **`freelist` (free object list)**. Each unit in the `freelist` can store one kernel object.  
+- **Different types of kernel objects are managed in separate Slabs**, ensuring independent management for different object types.  
+- Based on the number of allocated objects, a `struct slab` can be categorized into three states:  
+  - Full (`full`): All available objects have been allocated.  
+  - Partially used (`partial`): Some objects have been allocated, but free space remains.  
+  - Free (`free`): No objects have been allocated, and the slab is completely available for use.  
+- **A "available slab" is defined as a slab in either the `partial` or `free` state**, meaning it still has available space for object allocation.  
+- **Each `struct slab` is dynamically allocated as needed and is linked together in a list**, ensuring flexibility and scalability in memory management.  
+
+![](./img/mp2-slab.png)  
+
+The diagram above illustrates the state transition of a free slab before and after an object allocation. After allocation, the slab transitions into a partially used state.
+
+#### `struct kmem_cache`
+
+- **Manages all slabs containing the same type of core object**, ensuring efficient memory allocation and deallocation.  
+- **For example, the system may create a separate `kmem_cache` for `struct file` and `struct proc`**, each dedicated to managing the slabs for their respective objects. *(This assignment does not involve modifications to `struct proc`.)*  
+
+![](./img/mp2-kmem_cache.png)  
+
+As shown in the diagram, a `kmem_cache` may manage multiple metadata entries and maintain one or more linked lists of slabs.
+
 ### Synchronization and Race Conditions in `kmem_cache`
 
 In multi-core and multi-threaded environments, operations on `kmem_cache` involve modifying and managing Slab lists, potentially leading to race conditions. When multiple CPUs access `kmem_cache` simultaneously—especially during object allocation (`kmem_cache_alloc()`) or deallocation (`kmem_cache_free()`)—data inconsistency or memory corruption may occur without proper synchronization.
