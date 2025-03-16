@@ -85,7 +85,8 @@ struct kmem_cache *kmem_cache_create(char *name, uint object_size)
   // INIT_LIST_HEAD(&cache->free);
   
   // TODO: mention in spec
-  debug("[SLAB] New kmem_cache (name: %s, object size: %d bytes) is created\n", cache->name, cache->object_size);
+  debug("[SLAB] New kmem_cache (name: %s, object size: %d bytes, max objects per slab: %lu) is created\n",
+    cache->name, cache->object_size, (MP2_SLAB_SIZE - sizeof(struct slab)) / cache->object_size);
   
   // TODO: mention in spec
   return cache;
