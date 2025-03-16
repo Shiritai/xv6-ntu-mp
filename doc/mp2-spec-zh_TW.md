@@ -2,7 +2,7 @@
 
 ## 基本資訊
 
-* 滿分: 140%
+* 滿分: 140% (基本部分: 100%, 加分部分 40%)
 * Release Date: 2025/03/18
 * Due Date: 2025/04/01
 * TA email: ntuos@googlegroups.com
@@ -12,9 +12,9 @@
 
 
 
-## Abstraction
+## Overview
 
-在 MP2 作業中，我們將探討 **核心小型物件的記憶體配置與釋放機制**，並要求學生在 `xv6` 作業系統上 **設計並實作 SLAB 分配器**。
+在 MP2 作業中，我們將探討 **核心小型物件的記憶體配置與釋放機制**，並請學生在 `xv6` 作業系統上 **設計並實作 SLAB 分配器**。
 
 本次作業的重點包括：
 - **SLAB 分配器的資料結構設計**
@@ -437,29 +437,105 @@ Linux 核心使用 XOR 運算將原始指標 (指向下一個空閒物件的地�
 
 為了符合[實作規範](#print_kmem_cache-列印-struct-kmem_cache-的資訊)，請將 `struct kmem_cache` 視為一個 `<slab_type>` 為 `cache` 的 slab，列印的資訊中 `<slab_addr>` 直接對應 `struct kmem_cache` 自身在記憶體中的地址。
 
-## 實作要求
-
-本作業提供學生們高度的靈活性，允許對 `slab` 進行自訂設計，只需遵循以下規範。
+## 實作前需詳閱的資訊
 
 ### 檔案修改規則
 
-* **請務必在 `student_id.txt` 檔案中填入學號**。
-* 禁止更動以下受限制的檔案：
-  * 受限制的 Git 分支：`ntuos/mp2-submit`
-  * 受限制的檔案：
+- **請確保在 `student_id.txt` 檔案中填入您的學號**。  
+- 以下分支中的受限制檔案 **禁止修改**：
+  - **受限制的 Git 分支**：`ntuos/mp2-submit`
+  - **受限制的檔案**：
     - `kernel/file.h`
     - `kernel/list.h`
-    - `user/` 目錄內的所有程式碼
-  * 若 `ntuos/mp2-submit` 分支內的受限制檔案存在修改紀錄，將視為違規行為，成績以零分計算。
-  * 允許在其他 Git 分支進行修改。
-  * 允許在本機端對這些檔案進行變更，但不得提交至受限制的分支。
-* `kernel/param.h` 檔案：
-  * 學生 **僅可修改** `MP2_FREELIST_HARDENED` 和 `MP2_FREELIST_RANDOMIZATION` 這兩個設定。
-  * 不得對其他程式碼進行調整。
-* `kernel/file.c` 檔案：
-  * 學生 **不可修改** 以 `[FILE] ` 為前綴的列印相關程式碼。
-  * 請調整其餘程式碼使 xv6 使用 `struct kmem_cache` 管理 `struct file`>
-* 學生們可以自由新增檔案、修改其他程式碼。
+    - `user/` 目錄內的所有程式碼  
+  - **任何對 `ntuos/mp2-submit` 分支內受限制檔案的變更將視為違規行為，並導致該次作業評分為零**。  
+  - 您可在其他 Git 分支進行修改。  
+  - 允許在本機端對受限制檔案進行變更，但不得提交至受限制分支。  
+- `kernel/param.h` 檔案修改規範：
+  - 學生 **僅可變更** `MP2_FREELIST_HARDENED` 和 `MP2_FREELIST_RANDOMIZATION` 兩項設定。  
+  - **其他內容不得修改**。  
+- `kernel/file.c` 檔案修改規範：
+  - **禁止修改** 任何 **以 `[FILE] ` 為前綴的除錯輸出程式碼**。  
+  - 其他部分可進行調整，以**使 xv6 使用 `struct kmem_cache` 管理 `struct file`**。  
+- 除上述限制外，學生可自由新增檔案或修改其他程式碼。
+
+### 簡易核心除錯器
+
+在大型軟體專案中，為新增功能除錯是一項極具挑戰性的工作。為此，許多專案內建了日誌記錄或除錯系統，以協助開發人員進行問題排查。然而，xv6 **僅提供基本的輸出功能**，如 `printf`，這對於除錯與測試而言較為受限。因此，我們提供了一個 **簡易核心除錯系統**，以提升除錯效率與測試靈活性，請同學們善加利用。
+
+本除錯系統的使用方式與 `printf` 介面完全相容，可用於格式化輸出，且提供額外的控制選項。
+
+```c
+// in file.c
+#include "debug.h" // 引入核心除錯工具
+// 格式化輸出
+debug("tp: %d, ref: %d, readable: %d, ...",
+      file->type, file->ref, file->readable, ...);
+// 普通字串輸出
+debug("[FILE] filealloc");
+```
+
+在本次 MP2 作業中，所有同學們的輸出 **必須透過 `debug` 巨集函式**，以確保測試與評分系統的正確運行。請務必嚴格遵守此要求，否則可能導致測試結果無法對應，影響成績。
+
+詳細使用方式請參閱 [`kernel/debug.h`](../kernel/debug.h) 核心文件。
+
+### 動態切換除錯模式
+
+我們在 xv6 中提供了 `debugswitch` 命令，允許開發人員 **透過命令行切換除錯模式**。執行 `debugswitch` 後，系統將在 **開啟/關閉除錯輸出** 之間切換，便於測試與診斷。
+
+以下為 `debugswitch` 的範例執行結果：
+```sh
+xv6 kernel is booting
+
+[FILE] fileinit
+hart 2 starting
+hart 1 starting
+[FILE] filealloc
+init: starting sh
+[FILE] filealloc
+[FILE] fileclose
+$ debugswitch
+Switch debug mode to 0
+$ ls
+.              1 1 1024
+..             1 1 1024
+README         2 2 2292
+cat            2 3 34728
+...
+console        3 22 0
+$ debugswitch
+Switch debug mode to 1
+$ ls
+[FILE] filealloc
+[FILE] filealloc
+[FILE] fileclose
+.              1 1 1024
+[FILE] filealloc
+[FILE] fileclose
+..             1 1 1024
+[FILE] filealloc
+[FILE] fileclose
+README         2 2 2292
+...
+[FILE] filealloc
+[FILE] fileclose
+console        3 22 0
+[FILE] fileclose
+```
+
+### 調整預設除錯模式
+
+預設的除錯模式可透過 [`param.h`](../kernel/param.h) 進行設定。  
+開發時，同學們可根據需求調整本機的除錯模式，但 **請確保提交至 GitHub 的 `MP2_DEFAULT_DEBUG_MODE` 為 `1`**，即 **開啟除錯模式**，以確保評分系統的正確性。
+
+```c
+// in param.h
+#define MP2_DEFAULT_DEBUG_MODE 1 // 預設開啟除錯模式
+```
+
+## 實作要求
+
+本作業提供學生們高度的靈活性，允許對 `slab` 進行自訂設計，只需遵循以下規範。
 
 ### `struct slab` 設計
 
@@ -623,9 +699,10 @@ extern struct kmem_cache *file_cache;
 void fileprint_metadata(void *f);
 
 // file.c
+#include "kernel/debug.h"
 void fileprint_metadata(void *f) {
   struct file *file = (struct file *) f;
-  printf("tp: %d, ref: %d, readable: %d, writable: %d, pipe: %p, ip: %p, off: %d, major: %d",
+  debug("tp: %d, ref: %d, readable: %d, writable: %d, pipe: %p, ip: %p, off: %d, major: %d",
          file->type, file->ref, file->readable, file->writable, file->pipe, file->ip, file->off, file->major);
 }
 
@@ -634,7 +711,7 @@ struct kmem_cache *file_cache;
 void
 fileinit(void)
 {
-  printf("[FILE] fileinit\n");
+  debug("[FILE] fileinit\n");
   // ...
 }
 
@@ -642,7 +719,7 @@ fileinit(void)
 struct file*
 filealloc(void)
 {
-  printf("[FILE] filealloc\n");
+  debug("[FILE] filealloc\n");
   // ...
 }
 
@@ -652,7 +729,7 @@ void
 fileclose(struct file *f)
 {
   // ...
-  printf("[FILE] fileclose\n");
+  debug("[FILE] fileclose\n");
   ff = *f;
   f->ref = 0;
   // ...
