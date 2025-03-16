@@ -283,4 +283,5 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj)
   }
 
   release(&cache->lock);
+  debug("[SLAB] End of free\n");
 }
