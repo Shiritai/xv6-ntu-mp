@@ -22,4 +22,5 @@
 #define SYS_close  21
 
 /* MP2 */
-#define SYS_printfslab 22 // peek file slab cache
+#define SYS_debugswitch 22 // switch debug mode
+#define SYS_printfslab 23 // peek file slab cache

@@ -16,6 +16,7 @@
 #define USERSTACK    1     // user stack pages
 
 // MP2 Macros that CANNOT BE CHANGED!
+#define MP2_DEFAULT_DEBUG_MODE 1 // debug mode on
 #define MP2_FILE_MAGIC_N 116
 #define MP2_TEST
 #define MP2_CACHE_MAX_NAME 32 // Max length of the name of kmem_cache object.
