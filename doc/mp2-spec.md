@@ -361,6 +361,40 @@ struct kmem_cache {
 
 Here, `<ptr>` can be `struct slab *`, `void *`, or `struct list_head`, the latter being a Linux-style doubly linked list management approach provided in [`kernel/list.h`](../kernel/list.h). For usage details, refer to the documentation comments in that file. Students implementing Slab lists with `struct list_head` from this library will have a bonus opportunity.
 
+### Relationship Between Core Objects, `struct slab`, and `struct kmem_cache`
+
+In the SLAB allocator for MP2, there are three key components whose relationships should be clearly understood.
+
+#### Kernel Objects
+
+Kernel objects refer to the data structures managed by the kernel, such as `struct file`. Each kernel object has a fixed size.
+
+#### `struct slab`
+
+- **Occupies a single page of memory**, where a portion of the space is allocated for **metadata**, while the remaining space is divided into equal-sized units, forming a **`freelist` (free object list)**. Each unit in the `freelist` can store one kernel object.  
+- **Different types of kernel objects are managed in separate Slabs**, ensuring independent management for different object types.  
+- Based on the number of allocated objects, a `struct slab` can be categorized into three states:  
+  - Full (`full`): All available objects have been allocated.  
+  - Partially used (`partial`): Some objects have been allocated, but free space remains.  
+  - Free (`free`): No objects have been allocated, and the slab is completely available for use.  
+- **A "available slab" is defined as a slab in either the `partial` or `free` state**, meaning it still has available space for object allocation.  
+- **Each `struct slab` is dynamically allocated as needed and is linked together in a list**, ensuring flexibility and scalability in memory management.  
+
+![](./img/mp2-slab.png)  
+
+The diagram above illustrates the state transition of a free slab before and after an object allocation. After allocation, the slab transitions into a partially used state.
+
+In the function signature of `kmem_cache_free`, where only `struct kmem_cache *cache` and the core object pointer `void *obj` are provided, determining which `struct slab` the given `obj` belongs to is a critical design challenge. Consider what design approaches or techniques can be used to map `obj` to its corresponding `slab`.
+
+#### `struct kmem_cache`
+
+- **Manages all slabs containing the same type of core object**, ensuring efficient memory allocation and deallocation.  
+- **For example, the system may create a separate `kmem_cache` for `struct file` and `struct proc`**, each dedicated to managing the slabs for their respective objects. *(This assignment does not involve modifications to `struct proc`.)*  
+
+![](./img/mp2-kmem_cache.png)  
+
+As shown in the diagram, a `kmem_cache` may manage multiple metadata entries and maintain one or more linked lists of slabs.
+
 ### Synchronization and Race Conditions in `kmem_cache`
 
 In multi-core and multi-threaded environments, operations on `kmem_cache` involve modifying and managing Slab lists, potentially leading to race conditions. When multiple CPUs access `kmem_cache` simultaneously—especially during object allocation (`kmem_cache_alloc()`) or deallocation (`kmem_cache_free()`)—data inconsistency or memory corruption may occur without proper synchronization.
@@ -600,7 +634,7 @@ struct kmem_cache {
 Key considerations:
 
 1. **Free Slab Release Mechanism**
-   To reduce memory waste from excessive free Slabs, when the total number of available Slabs (`partial + free`) exceeds `MIN_AVAIL_SLAB` defined in [`param.h`](../kernel/param.h), and a new Slab becomes fully free (`free`), its memory should be actively released. This will be tested via `kmem_cache_free`.
+   To reduce memory waste from excessive free Slabs, when the total number of available Slabs (`partial + free`) exceeds `MP2_MIN_AVAIL_SLAB` defined in [`param.h`](../kernel/param.h), and a new Slab becomes fully free (`free`), its memory should be actively released. This will be tested via `kmem_cache_free`.
 
 2. **Internal Fragmentation Optimization**
    Due to [internal fragmentation issues](#kmem_cache-internal-fragmentation-issue), allocating and freeing objects using `kmem_cache`’s internal space (setting their `<slab_addr>` to `kmem_cache`’s address) earns an additional **7%**.
@@ -638,11 +672,12 @@ All Slab memory management functions should use `[SLAB] ` as a prefix for output
 Before successfully creating and returning `kmem_cache`, output the following:
 
 ```log
-[SLAB] New kmem_cache (name: <name>, object size: <obj_size> bytes) is created
+[SLAB] New kmem_cache (name: <name>, object size: <obj_size> bytes, max objects per slab: <max_objs>) is created
 ```
 
 - **`<name>`**: Name of the new `kmem_cache` (`kmem_cache::name`).
 - **`<obj_size>`**: Size of objects within the `kmem_cache` (`kmem_cache::object_size`, in bytes).
+- **`<max_objs>`**: Maximum number of objects within a `slab`.
 
 ### `kmem_cache_alloc`: Allocating Objects
 
@@ -668,7 +703,7 @@ When freeing objects, follow the flowchart below and output corresponding inform
 - **`<before>`**: State of the object’s Slab before freeing (`full/partial/free/cache`).
 - **`<after>`**: State of the object’s Slab after freeing (`full/partial/free/cache`).
 
-Additionally, if **the number of (`partial` + `free`) Slabs exceeds `MIN_AVAIL_SLAB`** and the object’s Slab becomes fully free (`free`), release the Slab to reclaim memory.
+Additionally, if **the number of (`partial` + `free`) Slabs exceeds `MP2_MIN_AVAIL_SLAB`** and the object’s Slab becomes fully free (`free`), release the Slab to reclaim memory.
 
 In addition, students can also print other customized debug messages, as long as they do not conflict with the print format in the flowchart. As suggestion, one can print custom debug messages with other prefixes (such as lowercase `[slab]`, etc.).
 
