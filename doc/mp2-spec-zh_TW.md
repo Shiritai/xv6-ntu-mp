@@ -387,7 +387,9 @@ struct kmem_cache {
 
 ![](./img/mp2-slab.png)
 
-上圖便是一個閒置的 slab 配置一個物件前後的狀態變化。配置完後變成一個部分使用的 slab。
+上圖便是一個閒置的 slab 配置一個物件前後的狀態變化示意圖。配置完後變成一個部分使用的 slab。
+
+此外，在 `kmem_cache_free` 的函式簽名中，僅提供 `struct kmem_cache *cache` 及核心物件指標 `void *obj` 的情況下，如何確定 `obj` 所屬的 `struct slab` 是一項重要的設計課題。請思考有哪些設計方案或技術可用於實現 `obj` 到 `slab` 的映射？
 
 #### `struct kmem_cache`
 

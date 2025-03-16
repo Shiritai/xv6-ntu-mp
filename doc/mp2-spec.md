@@ -384,6 +384,8 @@ Kernel objects refer to the data structures managed by the kernel, such as `stru
 
 The diagram above illustrates the state transition of a free slab before and after an object allocation. After allocation, the slab transitions into a partially used state.
 
+In the function signature of `kmem_cache_free`, where only `struct kmem_cache *cache` and the core object pointer `void *obj` are provided, determining which `struct slab` the given `obj` belongs to is a critical design challenge. Consider what design approaches or techniques can be used to map `obj` to its corresponding `slab`.
+
 #### `struct kmem_cache`
 
 - **Manages all slabs containing the same type of core object**, ensuring efficient memory allocation and deallocation.  
