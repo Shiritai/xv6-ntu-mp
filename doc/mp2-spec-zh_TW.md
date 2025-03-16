@@ -638,7 +638,7 @@ struct kmem_cache {
 
 1. 閒置 Slab 釋放機制
 
-   為了減少過多閒置 Slab 的記憶體浪費，當可用 Slab（即 `partial + free`）的總數超過 [`param.h`](../kernel/param.h) 中定義的 `MIN_AVAIL_SLAB` 時，若有新的 Slab 變為完全閒置（`free`），則應主動釋放其佔用的記憶體。該機制將透過 `kmem_cache_free` 進行測試。
+   為了減少過多閒置 Slab 的記憶體浪費，當可用 Slab（即 `partial + free`）的總數超過 [`param.h`](../kernel/param.h) 中定義的 `MP2_MIN_AVAIL_SLAB` 時，若有新的 Slab 變為完全閒置（`free`），則應主動釋放其佔用的記憶體。該機制將透過 `kmem_cache_free` 進行測試。
 2. 內部碎裂優化
 
    由於[內部碎裂問題](#kmem_cache-的內部碎裂問題)，若透過 `kmem_cache` 的內部空間進行物件的配置與釋放（即將這些物件的 `<slab_addr>` 設為 `kmem_cache` 的地址），可獲得額外 **7%** 的加分。
@@ -676,11 +676,12 @@ void print_kmem_cache(struct kmem_cache *, void (*)(void *));
 在成功創建並返回 `kmem_cache` 之前，請輸出以下資訊：
 
 ```log
-[SLAB] New kmem_cache (name: <name>, object size: <obj_size> bytes) is created
+[SLAB] New kmem_cache (name: <name>, object size: <obj_size> bytes, max objects per slab: <max_objs>) is created
 ```
 
 - **`<name>`**：新建的 `kmem_cache` 之名稱 (`kmem_cache::name`)。
 - **`<obj_size>`**：該 `kmem_cache` 內部物件的大小 (`kmem_cache::object_size`，單位為 Bytes)。
+- **`<max_objs>`**：一個 `slab` 中能容納物件的最大數量。
 
 ### `kmem_cache_alloc`: 配置物件
 
@@ -706,7 +707,7 @@ void print_kmem_cache(struct kmem_cache *, void (*)(void *));
 - **`<before>`**：物件所屬 Slab 在釋放前的狀態 (`full/partial/free/cache`)。
 - **`<after>`**：物件所屬 Slab 在釋放後的狀態 (`full/partial/free/cache`)。
 
-此外，若 **(`partial` + `free` Slab 數量) 超過 `MIN_AVAIL_SLAB`**，且該物件所在 Slab 變為完全閒置 (`free`)，則應釋放該 Slab 以回收記憶體。
+此外，若 **(`partial` + `free` Slab 數量) 超過 `MP2_MIN_AVAIL_SLAB`**，且該物件所在 Slab 變為完全閒置 (`free`)，則應釋放該 Slab 以回收記憶體。
 
 除此之外，同學們也可以列印其他自訂的除錯訊息，只要不和流程圖中出現的列印格式相衝突即可。建議以其他前綴 (比如小寫的 `[slab]` 等) 列印自定義的除錯訊息。
 

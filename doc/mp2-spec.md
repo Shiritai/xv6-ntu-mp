@@ -634,7 +634,7 @@ struct kmem_cache {
 Key considerations:
 
 1. **Free Slab Release Mechanism**
-   To reduce memory waste from excessive free Slabs, when the total number of available Slabs (`partial + free`) exceeds `MIN_AVAIL_SLAB` defined in [`param.h`](../kernel/param.h), and a new Slab becomes fully free (`free`), its memory should be actively released. This will be tested via `kmem_cache_free`.
+   To reduce memory waste from excessive free Slabs, when the total number of available Slabs (`partial + free`) exceeds `MP2_MIN_AVAIL_SLAB` defined in [`param.h`](../kernel/param.h), and a new Slab becomes fully free (`free`), its memory should be actively released. This will be tested via `kmem_cache_free`.
 
 2. **Internal Fragmentation Optimization**
    Due to [internal fragmentation issues](#kmem_cache-internal-fragmentation-issue), allocating and freeing objects using `kmem_cache`’s internal space (setting their `<slab_addr>` to `kmem_cache`’s address) earns an additional **7%**.
@@ -672,11 +672,12 @@ All Slab memory management functions should use `[SLAB] ` as a prefix for output
 Before successfully creating and returning `kmem_cache`, output the following:
 
 ```log
-[SLAB] New kmem_cache (name: <name>, object size: <obj_size> bytes) is created
+[SLAB] New kmem_cache (name: <name>, object size: <obj_size> bytes, max objects per slab: <max_objs>) is created
 ```
 
 - **`<name>`**: Name of the new `kmem_cache` (`kmem_cache::name`).
 - **`<obj_size>`**: Size of objects within the `kmem_cache` (`kmem_cache::object_size`, in bytes).
+- **`<max_objs>`**: Maximum number of objects within a `slab`.
 
 ### `kmem_cache_alloc`: Allocating Objects
 
@@ -702,7 +703,7 @@ When freeing objects, follow the flowchart below and output corresponding inform
 - **`<before>`**: State of the object’s Slab before freeing (`full/partial/free/cache`).
 - **`<after>`**: State of the object’s Slab after freeing (`full/partial/free/cache`).
 
-Additionally, if **the number of (`partial` + `free`) Slabs exceeds `MIN_AVAIL_SLAB`** and the object’s Slab becomes fully free (`free`), release the Slab to reclaim memory.
+Additionally, if **the number of (`partial` + `free`) Slabs exceeds `MP2_MIN_AVAIL_SLAB`** and the object’s Slab becomes fully free (`free`), release the Slab to reclaim memory.
 
 In addition, students can also print other customized debug messages, as long as they do not conflict with the print format in the flowchart. As suggestion, one can print custom debug messages with other prefixes (such as lowercase `[slab]`, etc.).
 
