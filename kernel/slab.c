@@ -5,27 +5,28 @@
 #include "riscv.h"
 #include "defs.h"
 #include "slab.h"
+#include "debug.h"
 
 // TODO: hint 利用 4K 對齊
 #define GET_SLAB_FROM(obj) ((struct slab *)((uint64)obj & ~(MP2_SLAB_SIZE - 1)))
 
 void print_slab(struct slab *s, uint size, void (*slab_obj_printer)(void *))
 {
-  // printf("[SLAB]        [ slab %p ] { freelist: %p, prev: %p, next: %p }\n",
+  // debug("[SLAB]        [ slab %p ] { freelist: %p, prev: %p, next: %p }\n",
   //   s, s->freelist, s->list.prev, s->list.next);
-  printf("[SLAB]        [ slab %p ] { freelist: %p, in_use: %d, prev: %p, next: %p }\n",
+  debug("[SLAB]        [ slab %p ] { freelist: %p, in_use: %d, prev: %p, next: %p }\n",
     s, s->freelist, s->in_use, s->list.prev, s->list.next);
   // struct run *obj = (struct run *)(s + 1);
   void *obj = (void *) (s + 1);
   for (int i = 0; i < (MP2_SLAB_SIZE - sizeof(struct slab)) / size; i++)
   {
     // read as pointer list
-    // printf("[SLAB]            { addr: %p, as_ptr: %p, as_obj: { ", obj, obj->next);
-    printf("[SLAB]            { addr: %p, as_ptr: %p, as_obj: { ", obj, *(void **)obj);
+    // debug("[SLAB]            { addr: %p, as_ptr: %p, as_obj: { ", obj, obj->next);
+    debug("[SLAB]            { addr: %p, as_ptr: %p, as_obj: { ", obj, *(void **)obj);
     // read as file object
     if (slab_obj_printer)
       slab_obj_printer(obj);
-    printf(" } }\n");
+    debug(" } }\n");
     obj = (void *)((char *)obj + size);
   }
 
@@ -37,22 +38,22 @@ void print_slab(struct slab *s, uint size, void (*slab_obj_printer)(void *))
 void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *))
 {
   // TODO: template
-  // printf("[SLAB] TODO: print_kmem_cache \n");
+  // debug("[SLAB] TODO: print_kmem_cache \n");
 
-  printf("[SLAB] kmem_cache { name: %s, object_size: %d, harden: %d, rand: %d }\n", cache->name, cache->object_size, MP2_FREELIST_HARDENED, MP2_FREELIST_RANDOMIZATION);
+  debug("[SLAB] kmem_cache { name: %s, object_size: %d, harden: %d, rand: %d }\n", cache->name, cache->object_size, MP2_FREELIST_HARDENED, MP2_FREELIST_RANDOMIZATION);
   
   struct slab *s;
-  printf("[SLAB]    [ Full    slabs (head: %p) ]\n", &cache->full);
+  debug("[SLAB]    [ Full    slabs (head: %p) ]\n", &cache->full);
   list_for_each_entry(s, &cache->full, list) {
     print_slab(s, cache->object_size, slab_obj_printer);
   }
 
-  printf("[SLAB]    [ Partial slabs (head: %p) ]\n", &cache->partial);
+  debug("[SLAB]    [ Partial slabs (head: %p) ]\n", &cache->partial);
   list_for_each_entry(s, &cache->partial, list) {
     print_slab(s, cache->object_size, slab_obj_printer);
   }
 
-  // printf("[SLAB]    [ Free    slabs (head: %p) ]\n", &cache->free);
+  // debug("[SLAB]    [ Free    slabs (head: %p) ]\n", &cache->free);
   // list_for_each_entry(s, &cache->free, list) {
   //   print_slab(s, cache->object_size, slab_obj_printer);
   // }
@@ -67,7 +68,7 @@ struct kmem_cache *kmem_cache_create(char *name, uint object_size)
   struct kmem_cache *cache = (struct kmem_cache *) kalloc();
   if (!cache)
   {
-    printf("[SLAB] Failed to create cache: %s\n", name);
+    debug("[SLAB] Failed to create cache: %s\n", name);
     return 0;
   }
 
@@ -84,7 +85,7 @@ struct kmem_cache *kmem_cache_create(char *name, uint object_size)
   // INIT_LIST_HEAD(&cache->free);
   
   // TODO: mention in spec
-  printf("[SLAB] New kmem_cache (name: %s, object size: %d bytes) is created\n", cache->name, cache->object_size);
+  debug("[SLAB] New kmem_cache (name: %s, object size: %d bytes) is created\n", cache->name, cache->object_size);
   
   // TODO: mention in spec
   return cache;
@@ -102,7 +103,7 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
   // TODO: mention in spec, and release before return
   acquire(&cache->lock);
   
-  printf("[SLAB] Alloc request on cache %s\n", cache->name);
+  debug("[SLAB] Alloc request on cache %s\n", cache->name);
   
   struct slab *s;
   // 1. 檢查 partial slabs 是否有可用物件
@@ -111,7 +112,7 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
     s = list_first_entry(&cache->partial, struct slab, list);
     if (!s->freelist)
     {
-      printf("[SLAB] Warning: Partial slab is empty!\n");
+      debug("[SLAB] Warning: Partial slab is empty!\n");
       release(&cache->lock);
       return 0;
     }
@@ -129,7 +130,7 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
       --cache->partial_cnt;
       list_add(&s->list, &cache->full);
       ++cache->full_cnt;
-      printf("[SLAB] Move partial slab %p to full slabs (%s)\n", s, cache->name);
+      debug("[SLAB] Move partial slab %p to full slabs (%s)\n", s, cache->name);
     }
 
     release(&cache->lock);
@@ -138,8 +139,8 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
     memset(obj, 0, cache->object_size);
 
     // TODO: mention in spec
-    printf("[SLAB] Allocated %p from partial slab (%s)\n", obj, cache->name);
-    printf("[SLAB] Object %p in slab %p (%s) is allocated and initialized\n", obj, s, cache->name);
+    debug("[SLAB] Allocated %p from partial slab (%s)\n", obj, cache->name);
+    debug("[SLAB] Object %p in slab %p (%s) is allocated and initialized\n", obj, s, cache->name);
     return obj;
   }
 
@@ -150,7 +151,7 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
   //   list_del(&s->list);
 
   //   // TODO: mention in spec
-  //   printf("[SLAB] Reusing slab %p from free list (%s)\n", s, cache->name);
+  //   debug("[SLAB] Reusing slab %p from free list (%s)\n", s, cache->name);
   // }
   // else
   // {
@@ -158,7 +159,7 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
   //   s = (struct slab *) kalloc();
   //   if (!s)
   //   {
-  //     printf("[SLAB] Error: Failed to allocate new slab for %s\n", cache->name);
+  //     debug("[SLAB] Error: Failed to allocate new slab for %s\n", cache->name);
   //     release(&cache->lock);
   //     return 0;
   //   }
@@ -166,19 +167,19 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
   //   s->in_use = 0;
     
   //   // TODO: mention in spec
-  //   printf("[SLAB] Allocated new slab %p for %s\n", s, cache->name);
+  //   debug("[SLAB] Allocated new slab %p for %s\n", s, cache->name);
   // }
 
   // 3. 如果沒有可用 slab，則分配新的 slab
   s = (struct slab *) kalloc();
   if (!s)
   {
-    printf("[SLAB] Error: Failed to allocate new slab for %s\n", cache->name);
+    debug("[SLAB] Error: Failed to allocate new slab for %s\n", cache->name);
     release(&cache->lock);
     return 0;
   }
   // TODO: mention in spec
-  printf("[SLAB] A new slab %p (%s) is allocated\n", s, cache->name);
+  debug("[SLAB] A new slab %p (%s) is allocated\n", s, cache->name);
   
   // 4. 初始化新的 slab
   s->in_use = 0;
@@ -217,7 +218,7 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
   memset(obj, 0, cache->object_size);
 
   // TODO: mention in spec
-  printf("[SLAB] Object %p in slab %p (%s) is allocated and initialized\n", obj, s, cache->name);
+  debug("[SLAB] Object %p in slab %p (%s) is allocated and initialized\n", obj, s, cache->name);
 
   // TODO: mention in spec
   return obj;
@@ -229,7 +230,7 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj)
   
   if (!obj)
   {
-    printf("[SLAB] Warning: Attempted to free NULL object (%s)\n", cache->name);
+    debug("[SLAB] Warning: Attempted to free NULL object (%s)\n", cache->name);
     return;
   }
 
@@ -239,12 +240,12 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj)
   
   if (!s)
   {
-    printf("[SLAB] Error: No available slabs in %s\n", cache->name);
+    debug("[SLAB] Error: No available slabs in %s\n", cache->name);
     release(&cache->lock);
     return;
   }
 
-  printf("[SLAB] Free %p in slab %p (%s)\n", obj, s, cache->name);
+  debug("[SLAB] Free %p in slab %p (%s)\n", obj, s, cache->name);
 
   // struct run *as_run = (struct run *) obj;
   // as_run->next = s->freelist;
@@ -261,7 +262,7 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj)
     --cache->full_cnt;
     list_add(&s->list, &cache->partial);
     ++cache->partial_cnt;
-    printf("[SLAB] Slab %p (%s) is moved from full to partial\n", s, cache->name);
+    debug("[SLAB] Slab %p (%s) is moved from full to partial\n", s, cache->name);
   }
   
   if (s->in_use == 0)
@@ -269,7 +270,7 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj)
     // if free list exists
     // list_del(&s->list);
     // list_add(&s->list, &cache->free);
-    // printf("[SLAB] Slab %p (%s) is moved from partial to free\n", s, cache->name);
+    // debug("[SLAB] Slab %p (%s) is moved from partial to free\n", s, cache->name);
     
     // if min available slabs satisfied
     if (cache->partial_cnt > MP2_MIN_AVAIL_SLAB)
@@ -277,7 +278,7 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj)
       --cache->partial_cnt;
       list_del(&s->list);
       kfree(s);
-      printf("[SLAB] Slab %p (%s) is freed due to save memory (%d, %d)\n", s, cache->name, cache->partial_cnt, cache->full_cnt);
+      debug("[SLAB] Slab %p (%s) is freed due to save memory (%d, %d)\n", s, cache->name, cache->partial_cnt, cache->full_cnt);
     }
   }
 
