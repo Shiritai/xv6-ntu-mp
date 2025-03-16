@@ -2,7 +2,7 @@
 
 ## Basic Information
 
-* **Full Score**: 140%
+* **Full Score**: 140% (Basic: 100%, Bonus: 40%)
 * **Release Date**: March 18, 2025
 * **Due Date**: April 1, 2025
 * **TA Email**: ntuos@googlegroups.com
@@ -12,7 +12,7 @@
 
 
 
-## Abstraction
+## Overview
 
 In the MP2 assignment, we will explore **memory allocation and deallocation mechanisms for small kernel objects** and require students to **design and implement a SLAB allocator** within the `xv6` operating system.
 
@@ -431,29 +431,108 @@ When `MP2_FREELIST_RANDOMIZATION = 1` is defined in [`param.h`](../kernel/param.
 
 To comply with [implementation specifications](#print_kmem_cache-printing-struct-kmem_cache-information), treat `struct kmem_cache` as a slab with `<slab_type>` as `cache`. In printed information, `<slab_addr>` directly corresponds to `struct kmem_cache`’s memory address.
 
-## Implementation Requirements
-
-This assignment offers students significant flexibility to customize the `slab` design, provided the following specifications are followed.
+## Prerequisite Information for Implementation
 
 ### File Modification Rules
 
-* **Ensure your student ID is filled in the `student_id.txt` file**.
-* Modification of the following restricted files is prohibited:
-  * Restricted Git branch: `ntuos/mp2-submit`
-  * Restricted files:
+- **Ensure that your student ID is recorded in the `student_id.txt` file.**  
+- Restricted files in the following branches **must not be modified**:
+  - **Restricted Git branch:** `ntuos/mp2-submit`
+  - **Restricted files:**
     - `kernel/file.h`
     - `kernel/list.h`
-    - All code in the `user/` directory
-  * If restricted files in the `ntuos/mp2-submit` branch show modification records, it will be considered a violation, resulting in a score of zero.
-  * Modifications are allowed in other Git branches.
-  * Local changes to these files are permitted but must not be committed to the restricted branch.
-* `kernel/param.h` file:
-  * Students **may only modify** `MP2_FREELIST_HARDENED` and `MP2_FREELIST_RANDOMIZATION`.
-  * No other code adjustments are allowed.
-* `kernel/file.c` file:
-  * Students **must not modify** print-related code prefixed with `[FILE] `.
-  * Adjust the remaining code to use `struct kmem_cache` to manage `struct file`.
-* Students are free to add new files and modify other code.
+    - All source code in the `user/` directory  
+  - **Any modifications to the restricted files within the `ntuos/mp2-submit` branch will be considered a violation, resulting in a zero score for the assignment.**  
+  - **Modifications may be made in other Git branches.**  
+  - **Local changes to restricted files are allowed but must not be committed to the restricted branch.**  
+
+- **Modifications to `kernel/param.h`:**
+  - Students **may only modify** the `MP2_FREELIST_HARDENED` and `MP2_FREELIST_RANDOMIZATION` settings.
+  - **All other code must remain unchanged.**  
+
+- **Modifications to `kernel/file.c`:**
+  - **Do not modify** any debugging output code that starts with the `[FILE] ` prefix.
+  - Other parts of the file may be adjusted to enable **`xv6` to manage `struct file` using `struct kmem_cache`**.  
+
+- **Students are free to add new files or modify other parts of the code, except for the restrictions mentioned above.**
+
+### Simple Kernel Debugger
+
+Debugging newly added features in large-scale software projects is a challenging task. To facilitate this, many projects integrate logging or debugging systems to help developers diagnose issues. However, **xv6 only provides basic output functionality**, such as `printf`, which is limited in terms of debugging and testing capabilities. To improve debugging efficiency and testing flexibility, we have implemented a **simple kernel debugging system** for students to utilize.
+
+This debugging system is fully compatible with the `printf` interface, supporting formatted output along with additional control options.
+
+```c
+// in file.c
+#include "debug.h" // Include the kernel debugging tool
+// Formatted output
+debug("tp: %d, ref: %d, readable: %d, ...",
+      file->type, file->ref, file->readable, ...);
+// Standard string output
+debug("[FILE] filealloc");
+```
+
+For this MP2 assignment, **all output must be handled using the `debug` macro function** to ensure compatibility with the testing and grading system. **Strict adherence to this requirement is mandatory** to prevent inconsistencies in test results, which may affect grading.
+
+For detailed usage instructions, please refer to the [`kernel/debug.h`](../kernel/debug.h) documentation.
+
+### Dynamic Debugging Mode Switching
+
+The `debugswitch` command is provided in `xv6`, allowing developers to **toggle debugging mode via the command line**. Running `debugswitch` will **switch between enabling and disabling debug output**, making it easier to conduct tests and diagnose issues.
+
+Example execution of `debugswitch`:
+```sh
+xv6 kernel is booting
+
+[FILE] fileinit
+hart 2 starting
+hart 1 starting
+[FILE] filealloc
+init: starting sh
+[FILE] filealloc
+[FILE] fileclose
+$ debugswitch
+Switch debug mode to 0
+$ ls
+.              1 1 1024
+..             1 1 1024
+README         2 2 2292
+cat            2 3 34728
+...
+console        3 22 0
+$ debugswitch
+Switch debug mode to 1
+$ ls
+[FILE] filealloc
+[FILE] filealloc
+[FILE] fileclose
+.              1 1 1024
+[FILE] filealloc
+[FILE] fileclose
+..             1 1 1024
+[FILE] filealloc
+[FILE] fileclose
+README         2 2 2292
+...
+[FILE] filealloc
+[FILE] fileclose
+console        3 22 0
+[FILE] fileclose
+```
+
+### Adjusting the Default Debug Mode
+
+The default debugging mode can be configured in [`param.h`](../kernel/param.h).  
+Students may adjust the debug mode locally based on their development needs. However, **when submitting to GitHub, `MP2_DEFAULT_DEBUG_MODE` must be set to `1`** (debug mode enabled) to ensure proper evaluation.
+
+```c
+// in param.h
+#define MP2_DEFAULT_DEBUG_MODE 1 // Debug mode enabled by default
+```
+
+## Implementation Requirements
+
+This assignment offers students significant flexibility to customize the `slab` design, provided the following specifications are followed.
 
 ### `struct slab` Design
 
@@ -605,7 +684,7 @@ The following code has been added to `file.[h,c]` for you:
 #include "kernel/slab.h"
 
 struct file {
-  ...
+    ...
 #ifdef MP2_TEST
   int fat_element[MP2_FILE_MAGIC_N];
 #endif // _MP2_TEST_
@@ -616,9 +695,10 @@ extern struct kmem_cache *file_cache;
 void fileprint_metadata(void *f);
 
 // file.c
+#include "kernel/debug.h"
 void fileprint_metadata(void *f) {
   struct file *file = (struct file *) f;
-  printf("tp: %d, ref: %d, readable: %d, writable: %d, pipe: %p, ip: %p, off: %d, major: %d",
+  debug("tp: %d, ref: %d, readable: %d, writable: %d, pipe: %p, ip: %p, off: %d, major: %d",
          file->type, file->ref, file->readable, file->writable, file->pipe, file->ip, file->off, file->major);
 }
 
@@ -627,7 +707,7 @@ struct kmem_cache *file_cache;
 void
 fileinit(void)
 {
-  printf("[FILE] fileinit\n");
+  debug("[FILE] fileinit\n");
   // ...
 }
 
@@ -635,7 +715,7 @@ fileinit(void)
 struct file*
 filealloc(void)
 {
-  printf("[FILE] filealloc\n");
+  debug("[FILE] filealloc\n");
   // ...
 }
 
@@ -645,7 +725,7 @@ void
 fileclose(struct file *f)
 {
   // ...
-  printf("[FILE] fileclose\n");
+  debug("[FILE] fileclose\n");
   ff = *f;
   f->ref = 0;
   // ...
