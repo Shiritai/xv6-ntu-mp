@@ -41,7 +41,7 @@ void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *)
   // debug("[SLAB] TODO: print_kmem_cache \n");
 
 #ifdef MP2_IN_CACHE_FREELIST
-  debug("[SLAB] kmem_cache { name: %s, object_size: %d, in_cache_obj: %lu }\n", cache->name, cache->object_size, (MP2_SLAB_SIZE - sizeof(struct kmem_cache)) / cache->object_size);
+  debug("[SLAB] kmem_cache { name: %s, object_size: %d, at: %p, in_cache_obj: %lu }\n", cache->name, cache->object_size, cache, (MP2_SLAB_SIZE - sizeof(struct kmem_cache)) / cache->object_size);
   debug("[SLAB]    [ cache    slabs ]\n");
   debug("[SLAB]        [ slab %p ] { freelist: %p, nxt: %p }\n",
     cache, cache->freelist, (void *) 0);
@@ -59,22 +59,22 @@ void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *)
     obj = (void *)((char *)obj + cache->object_size);
   }
 #else
-  debug("[SLAB] kmem_cache { name: %s, object_size: %d, in_cache_obj: %d }\n", cache->name, cache->object_size, 0);
+  debug("[SLAB] kmem_cache { name: %s, object_size: %d, at: %p, in_cache_obj: %d }\n", cache->name, cache->object_size, cache, 0);
 #endif // MP2_IN_CACHE_FREELIST
 
-  struct slab *s;
-  if (!list_empty(&cache->full))
-  {
-    debug("[SLAB]    [ full    slabs ]\n");
-    list_for_each_entry(s, &cache->full, list) {
-      print_slab(s, cache->object_size, slab_obj_printer);
-    }
-  }
+  struct slab *s, *safe;
+  // if (!list_empty(&cache->full))
+  // {
+  //   debug("[SLAB]    [ full    slabs ]\n");
+  //   list_for_each_entry_safe(s, safe, &cache->full, list) {
+  //     print_slab(s, cache->object_size, slab_obj_printer);
+  //   }
+  // }
 
   if (!list_empty(&cache->partial))
   {
     debug("[SLAB]    [ partial slabs ]\n");
-    list_for_each_entry(s, &cache->partial, list) {
+    list_for_each_entry_safe(s, safe, &cache->partial, list) {
       print_slab(s, cache->object_size, slab_obj_printer);
     }
   }
@@ -112,15 +112,16 @@ for (int i = 0; i < (MP2_SLAB_SIZE - sizeof(struct kmem_cache)) / cache->object_
 *(void **)obj = 0; // mark as the last object
 #endif // MP2_IN_CACHE_FREELIST
   
-  cache->partial_cnt = cache->full_cnt = 0;
+  cache->partial_cnt = 0;
+  // cache->full_cnt = 0;
 
-  INIT_LIST_HEAD(&cache->full);
+  // INIT_LIST_HEAD(&cache->full);
   INIT_LIST_HEAD(&cache->partial);
   // INIT_LIST_HEAD(&cache->free);
   
   // TODO: mention in spec
-  debug("[SLAB] New kmem_cache (name: %s, object size: %d bytes, max objects per slab: %lu, support in cache obj: %lu) is created\n",
-    cache->name, cache->object_size, (MP2_SLAB_SIZE - sizeof(struct slab)) / cache->object_size,
+  debug("[SLAB] New kmem_cache (name: %s, object size: %d bytes, at: %p, max objects per slab: %lu, support in cache obj: %lu) is created\n",
+    cache->name, cache->object_size, cache, (MP2_SLAB_SIZE - sizeof(struct slab)) / cache->object_size,
 #ifdef MP2_IN_CACHE_FREELIST
     (MP2_SLAB_SIZE - sizeof(struct kmem_cache)) / cache->object_size
 #else
@@ -134,6 +135,11 @@ for (int i = 0; i < (MP2_SLAB_SIZE - sizeof(struct kmem_cache)) / cache->object_
 
 void kmem_cache_destroy(struct kmem_cache *cache)
 {
+  struct slab *s, *safe;
+  list_for_each_entry_safe(s, safe, &cache->partial, list)
+  {
+    kfree(s);
+  }
   kfree(cache);
 }
 
@@ -181,8 +187,8 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
     {
       list_del(&s->list);
       --cache->partial_cnt;
-      list_add(&s->list, &cache->full);
-      ++cache->full_cnt;
+      // list_add(&s->list, &cache->full);
+      // ++cache->full_cnt;
       debug("[SLAB] Move partial slab %p to full slabs (%s)\n", s, cache->name);
     }
 
@@ -323,8 +329,8 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj)
   // if (s->in_use == (MP2_SLAB_SIZE - sizeof(struct slab)) / cache->object_size - 1)
   if (!*(void **)obj) // 若 s->freelist 原本為空, 且 obj 非空 (必然，最前面的邊界條件)
   {
-    list_del(&s->list);
-    --cache->full_cnt;
+    // list_del(&s->list);
+    // --cache->full_cnt;
     list_add(&s->list, &cache->partial);
     ++cache->partial_cnt;
     debug("[SLAB] Slab %p (%s) is moved from full to partial\n", s, cache->name);

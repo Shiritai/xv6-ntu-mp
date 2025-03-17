@@ -53,9 +53,9 @@ struct kmem_cache
   // <TYPE> partial  // Partially allocated slabs
   // <TYPE> free     // Free slabs (Optional)
   struct list_head partial; // Partially allocated slabs
-  struct list_head full;    // Completely allocated slabs
+  // struct list_head full;    // Completely allocated slabs
   uint partial_cnt;
-  uint full_cnt;
+  // uint full_cnt;
   // struct list_head free;    // Free slabs
 
 #ifdef MP2_IN_CACHE_FREELIST
