@@ -1,0 +1,1 @@
+mp2 | tee f1 | tee f2 | tee f3 | tee f4 | tee f5 | tee f6 | tee f7 > f8
