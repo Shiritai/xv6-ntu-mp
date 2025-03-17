@@ -142,6 +142,10 @@ UPROGS=\
 	$U/_wc\
 	$U/_zombie\
 	$U/_debugswitch\
+	$U/_prepare\
+	$U/_gah\
+	$U/_oak\
+	$U/_oap\
 	$U/_tee\
 	$U/_mp2\
 

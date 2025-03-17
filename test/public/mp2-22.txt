@@ -1,0 +1,3 @@
+ls > ok
+ls > ok
+ls > ok
