@@ -3,6 +3,7 @@
 from gradelib import *
 from pseudo_fslab import interpreter
 import os
+import sys
 from typing import List
 
 def run_mp2_test(test_name: str, script_file: str, points: int) -> None:
@@ -40,13 +41,18 @@ def run_mp2_test(test_name: str, script_file: str, points: int) -> None:
 
     return test_case
 
-def main():
+def main(rng):
     """Define and run MP2 test cases."""
     os.makedirs(f"out/public", exist_ok=True)
     os.makedirs(f"out/private", exist_ok=True)
-    tests = list(range(0, 25))
+    tests = list(rng)
     tests = [run_mp2_test(f"public/mp2-{t}", f"test/public/mp2-{t}.txt", 3) for t in tests]
     run_tests()
 
 if __name__ == "__main__":
-    main()
+    _from, _to = 0, 25
+    if len(sys.argv) >= 2:
+        _from = int(sys.argv[1])
+    if len(sys.argv) >= 3:
+        _to = int(sys.argv[2])
+    main(range(_from, _to))
