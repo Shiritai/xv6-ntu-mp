@@ -15,3 +15,10 @@ mkfs
 kernel/kernel
 user/usys.S
 .gdbinit
+
+# mp2
+out
+test/pseudo_fslab.py
+test/pseudo_fslab.pyx
+test/build
+tmp

@@ -1,3 +1,7 @@
 #!/bin/bash
 
-echo "mp2.sh - Command line tool to prepare developement environment."
+if [[ $1 = 'test' ]]; then
+    python3 test/run_mp2.py
+elif [[ $1 = 'start' ]]; then
+    echo start
+fi
