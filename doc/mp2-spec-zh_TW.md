@@ -652,12 +652,13 @@ void print_kmem_cache(struct kmem_cache *, void (*)(void *));
 在成功創建並返回 `kmem_cache` 之前，請輸出以下資訊：
 
 ```log
-[SLAB] New kmem_cache (name: <name>, object size: <obj_size> bytes, max objects per slab: <max_objs>) is created
+[SLAB] New kmem_cache (name: <name>, object size: <obj_size> bytes, max objects per slab: <max_objs>, support in cache obj: <in_cache_obj>) is created
 ```
 
 - **`<name>`**：新建的 `kmem_cache` 之名稱 (`kmem_cache::name`)。
 - **`<obj_size>`**：該 `kmem_cache` 內部物件的大小 (`kmem_cache::object_size`，單位為 Bytes)。
 - **`<max_objs>`**：一個 `slab` 中能容納物件的最大數量。
+- **`<in_cache_obj>`**：是否支援 kmem_cache 內部配置物件，即是否實作[內部碎裂問題](#kmem_cache-的內部碎裂問題-加分項目)的解決方案。有實作則為 `1`，否則為 `0`。
 
 ### `kmem_cache_alloc`: 配置物件
 
