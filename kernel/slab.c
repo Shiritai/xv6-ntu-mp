@@ -41,7 +41,7 @@ void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *)
   // debug("[SLAB] TODO: print_kmem_cache \n");
 
 #ifdef MP2_IN_CACHE_FREELIST
-  debug("[SLAB] kmem_cache { name: %s, object_size: %d, in_cache_obj: %d }\n", cache->name, cache->object_size, 1);
+  debug("[SLAB] kmem_cache { name: %s, object_size: %d, in_cache_obj: %lu }\n", cache->name, cache->object_size, (MP2_SLAB_SIZE - sizeof(struct kmem_cache)) / cache->object_size);
   debug("[SLAB]    [ cache    slabs ]\n");
   debug("[SLAB]        [ slab %p ] { freelist: %p, nxt: %p }\n",
     cache, cache->freelist, (void *) 0);
