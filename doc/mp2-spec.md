@@ -751,7 +751,7 @@ When printing `struct kmem_cache`, `struct slab` should be categorized into `<sl
 
 ## Output Categories  
 
-The output is divided into four categories:  
+The output is divided into five categories:  
 
 #### 1. `<kmem_cache_status>`: Basic Information of `kmem_cache`  
 ```log
@@ -789,6 +789,12 @@ The output is divided into four categories:
 - `<as_ptr>`: The value obtained by interpreting the object as a pointer.  
 - `<as_obj>`: The output of interpreting the object as a system object (processed by `slab_obj_printer`).
 
+### 5. `<print_kmem_cache_end>`：函式終止符號
+
+```log
+[SLAB] print_kmem_cache end
+```
+
 ## Output Format Example  
 ```log
 [SLAB] <kmem_cache_status>
@@ -815,6 +821,9 @@ The output is divided into four categories:
 [SLAB] ...
 [SLAB] <obj_status n>
 [SLAB] ...
+[SLAB] ...
+[SLAB] ...
+[SLAB] <print_kmem_cache_end>
 ```
 
 Example:
