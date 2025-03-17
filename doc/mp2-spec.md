@@ -395,6 +395,15 @@ In the function signature of `kmem_cache_free`, where only `struct kmem_cache *c
 
 As shown in the diagram, a `kmem_cache` may manage multiple metadata entries and maintain one or more linked lists of slabs.
 
+#### Relationship Between `freelist` and `slab`
+
+To efficiently access the memory managed by `freelist`, it is essential to have a clear understanding of the memory layout of structures and pages. The diagram below illustrates the memory layout of a slab:  
+
+![](./img/mp2-slab-mem.png)  
+
+Consider how to access the memory regions corresponding to each object in the diagram (`space 0 ~ 7`).  
+Hint: [Pointer Arithmetic](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3220.pdf#subsection.6.5.7).
+
 ### Synchronization and Race Conditions in `kmem_cache`
 
 In multi-core and multi-threaded environments, operations on `kmem_cache` involve modifying and managing Slab lists, potentially leading to race conditions. When multiple CPUs access `kmem_cache` simultaneously—especially during object allocation (`kmem_cache_alloc()`) or deallocation (`kmem_cache_free()`)—data inconsistency or memory corruption may occur without proper synchronization.
@@ -463,7 +472,11 @@ When `MP2_FREELIST_RANDOMIZATION = 1` is defined in [`param.h`](../kernel/param.
 
 `struct kmem_cache` itself is a **dynamically allocated system object**, typically occupying **a full page**, but its own size is much smaller, leading to memory waste. To address this, the remaining space can be used to store allocatable objects within the Slab.
 
-To comply with [implementation specifications](#print_kmem_cache-printing-struct-kmem_cache-information), treat `struct kmem_cache` as a slab with `<slab_type>` as `cache`. In printed information, `<slab_addr>` directly corresponds to `struct kmem_cache`’s memory address.
+To comply with the [implementation requirements](#print_kmem_cache-printing-struct-kmem_cache-information), please:  
+
+- Treat `struct kmem_cache` as a slab with `<slab_type>` set to `cache`.  
+- In the printed information, set `<slab_addr>` to the memory address of `struct kmem_cache` itself.  
+- In the printed information, set `<nxt_slab_addr>` to `0x00...00`.
 
 ## Prerequisite Information for Implementation
 
@@ -775,32 +788,33 @@ When printing `struct kmem_cache`, classify `struct slab` based on the remaining
 
 ```log
 [SLAB] kmem_cache { name: <name>, obj_size: <object_size>, harden: <harden>, rand: <rand> }
-[SLAB] <SPACE>[ <slab_type> slabs (head: <slab_addr>) ]
+[SLAB] <SPACE>[ <slab_type> slabs ]
 ...
-[SLAB] <SPACE>[ <slab_type> slabs (head: <slab_addr>) ]
+[SLAB] <SPACE>[ <slab_type> slabs ]
 ...
 ```
 
 Additionally, print information for all `struct slab` instances managed by the system, with each `struct slab` including:
 
 ```log
-[SLAB] <SPACE>[ slab <slab_addr> ] { freelist: <freelist>, next: <next_slab_addr> }
-[SLAB] <SPACE>{ addr: <entry_addr>, as_ptr: <as_ptr>, as_obj: { <as_obj> } }
-[SLAB] <SPACE>{ addr: <entry_addr>, as_ptr: <as_ptr>, as_obj: { <as_obj> } }
+[SLAB] <SPACE>[ slab <slab_addr> ] { freelist: <freelist>, nxt: <next_slab_addr> }
+[SLAB] <SPACE>[ idx <idx> ] { addr: <entry_addr>, as_ptr: <as_ptr>, as_obj: {<as_obj>} }
+[SLAB] <SPACE>[ idx <idx> ] { addr: <entry_addr>, as_ptr: <as_ptr>, as_obj: {<as_obj>} }
 ...
-[SLAB] <SPACE>{ addr: <entry_addr>, as_ptr: <as_ptr>, as_obj: { <as_obj> } }
+[SLAB] <SPACE>[ idx <idx> ] { addr: <entry_addr>, as_ptr: <as_ptr>, as_obj: {<as_obj>} }
 ```
 
 Field definitions:
 
 - `<name>`: Name of the `kmem_cache` (`kmem_cache::name`).
 - `<obj_size>`: Size of objects in the `kmem_cache` (`kmem_cache::object_size`).
-- `<SPACE>`: Any number of spaces or tabs (`\t`).
+- `<SPACE>`: One or more arbitrary number of spaces (` `) or tab (`\t`).
 - `<slab_type>`: Classified as `full`, `partial`, `free`, or [`cache`](#kmem_cache-internal-fragmentation-issue).
   - All types may be printed during debugging.
   - ***Only `partial` and `cache` (if implemented) are checked in actual tests.***
   - The full and free slabs can be tracked through inference, so there is no need to print them.
 - `<slab_addr>`: Memory address of the slab.
+- `<nxt_slab_addr>`: Memory address of the next slab of the corresponding slab.
 - `<harden>`: Value of `MP2_FREELIST_HARDENED` (`0` or `1`), see [`freelist` security enhancements](#freelist-security-enhancements).
 - `<rand>`: Value of `MP2_FREELIST_RANDOMIZATION` (`0` or `1`), see [`freelist` security enhancements](#freelist-security-enhancements).
 - `<freelist>`: Value of `slab::freelist`.
@@ -810,18 +824,19 @@ Field definitions:
 
 Example:
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.5px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, harden: 0, rand: 1 }
-[SLAB]    [ Full    slabs (head: 0x0000000087f59058) ]
-[SLAB]    [ Partial slabs (head: 0x0000000087f59040) ]
-[SLAB]        [ slab 0x0000000087f4e000 ] { freelist: 0x0000000087f4ede8, prev: 0x0000000087f59040, next: 0x0000000087f32008 }
-[SLAB]            { addr: 0x0000000087f4e020, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035488, off: 0, major: 1 } }
-[SLAB]            { addr: 0x0000000087f4e218, as_ptr: 0x0000000000000000, as_obj: { tp: 0, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035598, off: 0, major: 0 } }
-[SLAB]            { addr: 0x0000000087f4e410, as_ptr: 0x0000000087f4e218, as_obj: { tp: -2013994472, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035620, off: 0, major: 0 } }
-[SLAB]            { addr: 0x0000000087f4e608, as_ptr: 0x0000000087f4e410, as_obj: { tp: -2013993968, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800356a8, off: 0, major: 0 } }
-[SLAB]            { addr: 0x0000000087f4e800, as_ptr: 0x0000000087f4e608, as_obj: { tp: -2013993464, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035730, off: 0, major: 0 } }
-[SLAB]            { addr: 0x0000000087f4e9f8, as_ptr: 0x0000000087f4e800, as_obj: { tp: -2013992960, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800357b8, off: 0, major: 0 } }
-[SLAB]            { addr: 0x0000000087f4ebf0, as_ptr: 0x0000000087f4e9f8, as_obj: { tp: -2013992456, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035840, off: 0, major: 0 } }
-[SLAB]            { addr: 0x0000000087f4ede8, as_ptr: 0x0000000087f4ebf0, as_obj: { tp: -2013991952, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800358c8, off: 0, major: 0 } }
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, harden: 0, rand: 1 }
+[SLAB]    [ full    slabs ]
+[SLAB]    [ partial slabs ]
+[SLAB]        [ slab 0x0000000087f4e000 ] { freelist: 0x0000000087f4ede8, prev: 0x0000000087f59040, nxt: 0x0000000087f32008 }
+[SLAB]            [ idx 0 ] { addr: 0x0000000087f4e020, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035488, off: 0, major: 1 } }
+[SLAB]            [ idx 1 ] { addr: 0x0000000087f4e218, as_ptr: 0x0000000000000000, as_obj: { tp: 0, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035598, off: 0, major: 0 } }
+[SLAB]            [ idx 2 ] { addr: 0x0000000087f4e410, as_ptr: 0x0000000087f4e218, as_obj: { tp: -2013994472, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035620, off: 0, major: 0 } }
+[SLAB]            [ idx 3 ] { addr: 0x0000000087f4e608, as_ptr: 0x0000000087f4e410, as_obj: { tp: -2013993968, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800356a8, off: 0, major: 0 } }
+[SLAB]            [ idx 4 ] { addr: 0x0000000087f4e800, as_ptr: 0x0000000087f4e608, as_obj: { tp: -2013993464, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035730, off: 0, major: 0 } }
+[SLAB]            [ idx 5 ] { addr: 0x0000000087f4e9f8, as_ptr: 0x0000000087f4e800, as_obj: { tp: -2013992960, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800357b8, off: 0, major: 0 } }
+[SLAB]            [ idx 6 ] { addr: 0x0000000087f4ebf0, as_ptr: 0x0000000087f4e9f8, as_obj: { tp: -2013992456, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035840, off: 0, major: 0 } }
+[SLAB]            [ idx 7 ] { addr: 0x0000000087f4ede8, as_ptr: 0x0000000087f4ebf0, as_obj: { tp: -2013991952, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800358c8, off: 0, major: 0 } }
+[SLAB]    [ free    slabs ]
 </code></pre>
 
 Students may add extra information beyond the required fields, adjusting the order as desired, provided all mandatory information is included.
@@ -829,29 +844,30 @@ Students may add extra information beyond the required fields, adjusting the ord
 ```log
 [SLAB] kmem_cache { <KV_PAIRS> }
 [SLAB] <SPACE>[ slab <slab_addr> ] { <KV_PAIRS> }
-[SLAB] <SPACE>{ <KV_PAIRS> }
-[SLAB] <SPACE>{ <KV_PAIRS> }
+[SLAB] <SPACE>[ idx <idx> ] { <KV_PAIRS> }
+[SLAB] <SPACE>[ idx <idx> ] { <KV_PAIRS> }
 ...
-[SLAB] <SPACE>{ <KV_PAIRS> }
+[SLAB] <SPACE>[ idx <idx> ] { <KV_PAIRS> }
 ```
 
 `<KV_PAIRS>` denotes an arbitrary number of key-value pairs, separated by `<SPACE>,<SPACE>`.
 
 Example:
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 4.7px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;">
-[SLAB] kmem_cache { rand: 0, name: file, some_thing: meow, object_size: 504, another_thing: 123, harden: 1 }
-[SLAB]    [ Full    slabs (head: 0x0000000087f59058) ]
-[SLAB]    [ Partial slabs (head: 0x0000000087f59040) ]
-[SLAB]        [ slab 0x0000000087f4e000 ] { whoami: meow, freelist: 0x0000000087f4ede8, prev: 0x0000000087f59040, next: 0x0000000087f32008 }
-[SLAB]            { addr: 0x0000000087f4e020, as_ptr: 0x0000000900000003, whoami: meow, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035488, off: 0, major: 1 } }
-[SLAB]            { addr: 0x0000000087f4e218, as_ptr: 0x0000000000000000, as_obj: { tp: 0, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035598, off: 0, major: 0 } }
-[SLAB]            { addr: 0x0000000087f4e410, as_ptr: 0x0000000087f4e218, as_obj: { tp: -2013994472, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035620, off: 0, major: 0 } }
-[SLAB]            { addr: 0x0000000087f4e608, whoami: meow, as_ptr: 0x0000000087f4e410, as_obj: { tp: -2013993968, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800356a8, off: 0, major: 0 } }
-[SLAB]            { addr: 0x0000000087f4e800, as_ptr: 0x0000000087f4e608, as_obj: { tp: -2013993464, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035730, off: 0, major: 0 } }
-[SLAB]            { addr: 0x0000000087f4e9f8, as_ptr: 0x0000000087f4e800, as_obj: { tp: -2013992960, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800357b8, off: 0, major: 0 } }
-[SLAB]            { addr: 0x0000000087f4ebf0, as_ptr: 0x0000000087f4e9f8, as_obj: { tp: -2013992456, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035840, off: 0, major: 0 }, whoami: meow }
-[SLAB]            { 0: 0, addr: 0x0000000087f4ede8, as_ptr: 0x0000000087f4ebf0, 2: 2, as_obj: { tp: -2013991952, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800358c8, off: 0, major: 0 } }
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 4.5px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;">[SLAB] kmem_cache { rand: 0, name: file, some_thing: meow, object_size: 504, another_thing: 123, harden: 1 }
+[SLAB]    [ cache    slabs ]
+[SLAB]        [ slab 0x0000000087f59000 ] { freelist: 0x0000000087f59268, nxt: 0x0000000000000000 }
+[SLAB]           [ idx 0 ] { addr: 0x0000000087f59070, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0505050505050505, ip: 0x0000000080035558, off: 84215045, major: 1 } }
+[SLAB]           [ idx 1 ] { addr: 0x0000000087f59268, as_ptr: 0x0000000087f59460, as_obj: { tp: -2013948832, ref: 0, readable: 1, writable: 1, pipe: 0x0505050505050505, ip: 0x0000000080035558, off: 84215045, major: 1 } }
+[SLAB]           [ idx 2 ] { addr: 0x0000000087f59460, as_ptr: 0x0000000087f59658, as_obj: { tp: -2013948328, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
+[SLAB]           [ idx 3 ] { addr: 0x0000000087f59658, as_ptr: 0x0000000087f59850, as_obj: { tp: -2013947824, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
+[SLAB]           [ idx 4 ] { addr: 0x0000000087f59850, as_ptr: 0x0000000087f59a48, as_obj: { tp: -2013947320, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
+[SLAB]           [ idx 5 ] { addr: 0x0000000087f59a48, as_ptr: 0x0000000087f59c40, as_obj: { tp: -2013946816, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
+[SLAB]           [ idx 6 ] { addr: 0x0000000087f59c40, as_ptr: 0x0000000000000000, as_obj: { tp: 0, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
+[SLAB]           [ idx 7 ] { addr: 0x0000000087f59e38, as_ptr: 0x0505050505050505, as_obj: { tp: 84215045, ref: 84215045, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
+[SLAB]    [ full    slabs ]
+[SLAB]    [ partial slabs ]
+[SLAB]    [ free slabs ]
 </pre>
 
 ### Implementing System Call `sys_printfslab`
@@ -874,9 +890,12 @@ This code earns points if it compiles successfully, regardless of whether it pri
 
 ## References
 
-1. [`xv6: a simple, Unix-like teaching operating system`](https://pdos.csail.mit.edu/6.828/2023/xv6/book-riscv-rev3.pdf)
-2. [`linux/mm/slab.h`](https://github.com/torvalds/linux/blob/master/mm/slab.h)
-3. [`linux/mm/slub.c`](https://github.com/torvalds/linux/blob/master/mm/slub.c#L154)
-4. [`sysprog21/lab0-c`](https://github.com/sysprog21/lab0-c/blob/master/list.h)
-5. [`linux/include/linux/list.h`](https://github.com/torvalds/linux/blob/master/include/linux/list.h)
-6. [`Slab Memory Allocator`](https://hackmd.io/5Fn8N3HeRkGIO7cZu7chIw?view#slab-%E8%A8%98%E6%86%B6%E9%AB%94%E9%85%8D%E7%BD%AE%E5%99%A8)
+## References
+
+1. [xv6: a simple, Unix-like teaching operating system](https://pdos.csail.mit.edu/6.828/2023/xv6/book-riscv-rev3.pdf)  
+2. [ISO/IEC 9899:2024 (C Language Standard)](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3220.pdf)  
+3. [`linux/mm/slab.h`](https://github.com/torvalds/linux/blob/master/mm/slab.h)  
+4. [`linux/mm/slub.c`](https://github.com/torvalds/linux/blob/master/mm/slub.c#L154)  
+5. [`sysprog21/lab0-c`](https://github.com/sysprog21/lab0-c/blob/master/list.h)  
+6. [`linux/include/linux/list.h`](https://github.com/torvalds/linux/blob/master/include/linux/list.h)  
+7. [slab Memory Allocator](https://hackmd.io/5Fn8N3HeRkGIO7cZu7chIw?view#slab-%E8%A8%98%E6%86%B6%E9%AB%94%E9%85%8D%E7%BD%AE%E5%99%A8)
