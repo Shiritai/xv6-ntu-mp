@@ -4,7 +4,10 @@
 #include "types.h"
 #include "list.h"
 
-#define MP2_IN_CACHE_FREELIST
+// adjust the following definition to...
+#define MP2_IN_CACHE_FREELIST // use in-cache freelist
+#define MP2_USE_FULL          // use full slab list
+#define MP2_USE_FREE          // use free slab list
 
 // struct run {
 //   struct run *next;
@@ -21,17 +24,17 @@ struct slab
   // TODO: Choose the type of freelist from
   //    1. void **
   //    2. struct run *
-  void **freelist;             // Linked list of free objects
+  void **freelist; // Linked list of free objects
   // struct run *freelist;        // Linked list of free objects
 
   // TODO: Design how to link the slabs
   // struct slab *next;
   // struct slab *prev;
   struct list_head list; // List pointer for linking slabs in the cache
-  
+
   // TODO: you can add other members
   // ...
-  unsigned short in_use;            // Number of allocated objects
+  unsigned short in_use; // Number of allocated objects
 };
 
 /**
@@ -44,23 +47,28 @@ struct slab
  */
 struct kmem_cache
 {
-  char name[32];            // Cache name (e.g., "file")
-  uint object_size;         // Size of a single object
-  struct spinlock lock;     // Lock for cache management
+  char name[32];        // Cache name (e.g., "file")
+  uint object_size;     // Size of a single object
+  struct spinlock lock; // Lock for cache management
 
   // TODO: Add slab list(s)
   // <TYPE> full     // Completely allocated slabs (Optional)
   // <TYPE> partial  // Partially allocated slabs
   // <TYPE> free     // Free slabs (Optional)
   struct list_head partial; // Partially allocated slabs
-  // struct list_head full;    // Completely allocated slabs
-  uint partial_cnt;
-  // uint full_cnt;
-  // struct list_head free;    // Free slabs
+  uint avail_cnt;
+
+#ifdef MP2_USE_FULL
+  struct list_head full; // Completely allocated slabs
+#endif                   // MP2_USE_FULL
+
+#ifdef MP2_USE_FREE
+  struct list_head free; // Free slabs
+#endif                   // MP2_USE_FREE
 
 #ifdef MP2_IN_CACHE_FREELIST
-  void **freelist;             // Linked list of free objects
-#endif // MP2_IN_CACHE_FREELIST
+  void **freelist; // Linked list of free objects
+#endif             // MP2_IN_CACHE_FREELIST
 };
 
 /**
