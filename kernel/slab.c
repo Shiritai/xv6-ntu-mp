@@ -92,7 +92,6 @@ void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *)
 struct kmem_cache *kmem_cache_create(char *name, uint object_size)
 {
   // TODO: kmem_cache_create: ...
-  cpuid();
 
   // NOTE: mention "allocating a page for cache" in spec
   struct kmem_cache *cache = (struct kmem_cache *)kalloc();
@@ -179,9 +178,10 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
   {
     void *obj = cache->freelist;
     cache->freelist = *(void **)obj;
-    release(&cache->lock);
     debug("[SLAB] Allocated %p from cache slab (%s)\n", obj, cache->name);
     debug("[SLAB] Object %p in slab %p (%s) is allocated and initialized\n", obj, cache, cache->name);
+
+    release(&cache->lock);
     return obj;
   }
 #endif // MP2_IN_CACHE_FREELIST
@@ -211,15 +211,11 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
       debug("[SLAB] Move partial slab %p to full slabs (%s)\n", s, cache->name);
 #endif // MP2_USE_FULL
     }
-
-    release(&cache->lock);
-
-    // TODO: mention in spec
     memset(obj, 0, cache->object_size);
-
-    // TODO: mention in spec
     debug("[SLAB] Allocated %p from partial slab (%s)\n", obj, cache->name);
     debug("[SLAB] Object %p in slab %p (%s) is allocated and initialized\n", obj, s, cache->name);
+
+    release(&cache->lock);
     return obj;
   }
 
@@ -237,7 +233,7 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
 #endif // MP2_USE_FREE
   {
     // 3. 如果沒有可用 slab，則分配新的 slab
-    s = (struct slab *)kalloc();
+    s = (struct slab *) kalloc();
     if (!s)
     {
       debug("[SLAB] Error: Failed to allocate new slab for %s\n", cache->name);
@@ -246,6 +242,7 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
     }
 
     s->in_use = 0;
+    ++cache->avail_cnt;
 
     // TODO: mention in spec
     debug("[SLAB] A new slab %p (%s) is allocated\n", s, cache->name);
@@ -253,7 +250,6 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
 
   // 4. 初始化新的 slab
   list_add(&s->list, &cache->partial);
-  ++cache->avail_cnt;
   s->freelist = (void **)(s + 1); // 將物件可用空間裡最前面的空間設為 freelist 的開頭
 
   // use struct run
@@ -279,15 +275,10 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
   s->freelist = *(void **)obj;
   s->in_use++;
 
-  release(&cache->lock);
-
-  // TODO: mention in spec
   memset(obj, 0, cache->object_size);
-
-  // TODO: mention in spec
   debug("[SLAB] Object %p in slab %p (%s) is allocated and initialized\n", obj, s, cache->name);
 
-  // TODO: mention in spec
+  release(&cache->lock);
   return obj;
 }
 
@@ -323,8 +314,8 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj)
   {
     *(void **)obj = cache->freelist;
     cache->freelist = obj;
-    release(&cache->lock);
     debug("[SLAB] End of free\n");
+    release(&cache->lock);
     return;
   }
 #endif // MP2_IN_CACHE_FREELIST
@@ -363,6 +354,6 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj)
     }
   }
 
-  release(&cache->lock);
   debug("[SLAB] End of free\n");
+  release(&cache->lock);
 }
