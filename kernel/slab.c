@@ -119,8 +119,14 @@ for (int i = 0; i < (MP2_SLAB_SIZE - sizeof(struct kmem_cache)) / cache->object_
   // INIT_LIST_HEAD(&cache->free);
   
   // TODO: mention in spec
-  debug("[SLAB] New kmem_cache (name: %s, object size: %d bytes, max objects per slab: %lu) is created\n",
-    cache->name, cache->object_size, (MP2_SLAB_SIZE - sizeof(struct slab)) / cache->object_size);
+  debug("[SLAB] New kmem_cache (name: %s, object size: %d bytes, max objects per slab: %lu, support in cache obj: %lu) is created\n",
+    cache->name, cache->object_size, (MP2_SLAB_SIZE - sizeof(struct slab)) / cache->object_size,
+#ifdef MP2_IN_CACHE_FREELIST
+    (MP2_SLAB_SIZE - sizeof(struct kmem_cache)) / cache->object_size
+#else
+    0
+#endif
+  );
   
   // TODO: mention in spec
   return cache;
