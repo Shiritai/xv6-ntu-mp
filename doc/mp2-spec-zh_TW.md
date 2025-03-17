@@ -294,7 +294,7 @@ struct file *f = (struct file *) r;
 struct file *f_after_f = (struct file *) r_next;
 ```
 
-同學們也可以在一個核心物件的空間內放兩個指標，實現雙向鏈結串列。請根據 [Slab 配置器的實作要求](#slab-配置器的實作要求)，為 freelist 設計合適資料結構。
+同學們也可以在一個核心物件的空間內放兩個指標，實現雙向鏈結串列。請根據 [Slab 配置器的實作要求](#實作要求)，為 freelist 設計合適資料結構。
 
 ### `freelist` 的元素數量
 
