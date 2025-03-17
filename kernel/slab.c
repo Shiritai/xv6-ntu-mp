@@ -31,6 +31,7 @@ void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *)
 {
   // TODO: template
   // debug("[SLAB] TODO: print_kmem_cache \n");
+  acquire(&cache->lock);
 
 #ifdef MP2_IN_CACHE_FREELIST
   debug("[SLAB] kmem_cache { name: %s, object_size: %d, at: %p, in_cache_obj: %lu }\n", cache->name, cache->object_size, cache, (MP2_SLAB_SIZE - sizeof(struct kmem_cache)) / cache->object_size);
@@ -87,6 +88,8 @@ void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *)
 #endif // MP2_USE_FREE
 
   debug("[SLAB] print_kmem_cache end\n");
+
+  release(&cache->lock);
 }
 
 struct kmem_cache *kmem_cache_create(char *name, uint object_size)
