@@ -42,6 +42,7 @@ void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *)
 
   debug("[SLAB] kmem_cache { name: %s, object_size: %d }\n", cache->name, cache->object_size);
   
+#ifdef MP2_IN_CACHE_FREELIST
   debug("[SLAB]    [ cache    slabs ]\n");
   debug("[SLAB]        [ slab %p ] { freelist: %p, nxt: %p }\n",
     cache, cache->freelist, (void *) 0);
@@ -58,22 +59,24 @@ void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *)
     debug(" } }\n");
     obj = (void *)((char *)obj + cache->object_size);
   }
+#endif // MP2_IN_CACHE_FREELIST
 
   struct slab *s;
-  debug("[SLAB]    [ full    slabs ]\n");
-  list_for_each_entry(s, &cache->full, list) {
-    print_slab(s, cache->object_size, slab_obj_printer);
+  if (!list_empty(&cache->full))
+  {
+    debug("[SLAB]    [ full    slabs ]\n");
+    list_for_each_entry(s, &cache->full, list) {
+      print_slab(s, cache->object_size, slab_obj_printer);
+    }
   }
 
-  debug("[SLAB]    [ partial slabs ]\n");
-  list_for_each_entry(s, &cache->partial, list) {
-    print_slab(s, cache->object_size, slab_obj_printer);
+  if (!list_empty(&cache->partial))
+  {
+    debug("[SLAB]    [ partial slabs ]\n");
+    list_for_each_entry(s, &cache->partial, list) {
+      print_slab(s, cache->object_size, slab_obj_printer);
+    }
   }
-
-  // debug("[SLAB]    [ free    slabs { allocated: %d } ]\n", ...);
-  // list_for_each_entry(s, &cache->free, list) {
-  //   print_slab(s, cache->object_size, slab_obj_printer);
-  // }
 }
 
 struct kmem_cache *kmem_cache_create(char *name, uint object_size)
@@ -95,15 +98,17 @@ struct kmem_cache *kmem_cache_create(char *name, uint object_size)
   cache->object_size = object_size;
   // TODO: mention in spec
   initlock(&cache->lock, name);
-  
-  cache->freelist = (void **)(cache + 1);
-  void *obj = cache->freelist;
-  for (int i = 0; i < (MP2_SLAB_SIZE - sizeof(struct kmem_cache)) / cache->object_size - 1; i++)
-  {
-    *(void **)obj = (void *)((char *)obj + cache->object_size);
-    obj = *(void **)obj;
-  }
-  *(void **)obj = 0; // mark as the last object
+
+#ifdef MP2_IN_CACHE_FREELIST
+cache->freelist = (void **)(cache + 1);
+void *obj = cache->freelist;
+for (int i = 0; i < (MP2_SLAB_SIZE - sizeof(struct kmem_cache)) / cache->object_size - 1; i++)
+{
+  *(void **)obj = (void *)((char *)obj + cache->object_size);
+  obj = *(void **)obj;
+}
+*(void **)obj = 0; // mark as the last object
+#endif // MP2_IN_CACHE_FREELIST
   
   cache->partial_cnt = cache->full_cnt = 0;
 
@@ -133,6 +138,7 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
   
   debug("[SLAB] Alloc request on cache %s\n", cache->name);
 
+#ifdef MP2_IN_CACHE_FREELIST
   if (cache->freelist) // kmem_cache 的 freelist 還能用
   {
     void *obj = cache->freelist;
@@ -142,6 +148,7 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
     debug("[SLAB] Object %p in slab %p (%s) is allocated and initialized\n", obj, cache, cache->name);
     return obj;
   }
+#endif // MP2_IN_CACHE_FREELIST
   
   struct slab *s;
   // 1. 檢查 partial slabs 是否有可用物件
@@ -288,7 +295,8 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj)
   // struct run *as_run = (struct run *) obj;
   // as_run->next = s->freelist;
   // s->freelist = as_run;
-  
+
+#ifdef MP2_IN_CACHE_FREELIST
   if ((void *) s == (void *) cache) // 如果是 kmem_cache 中的 object
   {
     *(void **)obj = cache->freelist;
@@ -297,6 +305,7 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj)
     debug("[SLAB] End of free\n");
     return;
   }
+#endif // MP2_IN_CACHE_FREELIST
 
   *(void **)obj = s->freelist;
   s->freelist = obj;

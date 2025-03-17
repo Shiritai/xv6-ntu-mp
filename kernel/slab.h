@@ -4,6 +4,8 @@
 #include "types.h"
 #include "list.h"
 
+#define MP2_IN_CACHE_FREELIST
+
 // struct run {
 //   struct run *next;
 // };
@@ -55,7 +57,10 @@ struct kmem_cache
   uint partial_cnt;
   uint full_cnt;
   // struct list_head free;    // Free slabs
+
+#ifdef MP2_IN_CACHE_FREELIST
   void **freelist;             // Linked list of free objects
+#endif // MP2_IN_CACHE_FREELIST
 };
 
 /**
