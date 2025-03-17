@@ -76,7 +76,7 @@ The total score for this assignment is **125%**, comprising **basic requirements
 Bonus items do not conflict with the basic requirements and are independent of each other, allowing students to implement multiple items.
 
 - [`struct slab` Memory Optimization](#struct-slab-design) (+5%)
-- [`kmem_cache` Internal Fragmentation Optimization](#kmem_cache-internal-fragmentation-issue-bonus-item) (+8%)
+- [`kmem_cache` Internal Fragmentation Optimization](#kmem_cache-internal-fragmentation-issue-bonus-item) (+10%)
 - [Managing SLAB with `kernel/list.h`](#struct-slab-design) (+10%)
 
 ### Submission and Grading Method
@@ -648,12 +648,13 @@ All Slab memory management functions should use `[SLAB] ` as a prefix for output
 Before successfully creating and returning `kmem_cache`, output the following:
 
 ```log
-[SLAB] New kmem_cache (name: <name>, object size: <obj_size> bytes, max objects per slab: <max_objs>) is created
+[SLAB] New kmem_cache (name: <name>, object size: <obj_size> bytes, max objects per slab: <max_objs>, support in cache obj: <in_cache_obj>) is created
 ```
 
 - **`<name>`**: Name of the new `kmem_cache` (`kmem_cache::name`).
 - **`<obj_size>`**: Size of objects within the `kmem_cache` (`kmem_cache::object_size`, in bytes).
 - **`<max_objs>`**: Maximum number of objects within a `slab`.
+- **`<in_cache_obj>`**: Whether it supports the internal allocation of objects in kmem_cache, i.e., whether a solution to the [internal fragmentation issue](#kmem_cache-internal-fragmentation-issue-bonus-item) is implemented. If implemented, it is `1`; otherwise, it is `0`.
 
 ### `kmem_cache_alloc`: Allocating Objects
 
@@ -926,8 +927,6 @@ int main(int argc, char *argv[])
 ```
 
 This code earns points if it compiles successfully, regardless of whether it prints the correct Slab information. By default, it cannot yet compile.
-
-## References
 
 ## References
 
