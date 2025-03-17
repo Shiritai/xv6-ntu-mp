@@ -76,7 +76,7 @@ The total score for this assignment is **125%**, comprising **basic requirements
 Bonus items do not conflict with the basic requirements and are independent of each other, allowing students to implement multiple items.
 
 - [`struct slab` Memory Optimization](#struct-slab-design) (+5%)
-- [`kmem_cache` Internal Fragmentation Optimization](#kmem_cache-internal-fragmentation-bonus-item) (+8%)
+- [`kmem_cache` Internal Fragmentation Optimization](#kmem_cache-internal-fragmentation-issue-bonus-item) (+8%)
 - [Managing SLAB with `kernel/list.h`](#struct-slab-design) (+10%)
 
 ### Submission and Grading Method
@@ -293,7 +293,7 @@ struct file *f = (struct file *) r;
 struct file *f_after_f = (struct file *) r_next;
 ```
 
-Students may also place two pointers within a kernel object’s space to implement a doubly linked list. Please design an appropriate data structure for `freelist` based on the [Slab allocator implementation requirements](#slab-allocator-implementation-requirements).
+Students may also place two pointers within a kernel object’s space to implement a doubly linked list. Please design an appropriate data structure for `freelist` based on the [Slab allocator implementation requirements](#implementation-requirements).
 
 ### Number of Elements in `freelist`
 
@@ -613,7 +613,7 @@ Key considerations:
    To reduce memory waste from excessive free Slabs, when the total number of available Slabs (`partial + free`) exceeds `MP2_MIN_AVAIL_SLAB` defined in [`param.h`](../kernel/param.h), and a new Slab becomes fully free (`free`), its memory should be actively released. This will be tested via `kmem_cache_free`.
 
 2. **Internal Fragmentation Optimization**
-   Due to [internal fragmentation issues](#kmem_cache-internal-fragmentation-issue), allocating and freeing objects using `kmem_cache`’s internal space (setting their `<slab_addr>` to `kmem_cache`’s address) earns an additional **7%**.
+   Due to [internal fragmentation issues](#kmem_cache-internal-fragmentation-issue-bonus-item), allocating and freeing objects using `kmem_cache`’s internal space (setting their `<slab_addr>` to `kmem_cache`’s address) earns an additional **7%**.
 
 3. **Optionality of `full` and `free`**
    `full` and `free` in `kmem_cache` are optional. Students may refer to [Linux Kernel SLUB design](https://github.com/torvalds/linux/blob/0fed89a961ea851945d23cc35beb59d6e56c0964/mm/slub.c#L154) or adopt other suitable methods, provided they meet [implementation specifications](#print_kmem_cache-printing-struct-kmem_cache-information).
@@ -755,19 +755,18 @@ The output is divided into five categories:
 
 #### 1. `<kmem_cache_status>`: Basic Information of `kmem_cache`  
 ```log
-[SLAB] kmem_cache { name: <name>, obj_size: <object_size>, harden: <harden>, rand: <rand> }
+[SLAB] kmem_cache { name: <name>, obj_size: <object_size>, in_cache_obj: <in_cache_obj> }
 ```
 - `<name>`: The name of the `kmem_cache` (corresponding to `kmem_cache::name`).  
 - `<obj_size>`: The size of each object in the `kmem_cache` (corresponding to `kmem_cache::object_size`).  
-- `<harden>`: The value of `MP2_FREELIST_HARDENED` (`0` or `1`). See [`freelist` security considerations](#freelist-security-considerations).  
-- `<rand>`: The value of `MP2_FREELIST_RANDOMIZATION` (`0` or `1`). See [`freelist` security considerations](#freelist-security-considerations).  
+- `<in_cache_obj>`: Whether the [internal fragmentation issue](#kmem_cache-internal-fragmentation-issue-bonus-item) is implemented; if yes, it is `1`, otherwise it is `0`.
 
 #### 2. `<slab_list_status>`: Slab List Status  
 ```log
 [SLAB] <SPACE>[ <slab_type><SPACE>slabs ]
 ```
 - `<SPACE>`: One or more spaces (` `) or `\t`.  
-- `<slab_type>`: The type of the slab, which can be `full`, `partial`, `free`, or [`cache`](#internal-fragmentation-of-kmem_cache).  
+- `<slab_type>`: The type of the slab, which can be `full`, `partial`, `free`, or [`cache`](#kmem_cache-internal-fragmentation-issue-bonus-item).  
 - **`full` and `free` slabs can be inferred and thus do not need to be printed.**  
 
 #### 3. `<slab_status>`: Status of a Single Slab  
@@ -828,7 +827,7 @@ The output is divided into five categories:
 
 Example:
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504 }
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, in_cache_obj: 0 }
 [SLAB]    [ partial slabs ]
 [SLAB]        [ slab 0x0000000087f4e000 ] { freelist: 0x0000000087f4e218, in_use: 1, prev: 0x0000000087f59040, nxt: 0x0000000087f59040 }
 [SLAB]           [ idx 0 ] { addr: 0x0000000087f4e020, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800354c8, off: 0, major: 1 } }
@@ -839,9 +838,10 @@ Example:
 [SLAB]           [ idx 5 ] { addr: 0x0000000087f4e9f8, as_ptr: 0x0000000087f4ebf0, as_obj: { tp: -2013991952, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
 [SLAB]           [ idx 6 ] { addr: 0x0000000087f4ebf0, as_ptr: 0x0000000087f4ede8, as_obj: { tp: -2013991448, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
 [SLAB]           [ idx 7 ] { addr: 0x0000000087f4ede8, as_ptr: 0x0000000000000000, as_obj: { tp: 0, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
+[SLAB] print_kmem_cache end
 </code></pre>
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504 }
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, in_cache_obj: 0 }
 [SLAB]    [ partial slabs ]
 [SLAB]        [ slab 0x0000000087e5d000 ] { freelist: 0x0000000087e5d020, in_use: 0, prev: 0x0000000087f59040, nxt: 0x0000000087f4e008 }
 [SLAB]           [ idx 0 ] { addr: 0x0000000087e5d020, as_ptr: 0x0000000087e5d410, as_obj: { tp: -2014981104, ref: 0, readable: 1, writable: 0, pipe: 0x0000000000000000, ip: 0x0000000080035440, off: 1024, major: 0 } }
@@ -861,9 +861,10 @@ Example:
 [SLAB]           [ idx 5 ] { addr: 0x0000000087f4e9f8, as_ptr: 0x0000000000000000, as_obj: { tp: 0, ref: 0, readable: 0, writable: 1, pipe: 0x0000000087eeb000, ip: 0x0000000000000000, off: 0, major: 0 } }
 [SLAB]           [ idx 6 ] { addr: 0x0000000087f4ebf0, as_ptr: 0x0000000087f4ede8, as_obj: { tp: -2013991448, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087e98000, ip: 0x0000000000000000, off: 0, major: 0 } }
 [SLAB]           [ idx 7 ] { addr: 0x0000000087f4ede8, as_ptr: 0x0000000087f4e800, as_obj: { tp: -2013992960, ref: 0, readable: 0, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035550, off: 5, major: 0 } }
+[SLAB] print_kmem_cache end
 </code></pre>
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504 }
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, in_cache_obj: 1 }
 [SLAB]    [ cache    slabs ]
 [SLAB]        [ slab 0x0000000087f59000 ] { freelist: 0x0000000087f59268, nxt: 0x0000000000000000 }
 [SLAB]           [ idx 0 ] { addr: 0x0000000087f59070, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0505050505050505, ip: 0x0000000080035558, off: 84215045, major: 1 } }
@@ -873,9 +874,10 @@ Example:
 [SLAB]           [ idx 4 ] { addr: 0x0000000087f59850, as_ptr: 0x0000000087f59a48, as_obj: { tp: -2013947320, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
 [SLAB]           [ idx 5 ] { addr: 0x0000000087f59a48, as_ptr: 0x0000000087f59c40, as_obj: { tp: -2013946816, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
 [SLAB]           [ idx 6 ] { addr: 0x0000000087f59c40, as_ptr: 0x0000000000000000, as_obj: { tp: 0, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
+[SLAB] print_kmem_cache end
 </code></pre>
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504 }
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, in_cache_obj: 1 }
 [SLAB]    [ cache    slabs ]
 [SLAB]        [ slab 0x0000000087f59000 ] { freelist: 0x0000000087f59268, nxt: 0x0000000000000000 }
 [SLAB]           [ idx 0 ] { addr: 0x0000000087f59070, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0505050505050505, ip: 0x0000000080035558, off: 84215045, major: 1 } }
@@ -904,6 +906,7 @@ Example:
 [SLAB]           [ idx 5 ] { addr: 0x0000000087da29f8, as_ptr: 0x0000000087da2bf0, as_obj: { tp: -2015745040, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087d48000, ip: 0x0000000000000000, off: 0, major: 0 } }
 [SLAB]           [ idx 6 ] { addr: 0x0000000087da2bf0, as_ptr: 0x0000000087da2800, as_obj: { tp: -2015746048, ref: 0, readable: 0, writable: 1, pipe: 0x0000000087d48000, ip: 0x0000000000000000, off: 0, major: 0 } }
 [SLAB]           [ idx 7 ] { addr: 0x0000000087da2de8, as_ptr: 0x0000000000000000, as_obj: { tp: 0, ref: 0, readable: 0, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800355e0, off: 5, major: 0 } }
+[SLAB] print_kmem_cache end
 </code></pre>
 
 ### Implementing System Call `sys_printfslab`

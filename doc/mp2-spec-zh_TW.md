@@ -294,7 +294,7 @@ struct file *f = (struct file *) r;
 struct file *f_after_f = (struct file *) r_next;
 ```
 
-同學們也可以在一個核心物件的空間內放兩個指標，實現雙向鏈結串列。請根據 [Slab 配置器的實作要求](#slab-配置器的實作要求)，為 freelist 設計合適資料結構。
+同學們也可以在一個核心物件的空間內放兩個指標，實現雙向鏈結串列。請根據 [Slab 配置器的實作要求](#實作要求)，為 freelist 設計合適資料結構。
 
 ### `freelist` 的元素數量
 
@@ -758,10 +758,11 @@ fileclose(struct file *f)
 #### 1. `<kmem_cache_status>`：`kmem_cache` 的基本資訊
 
 ```log
-[SLAB] kmem_cache { name: <name>, obj_size: <object_size> }
+[SLAB] kmem_cache { name: <name>, obj_size: <object_size>, in_cache_obj: <in_cache_obj> }
 ```
 - `<name>`：`kmem_cache` 的名稱（對應 `kmem_cache::name`）。
 - `<obj_size>`：`kmem_cache` 內單個物件的大小（對應 `kmem_cache::object_size`）。
+- `<in_cache_obj>`：是否實作[內部碎裂問題](#kmem_cache-的內部碎裂問題-加分項目)，是則為 `1`，否則為 `0。
 
 #### 2. `<slab_list_status>`：Slab 清單狀態
 
@@ -834,7 +835,7 @@ fileclose(struct file *f)
 
 舉例如下。
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504 }
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, in_cache_obj: 0 }
 [SLAB]    [ partial slabs ]
 [SLAB]        [ slab 0x0000000087f4e000 ] { freelist: 0x0000000087f4e218, in_use: 1, prev: 0x0000000087f59040, nxt: 0x0000000087f59040 }
 [SLAB]           [ idx 0 ] { addr: 0x0000000087f4e020, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800354c8, off: 0, major: 1 } }
@@ -848,7 +849,7 @@ fileclose(struct file *f)
 [SLAB] print_kmem_cache end
 </code></pre>
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504 }
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, in_cache_obj: 0 }
 [SLAB]    [ partial slabs ]
 [SLAB]        [ slab 0x0000000087e5d000 ] { freelist: 0x0000000087e5d020, in_use: 0, prev: 0x0000000087f59040, nxt: 0x0000000087f4e008 }
 [SLAB]           [ idx 0 ] { addr: 0x0000000087e5d020, as_ptr: 0x0000000087e5d410, as_obj: { tp: -2014981104, ref: 0, readable: 1, writable: 0, pipe: 0x0000000000000000, ip: 0x0000000080035440, off: 1024, major: 0 } }
@@ -871,7 +872,7 @@ fileclose(struct file *f)
 [SLAB] print_kmem_cache end
 </code></pre>
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504 }
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, in_cache_obj: 1 }
 [SLAB]    [ cache    slabs ]
 [SLAB]        [ slab 0x0000000087f59000 ] { freelist: 0x0000000087f59268, nxt: 0x0000000000000000 }
 [SLAB]           [ idx 0 ] { addr: 0x0000000087f59070, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0505050505050505, ip: 0x0000000080035558, off: 84215045, major: 1 } }
@@ -884,7 +885,7 @@ fileclose(struct file *f)
 [SLAB] print_kmem_cache end
 </code></pre>
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504 }
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, in_cache_obj: 1 }
 [SLAB]    [ cache    slabs ]
 [SLAB]        [ slab 0x0000000087f59000 ] { freelist: 0x0000000087f59268, nxt: 0x0000000000000000 }
 [SLAB]           [ idx 0 ] { addr: 0x0000000087f59070, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0505050505050505, ip: 0x0000000080035558, off: 84215045, major: 1 } }
