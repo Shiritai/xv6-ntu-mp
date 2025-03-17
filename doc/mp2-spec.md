@@ -562,7 +562,7 @@ struct slab {
 
 The `struct slab` design will be graded based on three criteria:
 
-1. **`struct slab` Memory Size** (Up to 8%)
+1. `struct slab` Memory Size (Up to 8%)
    Define the size factor $v(s)$ as:
    $$
    v(s) = \frac{\text{sizeof(struct slab)}}{\text{sizeof(void *)}}
@@ -578,7 +578,7 @@ The `struct slab` design will be graded based on three criteria:
    | 7      | 1%      |
    | $\ge$ 8 | 0%      |
 
-2. **Number of Objects Accommodated in `slab::freelist`** (2%)
+2. Number of Objects Accommodated in `slab::freelist` (2%)
    During testing, `struct file` is 504 bytes. Grading scale:
 
    | Number of `struct file` Objects | Score |
@@ -587,7 +587,7 @@ The `struct slab` design will be graded based on three criteria:
    | 7                              | 1%    |
    | $\le$ 6                        | 0%    |
 
-3. **Using `struct list_head` for Slab Management** (Bonus +10%)
+3. Using `struct list_head` for Slab Management (Bonus +10%)
    - Must use [`struct list_head`](../kernel/list.h) in `struct slab` to maintain inter-Slab linkage.
    - Full marks (45%) in functionality tests are required to earn this additional 10%.
 
@@ -648,13 +648,16 @@ All Slab memory management functions should use `[SLAB] ` as a prefix for output
 Before successfully creating and returning `kmem_cache`, output the following:
 
 ```log
-[SLAB] New kmem_cache (name: <name>, object size: <obj_size> bytes, max objects per slab: <max_objs>, support in cache obj: <in_cache_obj>) is created
+[SLAB] New kmem_cache (name: <name>, object size: <obj_size> bytes, at: <kmem_cache_addr>, max objects per slab: <max_objs>, support in cache obj: <in_cache_obj>) is created
 ```
 
 - **`<name>`**: Name of the new `kmem_cache` (`kmem_cache::name`).
 - **`<obj_size>`**: Size of objects within the `kmem_cache` (`kmem_cache::object_size`, in bytes).
+- **`<kmem_cache_addr>`**: Memory address of `kmem_cache`.
 - **`<max_objs>`**: Maximum number of objects within a `slab`.
 - **`<in_cache_obj>`**: Whether it supports the internal allocation of objects in kmem_cache, i.e., whether a solution to the [internal fragmentation issue](#kmem_cache-internal-fragmentation-issue-bonus-item) is implemented. If implemented, it is `1`; otherwise, it is `0`.
+
+Additionally, in `kmem_cache_create`, a new slab should not be initialized; the allocation of a new slab should be implemented on demand during `kmem_cache_alloc`.
 
 ### `kmem_cache_alloc`: Allocating Objects
 
