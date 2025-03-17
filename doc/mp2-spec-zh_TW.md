@@ -4,7 +4,7 @@
 
 * 滿分: 125% (基本部分: 100%, 加分部分 25%)
 * Release Date: 2025/03/18
-* Due Date: 2025/04/01
+* Due Date: 2025/03/31 23:59:59
 * TA email: ntuos@googlegroups.com
 * TA hours: Wed. 13-14 p.m., Fri. 11 a.m. -12 p.m., at B04
 
@@ -565,7 +565,7 @@ struct slab {
 
 `struct slab` 的設計將依據以下三個標準進行評分：
 
-1. **`struct slab` 本身的記憶體大小** (最高 8%)
+1. `struct slab` 本身的記憶體大小 (最高 8%)
    定義 `struct slab` 的大小因子 $v(s)$ 如下：
    $$
    v(s) = \dfrac{sizeof(\tt{struct\ slab})}{sizeof(\tt{void *})}
@@ -581,7 +581,7 @@ struct slab {
    | 7      | 1% |
    | $\ge$ 8    | 0% |
 
-2. **`slab::freelist` 中可容納的物件數量** (2%)
+2. `slab::freelist` 中可容納的物件數量 (2%)
    在測試過程中，`struct file` 的大小為 504 Bytes，評分標準如下：
 
    | 可容納 `struct file` 數量 | 分數 |
@@ -652,13 +652,16 @@ void print_kmem_cache(struct kmem_cache *, void (*)(void *));
 在成功創建並返回 `kmem_cache` 之前，請輸出以下資訊：
 
 ```log
-[SLAB] New kmem_cache (name: <name>, object size: <obj_size> bytes, max objects per slab: <max_objs>, support in cache obj: <in_cache_obj>) is created
+[SLAB] New kmem_cache (name: <name>, object size: <obj_size> bytes, at: <kmem_cache_addr>, max objects per slab: <max_objs>, support in cache obj: <in_cache_obj>) is created
 ```
 
 - **`<name>`**：新建的 `kmem_cache` 之名稱 (`kmem_cache::name`)。
 - **`<obj_size>`**：該 `kmem_cache` 內部物件的大小 (`kmem_cache::object_size`，單位為 Bytes)。
+- **`<kmem_cache_addr>`**：`kmem_cache` 的記憶體地址。
 - **`<max_objs>`**：一個 `slab` 中能容納物件的最大數量。
 - **`<in_cache_obj>`**：是否支援 kmem_cache 內部配置物件，即是否實作[內部碎裂問題](#kmem_cache-的內部碎裂問題-加分項目)的解決方案。有實作則為 `1`，否則為 `0`。
+
+另外在 `kmem_cache_create` 中不應該初始化新的 slab，新的 slab 的配置應該 `kmem_cache_alloc` 時依需求實現。
 
 ### `kmem_cache_alloc`: 配置物件
 
@@ -759,10 +762,11 @@ fileclose(struct file *f)
 #### 1. `<kmem_cache_status>`：`kmem_cache` 的基本資訊
 
 ```log
-[SLAB] kmem_cache { name: <name>, obj_size: <object_size>, in_cache_obj: <in_cache_obj> }
+[SLAB] kmem_cache { name: <name>, obj_size: <object_size>, at: <kmem_cache_addr>, in_cache_obj: <in_cache_obj> }
 ```
 - `<name>`：`kmem_cache` 的名稱（對應 `kmem_cache::name`）。
 - `<obj_size>`：`kmem_cache` 內單個物件的大小（對應 `kmem_cache::object_size`）。
+- `<kmem_cache_addr>`：`kmem_cache` 的記憶體地址。
 - `<in_cache_obj>`：是否實作[內部碎裂問題](#kmem_cache-的內部碎裂問題-加分項目)，是則為 `1`，否則為 `0。
 
 #### 2. `<slab_list_status>`：Slab 清單狀態
@@ -873,12 +877,12 @@ fileclose(struct file *f)
 [SLAB] print_kmem_cache end
 </code></pre>
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, in_cache_obj: 7 }
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, at: 0x0000000087f59000, in_cache_obj: 7 }
 [SLAB]    [ cache    slabs ]
 [SLAB]        [ slab 0x0000000087f59000 ] { freelist: 0x0000000087f59268, nxt: 0x0000000000000000 }
-[SLAB]           [ idx 0 ] { addr: 0x0000000087f59070, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0505050505050505, ip: 0x0000000080035558, off: 84215045, major: 1 } }
-[SLAB]           [ idx 1 ] { addr: 0x0000000087f59268, as_ptr: 0x0000000087f59460, as_obj: { tp: -2013948832, ref: 0, readable: 1, writable: 0, pipe: 0x0505050505050505, ip: 0x00000000800354d0, off: 1024, major: 1 } }
-[SLAB]           [ idx 2 ] { addr: 0x0000000087f59460, as_ptr: 0x0000000087f59658, as_obj: { tp: -2013948328, ref: 0, readable: 1, writable: 0, pipe: 0x0505050505050505, ip: 0x0000000080035558, off: 0, major: 1 } }
+[SLAB]           [ idx 0 ] { addr: 0x0000000087f59070, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0505050505050505, ip: 0x00000000800355a8, off: 84215045, major: 1 } }
+[SLAB]           [ idx 1 ] { addr: 0x0000000087f59268, as_ptr: 0x0000000087f59460, as_obj: { tp: -2013948832, ref: 0, readable: 1, writable: 0, pipe: 0x0505050505050505, ip: 0x0000000080035520, off: 1024, major: 1 } }
+[SLAB]           [ idx 2 ] { addr: 0x0000000087f59460, as_ptr: 0x0000000087f59658, as_obj: { tp: -2013948328, ref: 0, readable: 1, writable: 0, pipe: 0x0505050505050505, ip: 0x00000000800355a8, off: 0, major: 1 } }
 [SLAB]           [ idx 3 ] { addr: 0x0000000087f59658, as_ptr: 0x0000000087f59850, as_obj: { tp: -2013947824, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
 [SLAB]           [ idx 4 ] { addr: 0x0000000087f59850, as_ptr: 0x0000000087f59a48, as_obj: { tp: -2013947320, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
 [SLAB]           [ idx 5 ] { addr: 0x0000000087f59a48, as_ptr: 0x0000000087f59c40, as_obj: { tp: -2013946816, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
