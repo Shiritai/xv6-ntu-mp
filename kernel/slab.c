@@ -22,7 +22,7 @@ void print_slab(struct slab *s, uint size, void (*slab_obj_printer)(void *))
   {
     // read as pointer list
     // debug("[SLAB]            { addr: %p, as_ptr: %p, as_obj: { ", obj, obj->next);
-    debug("[SLAB]           [ idx: %d ] { addr: %p, as_ptr: %p, as_obj: { ", i, obj, *(void **)obj);
+    debug("[SLAB]           [ idx %d ] { addr: %p, as_ptr: %p, as_obj: { ", i, obj, *(void **)obj);
     // read as file object
     if (slab_obj_printer)
       slab_obj_printer(obj);
@@ -47,11 +47,11 @@ void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *)
     cache, cache->freelist, (void *) 0);
   // struct run *obj = (struct run *)(s + 1);
   void *obj = (void *) (cache + 1);
-  for (int i = 0; i < (MP2_SLAB_SIZE - sizeof(struct slab)) / cache->object_size; i++)
+  for (int i = 0; i < (MP2_SLAB_SIZE - sizeof(struct kmem_cache)) / cache->object_size; i++)
   {
     // read as pointer list
     // debug("[SLAB]            { addr: %p, as_ptr: %p, as_obj: { ", obj, obj->next);
-    debug("[SLAB]           [ idx: %d ] { addr: %p, as_ptr: %p, as_obj: { ", i, obj, *(void **)obj);
+    debug("[SLAB]           [ idx %d ] { addr: %p, as_ptr: %p, as_obj: { ", i, obj, *(void **)obj);
     // read as file object
     if (slab_obj_printer)
       slab_obj_printer(obj);
