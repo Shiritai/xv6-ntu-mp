@@ -40,9 +40,8 @@ void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *)
   // TODO: template
   // debug("[SLAB] TODO: print_kmem_cache \n");
 
-  debug("[SLAB] kmem_cache { name: %s, object_size: %d }\n", cache->name, cache->object_size);
-  
 #ifdef MP2_IN_CACHE_FREELIST
+  debug("[SLAB] kmem_cache { name: %s, object_size: %d, in_cache_obj: %d }\n", cache->name, cache->object_size, 1);
   debug("[SLAB]    [ cache    slabs ]\n");
   debug("[SLAB]        [ slab %p ] { freelist: %p, nxt: %p }\n",
     cache, cache->freelist, (void *) 0);
@@ -59,6 +58,8 @@ void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *)
     debug(" } }\n");
     obj = (void *)((char *)obj + cache->object_size);
   }
+#else
+  debug("[SLAB] kmem_cache { name: %s, object_size: %d, in_cache_obj: %d }\n", cache->name, cache->object_size, 0);
 #endif // MP2_IN_CACHE_FREELIST
 
   struct slab *s;
