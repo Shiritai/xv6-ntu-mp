@@ -40,7 +40,7 @@ void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *)
   // TODO: template
   // debug("[SLAB] TODO: print_kmem_cache \n");
 
-  debug("[SLAB] kmem_cache { name: %s, object_size: %d, harden: %d, rand: %d }\n", cache->name, cache->object_size, MP2_FREELIST_HARDENED, MP2_FREELIST_RANDOMIZATION);
+  debug("[SLAB] kmem_cache { name: %s, object_size: %d }\n", cache->name, cache->object_size);
   
   debug("[SLAB]    [ cache    slabs ]\n");
   debug("[SLAB]        [ slab %p ] { freelist: %p, nxt: %p }\n",
