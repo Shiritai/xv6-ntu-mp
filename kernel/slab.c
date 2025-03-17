@@ -77,6 +77,7 @@ void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *)
       print_slab(s, cache->object_size, slab_obj_printer);
     }
   }
+  debug("[SLAB] print_kmem_cache end\n");
 }
 
 struct kmem_cache *kmem_cache_create(char *name, uint object_size)
