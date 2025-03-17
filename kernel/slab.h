@@ -55,6 +55,7 @@ struct kmem_cache
   uint partial_cnt;
   uint full_cnt;
   // struct list_head free;    // Free slabs
+  void **freelist;             // Linked list of free objects
 };
 
 /**
