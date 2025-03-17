@@ -22,8 +22,3 @@
 #define MP2_CACHE_MAX_NAME 32 // Max length of the name of kmem_cache object.
 #define MP2_MIN_AVAIL_SLAB 2 // Minimal numbers of available (partial/free) slabs
 #define MP2_SLAB_SIZE      PGSIZE // Currently set to 1 page.
-
-// TODO: Change the following macros if you implement
-//       freelist related safety enhancement features
-#define MP2_FREELIST_HARDENED      0 // enable (1) / disable (0) MP2_FREELIST_HARDENED
-#define MP2_FREELIST_RANDOMIZATION 0 // enable (1) / disable (0) MP2_FREELIST_RANDOMIZATION

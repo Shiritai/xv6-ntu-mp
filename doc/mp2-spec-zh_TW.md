@@ -2,7 +2,7 @@
 
 ## 基本資訊
 
-* 滿分: 140% (基本部分: 100%, 加分部分 40%)
+* 滿分: 125% (基本部分: 100%, 加分部分 25%)
 * Release Date: 2025/03/18
 * Due Date: 2025/04/01
 * TA email: ntuos@googlegroups.com
@@ -58,7 +58,7 @@
 
 ### 評分標準
 
-本作業總分 **140%**，其中包含 **基本要求與加分項目**。建議學生 **先完成基本實作，再挑戰額外的加分項目**。
+本作業總分 **125%**，其中包含 **基本要求與加分項目**。建議學生 **先完成基本實作，再挑戰額外的加分項目**。
 
 #### 基本要求
 
@@ -76,13 +76,9 @@
 
 加分項目與基本要求不衝突，且加分項目不互相影響，可以選擇實現多個項目。
 
-- 安全性增強 (最高 +16%)
-  - [`freelist` 指標混淆](#1-freelist-指標混淆-pointer-obfuscation) (+8%)
-  - [`freelist` 隨機化](#2-freelist-隨機化-freelist-randomization) (+8%)
-- SLAB 優化 (最高 +24%)
-  - [`struct slab` 記憶體優化](#struct-slab-設計) (+6%)
-  - [`kmem_cache` 內部碎裂優化](#kmem_cache-的內部碎裂問題-加分項目) (+8%)
-  - [以 `kernel/list.h` 管理 SLAB](#struct-slab-設計) (+10%)
+- [`struct slab` 記憶體優化](#struct-slab-設計) (+5%)
+- [`kmem_cache` 內部碎裂優化](#kmem_cache-的內部碎裂問題-加分項目) (+10%)
+- [以 `kernel/list.h` 管理 SLAB](#struct-slab-設計) (+10%)
 
 ### 提交與評分方式
 
@@ -443,37 +439,6 @@ void some_func() {
 
 在實作 slab 的功能以及應用 slab 於 `file.c` 時請務必注意執行緒安全議題。
 
-### `freelist` 的安全性強化 (可選的加分項目)
-
-目前，`freelist` 內的鏈結串列節點通常按照記憶體地址順序排列，使得分配與釋放具有可預測性，可能會被攻擊者利用。因此，Linux 核心引入以下兩種技術來提高 `freelist` 的安全性：
-
-#### (1) `freelist` 指標混淆 (Pointer Obfuscation)
-
-透過對 `freelist` 指標進行 XOR 混淆，使攻擊者無法直接讀取或預測可用物件的地址。Linux 核心利用以下公式進行指標混淆：
-
-```c
-ptr = ptr ^ kmem_cache->random ^ swab(ptr_addr);
-```
-
-Linux 核心使用 XOR 運算將原始指標 (指向下一個空閒物件的地址) 與兩個值結合：一是每個 `kmem_cache` 初始化時設定的隨機數，二是儲存該指標的記憶體地址 (`ptr_addr`) 經過位元組順序交換 (`swab`，實作可參考 [`uapi/linux/swab.h`](https://github.com/torvalds/linux/blob/master/include/uapi/linux/swab.h) 和 [`linux/swab.h`](https://github.com/torvalds/linux/blob/master/include/linux/swab.h)) 後的結果。若存在一個漏洞允許攻擊者覆蓋 `ptr`，為了成功攻擊，需要知道隨機數和 `ptr_addr`，增加攻擊者的難度。
-
-在本作業中，學生可以透過實作指標混淆得到加分機會。當同學在 [`param.h`](../kernel/param.h) 中定義 `MP2_FREELIST_HARDENED = 1` 時：
-
-- `kmem_cache` 內部將包含一個隨機數 `random`，用於 XOR 運算。
-- `freelist` 指標在存取時需對指標進行解碼與編碼。
-
-#### (2) `freelist` 隨機化 (Freelist Randomization)
-
-在 SLAB 初始化時，隨機排列 `freelist` 內的可用物件，打破記憶體地址的順序性，提高安全性。
-
-當同學在 [`param.h`](../kernel/param.h) 中定義 `MP2_FREELIST_RANDOMIZATION = 1` 時：
-
-- `freelist` 的初始化順序將由偽隨機數生成器生成。
-- 偽隨機數生成器請自行實作，推薦可以實作於 [`kernel/random.h`](../kernel/random.h) 中，作為 xv6 核心功能的擴展，未來將可能提供給其他核心開發者使用。
-- 每個 `slab` 的 `freelist` 初始化順序將不同，增加攻擊難度。
-- 我們會檢查初始化起始值的分布。
-
-
 ### `kmem_cache` 的內部碎裂問題 (加分項目)
 
 `struct kmem_cache` 本身屬於 **動態配置的系統物件**，通常佔用 **一個完整的頁面**，但其自身大小遠小於頁面大小，導致記憶體浪費。為解決此問題，可以將剩餘空間用來存放 Slab 內的可配置物件。
@@ -494,13 +459,11 @@ Linux 核心使用 XOR 運算將原始指標 (指向下一個空閒物件的地�
   - **受限制的檔案**：
     - `kernel/file.h`
     - `kernel/list.h`
+    - `kernel/param.h`
     - `user/` 目錄內的所有程式碼  
   - **任何對 `ntuos/mp2-submit` 分支內受限制檔案的變更將視為違規行為，並導致該次作業評分為零**。  
   - 您可在其他 Git 分支進行修改。  
   - 允許在本機端對受限制檔案進行變更，但不得提交至受限制分支。  
-- `kernel/param.h` 檔案修改規範：
-  - 學生 **僅可變更** `MP2_FREELIST_HARDENED` 和 `MP2_FREELIST_RANDOMIZATION` 兩項設定。  
-  - **其他內容不得修改**。  
 - `kernel/file.c` 檔案修改規範：
   - **禁止修改** 任何 **以 `[FILE] ` 為前綴的除錯輸出程式碼**。  
   - 其他部分可進行調整，以**使 xv6 使用 `struct kmem_cache` 管理 `struct file`**。  
@@ -602,7 +565,7 @@ struct slab {
 
 `struct slab` 的設計將依據以下三個標準進行評分：
 
-1. **`struct slab` 本身的記憶體大小** (最高 9%)
+1. **`struct slab` 本身的記憶體大小** (最高 8%)
    定義 `struct slab` 的大小因子 $v(s)$ 如下：
    $$
    v(s) = \dfrac{sizeof(\tt{struct\ slab})}{sizeof(\tt{void *})}
@@ -611,7 +574,7 @@ struct slab {
 
    | `v(s)` | 分數 |
    |--------|------|
-   | $\le$ 3    | 3% + 6% |
+   | $\le$ 3    | 3% + 5% |
    | 4      | 3% + 2% |
    | 5      | 3% |
    | 6      | 2% |
@@ -788,91 +751,157 @@ fileclose(struct file *f)
 
 ### `print_kmem_cache` 列印 `struct kmem_cache` 的資訊
 
-在列印 `struct kmem_cache` 時，應根據 `struct slab` 配置剩餘數量的狀態，將 `struct slab` 分類為 `<slab_type>`（例如 `full`、`partial` 等），並採用以下格式：
+在列印 `struct kmem_cache` 時，應根據 `struct slab` 內剩餘可分配物件的數量，將 `struct slab` 分類為 `<slab_type>`（例如 `full`、`partial` 等）。
+
+輸出的資訊分為四類：
+
+#### 1. `<kmem_cache_status>`：`kmem_cache` 的基本資訊
 
 ```log
-[SLAB] kmem_cache { name: <name>, obj_size: <object_size>, harden: <harden>, rand: <rand> }
-[SLAB] <SPACE>[ <slab_type> slabs ]
-...
-[SLAB] <SPACE>[ <slab_type> slabs ]
-...
+[SLAB] kmem_cache { name: <name>, obj_size: <object_size> }
 ```
+- `<name>`：`kmem_cache` 的名稱（對應 `kmem_cache::name`）。
+- `<obj_size>`：`kmem_cache` 內單個物件的大小（對應 `kmem_cache::object_size`）。
 
-同時，需列印系統生成並管理的所有 `struct slab`，每個 `struct slab` 應包含以下資訊：
+#### 2. `<slab_list_status>`：Slab 清單狀態
+
+```log
+[SLAB] <SPACE>[ <slab_type><SPACE>slabs ]
+```
+- `<SPACE>`：至少一個空格 (` `) 或 `\t`。
+- `<slab_type>`：Slab 類型，可為 `full`、`partial`、`free` 或 [`cache`](#kmem_cache-的內部碎裂問題)。
+- **`full` 和 `free` 的 Slab 可透過推論確定，故無須輸出。**
+
+#### 3. `<slab_status>`：單個 Slab 狀態
 
 ```log
 [SLAB] <SPACE>[ slab <slab_addr> ] { freelist: <freelist>, nxt: <next_slab_addr> }
-[SLAB] <SPACE>[ idx <idx> ] { addr: <entry_addr>, as_ptr: <as_ptr>, as_obj: {<as_obj>} }
-[SLAB] <SPACE>[ idx <idx> ] { addr: <entry_addr>, as_ptr: <as_ptr>, as_obj: {<as_obj>} }
-...
-[SLAB] <SPACE>[ idx <idx> ] { addr: <entry_addr>, as_ptr: <as_ptr>, as_obj: {<as_obj>} }
 ```
 
-其中各欄位定義如下：
+- `<SPACE>`：至少一個空格 (` `) 或 `\t`。
+- `<slab_addr>`：Slab 在記憶體中的地址。
+- `<freelist>`：該 Slab 內部 `freelist` 的起始地址。
+- `<nxt_slab_addr>`：該 Slab 在鏈結串列中的下一個 Slab 地址。
 
-- `<name>`：`kmem_cache` 的名稱（`kmem_cache::name`）。
-- `<obj_size>`：`kmem_cache` 中物件的大小（`kmem_cache::object_size`）。
-- `<SPACE>`：一個以上任意數量的空格 (` `) 或 `\t`。
-- `<slab_type>`：分類為 `full`、`partial`、`free` 或 [`cache`](#kmem_cache-的內部碎裂問題)。
-  - 除錯時可列印所有類型。
-  - ***實際測試僅檢查 `partial` 和 `cache`（若有實現）的部分。***
-  - `full` 和 `free` slab 可以透過推論來追蹤，故不必印出
-- `<slab_addr>`：slab 在記憶體中的地址。
-- `<nxt_slab_addr>`：對應的 slab 的下一個 slab 在記憶體中的地址。
-- `<harden>`：`MP2_FREELIST_HARDENED` 的值（`0` 或 `1`），請參考 [`freelist` 安全性議題](#freelist-的安全性議題)。
-- `<rand>`：`MP2_FREELIST_RANDOMIZATION` 的值（`0` 或 `1`），請參考 [`freelist` 安全性議題](#freelist-的安全性議題)。
-- `<freelist>`：`slab::freelist` 的值。
-- `<entry_addr>`：根據 `slab::freelist` 中各物件的記憶體地址，按由小到大的順序列印每個物件的地址，相當於其在 freelist 中的 entry。
-- `<as_ptr>`：將該 entry 的物件解讀為指標的結果。
-- `<as_obj>`：將該 entry 的物件解讀為系統物件的結果，即將物件傳入 `slab_obj_printer` 的輸出。
-
-舉例如下。
-
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, harden: 0, rand: 1 }
-[SLAB]    [ full    slabs ]
-[SLAB]    [ partial slabs ]
-[SLAB]        [ slab 0x0000000087f4e000 ] { freelist: 0x0000000087f4ede8, prev: 0x0000000087f59040, nxt: 0x0000000087f32008 }
-[SLAB]            [ idx 0 ] { addr: 0x0000000087f4e020, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035488, off: 0, major: 1 } }
-[SLAB]            [ idx 1 ] { addr: 0x0000000087f4e218, as_ptr: 0x0000000000000000, as_obj: { tp: 0, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035598, off: 0, major: 0 } }
-[SLAB]            [ idx 2 ] { addr: 0x0000000087f4e410, as_ptr: 0x0000000087f4e218, as_obj: { tp: -2013994472, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035620, off: 0, major: 0 } }
-[SLAB]            [ idx 3 ] { addr: 0x0000000087f4e608, as_ptr: 0x0000000087f4e410, as_obj: { tp: -2013993968, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800356a8, off: 0, major: 0 } }
-[SLAB]            [ idx 4 ] { addr: 0x0000000087f4e800, as_ptr: 0x0000000087f4e608, as_obj: { tp: -2013993464, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035730, off: 0, major: 0 } }
-[SLAB]            [ idx 5 ] { addr: 0x0000000087f4e9f8, as_ptr: 0x0000000087f4e800, as_obj: { tp: -2013992960, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800357b8, off: 0, major: 0 } }
-[SLAB]            [ idx 6 ] { addr: 0x0000000087f4ebf0, as_ptr: 0x0000000087f4e9f8, as_obj: { tp: -2013992456, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035840, off: 0, major: 0 } }
-[SLAB]            [ idx 7 ] { addr: 0x0000000087f4ede8, as_ptr: 0x0000000087f4ebf0, as_obj: { tp: -2013991952, ref: 0, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800358c8, off: 0, major: 0 } }
-[SLAB]    [ free    slabs ]
-</code></pre>
-
-學生可在列印的資訊中自由添加除要求外的信息，只要包含必列的資訊即可，且順序可自行調整。
+#### 4. `<obj_status>`：單個核心物件的狀態 
 
 ```log
-[SLAB] kmem_cache { <KV_PAIRS> }
-[SLAB] <SPACE>[ slab <slab_addr> ] { <KV_PAIRS> }
-[SLAB] <SPACE>[ idx <idx> ] { <KV_PAIRS> }
-[SLAB] <SPACE>[ idx <idx> ] { <KV_PAIRS> }
-...
-[SLAB] <SPACE>[ idx <idx> ] { <KV_PAIRS> }
+[SLAB] <SPACE>[ idx <idx> ] { addr: <entry_addr>, as_ptr: <as_ptr>, as_obj: {<as_obj>} }
 ```
+- `<SPACE>`：至少一個空格 (` `) 或 `\t`。
+- `<idx>`：物件在其所屬 Slab 內的索引（按記憶體地址遞增順序）。
+- `<entry_addr>`：該物件的記憶體地址，應依 `slab::freelist` 內地址順序輸出。
+- `<as_ptr>`：將該物件解釋為指標後的值。
+- `<as_obj>`：將該物件作為系統物件解析並輸出（對應 `slab_obj_printer` 的輸出）。
 
-`<KV_PAIRS>` 表示不定數量的 key: value 鍵值對，以 `<SPACE>,<SPACE>` 分隔。
+#### 輸出格式範例
+
+```log
+[SLAB] <kmem_cache_status>
+[SLAB] <slab_list_status 0>
+[SLAB] <slab_status 0>
+[SLAB] <obj_status 0>
+[SLAB] <obj_status 1>
+[SLAB] ...
+[SLAB] <obj_status n>
+[SLAB] <slab_status 1>
+[SLAB] <obj_status 0>
+[SLAB] <obj_status 1>
+[SLAB] ...
+[SLAB] <obj_status n>
+[SLAB] <slab_list_status 1>
+[SLAB] <slab_status 0>
+[SLAB] <obj_status 0>
+[SLAB] <obj_status 1>
+[SLAB] ...
+[SLAB] <obj_status n>
+[SLAB] <slab_status 1>
+[SLAB] <obj_status 0>
+[SLAB] <obj_status 1>
+[SLAB] ...
+[SLAB] <obj_status n>
+[SLAB] ...
+```
 
 舉例如下。
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 4.5px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;">[SLAB] kmem_cache { rand: 0, name: file, some_thing: meow, object_size: 504, another_thing: 123, harden: 1 }
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504 }
+[SLAB]    [ partial slabs ]
+[SLAB]        [ slab 0x0000000087f4e000 ] { freelist: 0x0000000087f4e218, in_use: 1, prev: 0x0000000087f59040, nxt: 0x0000000087f59040 }
+[SLAB]           [ idx 0 ] { addr: 0x0000000087f4e020, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800354c8, off: 0, major: 1 } }
+[SLAB]           [ idx 1 ] { addr: 0x0000000087f4e218, as_ptr: 0x0000000087f4e410, as_obj: { tp: -2013993968, ref: 0, readable: 1, writable: 0, pipe: 0x0000000000000000, ip: 0x0000000080035440, off: 1024, major: 0 } }
+[SLAB]           [ idx 2 ] { addr: 0x0000000087f4e410, as_ptr: 0x0000000087f4e608, as_obj: { tp: -2013993464, ref: 0, readable: 1, writable: 0, pipe: 0x0000000000000000, ip: 0x00000000800354c8, off: 0, major: 1 } }
+[SLAB]           [ idx 3 ] { addr: 0x0000000087f4e608, as_ptr: 0x0000000087f4e800, as_obj: { tp: -2013992960, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
+[SLAB]           [ idx 4 ] { addr: 0x0000000087f4e800, as_ptr: 0x0000000087f4e9f8, as_obj: { tp: -2013992456, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
+[SLAB]           [ idx 5 ] { addr: 0x0000000087f4e9f8, as_ptr: 0x0000000087f4ebf0, as_obj: { tp: -2013991952, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
+[SLAB]           [ idx 6 ] { addr: 0x0000000087f4ebf0, as_ptr: 0x0000000087f4ede8, as_obj: { tp: -2013991448, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
+[SLAB]           [ idx 7 ] { addr: 0x0000000087f4ede8, as_ptr: 0x0000000000000000, as_obj: { tp: 0, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
+</code></pre>
+
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504 }
+[SLAB]    [ partial slabs ]
+[SLAB]        [ slab 0x0000000087e5d000 ] { freelist: 0x0000000087e5d020, in_use: 0, prev: 0x0000000087f59040, nxt: 0x0000000087f4e008 }
+[SLAB]           [ idx 0 ] { addr: 0x0000000087e5d020, as_ptr: 0x0000000087e5d410, as_obj: { tp: -2014981104, ref: 0, readable: 1, writable: 0, pipe: 0x0000000000000000, ip: 0x0000000080035440, off: 1024, major: 0 } }
+[SLAB]           [ idx 1 ] { addr: 0x0000000087e5d218, as_ptr: 0x0000000000000000, as_obj: { tp: 0, ref: 0, readable: 0, writable: 1, pipe: 0x0000000087e5c000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 2 ] { addr: 0x0000000087e5d410, as_ptr: 0x0000000087e5d800, as_obj: { tp: -2014980096, ref: 0, readable: 1, writable: 0, pipe: 0x0000000000000000, ip: 0x0000000080035550, off: 0, major: 0 } }
+[SLAB]           [ idx 3 ] { addr: 0x0000000087e5d608, as_ptr: 0x0000000087e5d218, as_obj: { tp: -2014981608, ref: 0, readable: 0, writable: 1, pipe: 0x0000000087e20000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 4 ] { addr: 0x0000000087e5d800, as_ptr: 0x0000000087e5dbf0, as_obj: { tp: -2014979088, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087de5000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 5 ] { addr: 0x0000000087e5d9f8, as_ptr: 0x0000000087e5d608, as_obj: { tp: -2014980600, ref: 0, readable: 0, writable: 1, pipe: 0x0000000087de5000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 6 ] { addr: 0x0000000087e5dbf0, as_ptr: 0x0000000087e5dde8, as_obj: { tp: -2014978584, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087daa000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 7 ] { addr: 0x0000000087e5dde8, as_ptr: 0x0000000087e5d9f8, as_obj: { tp: -2014979592, ref: 0, readable: 0, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800355d8, off: 5, major: 0 } }
+[SLAB]        [ slab 0x0000000087f4e000 ] { freelist: 0x0000000087f4e218, in_use: 1, prev: 0x0000000087e5d008, nxt: 0x0000000087f59040 }
+[SLAB]           [ idx 0 ] { addr: 0x0000000087f4e020, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800354c8, off: 0, major: 1 } }
+[SLAB]           [ idx 1 ] { addr: 0x0000000087f4e218, as_ptr: 0x0000000087f4e608, as_obj: { tp: -2013993464, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087f42000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 2 ] { addr: 0x0000000087f4e410, as_ptr: 0x0000000087f4ebf0, as_obj: { tp: -2013991952, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087eeb000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 3 ] { addr: 0x0000000087f4e608, as_ptr: 0x0000000087f4e410, as_obj: { tp: -2013993968, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087ee5000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 4 ] { addr: 0x0000000087f4e800, as_ptr: 0x0000000087f4e9f8, as_obj: { tp: -2013992456, ref: 0, readable: 0, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800355d8, off: 5, major: 0 } }
+[SLAB]           [ idx 5 ] { addr: 0x0000000087f4e9f8, as_ptr: 0x0000000000000000, as_obj: { tp: 0, ref: 0, readable: 0, writable: 1, pipe: 0x0000000087eeb000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 6 ] { addr: 0x0000000087f4ebf0, as_ptr: 0x0000000087f4ede8, as_obj: { tp: -2013991448, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087e98000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 7 ] { addr: 0x0000000087f4ede8, as_ptr: 0x0000000087f4e800, as_obj: { tp: -2013992960, ref: 0, readable: 0, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035550, off: 5, major: 0 } }
+</code></pre>
+
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504 }
 [SLAB]    [ cache    slabs ]
 [SLAB]        [ slab 0x0000000087f59000 ] { freelist: 0x0000000087f59268, nxt: 0x0000000000000000 }
 [SLAB]           [ idx 0 ] { addr: 0x0000000087f59070, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0505050505050505, ip: 0x0000000080035558, off: 84215045, major: 1 } }
-[SLAB]           [ idx 1 ] { addr: 0x0000000087f59268, as_ptr: 0x0000000087f59460, as_obj: { tp: -2013948832, ref: 0, readable: 1, writable: 1, pipe: 0x0505050505050505, ip: 0x0000000080035558, off: 84215045, major: 1 } }
-[SLAB]           [ idx 2 ] { addr: 0x0000000087f59460, as_ptr: 0x0000000087f59658, as_obj: { tp: -2013948328, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
+[SLAB]           [ idx 1 ] { addr: 0x0000000087f59268, as_ptr: 0x0000000087f59460, as_obj: { tp: -2013948832, ref: 0, readable: 1, writable: 0, pipe: 0x0505050505050505, ip: 0x00000000800354d0, off: 1024, major: 1 } }
+[SLAB]           [ idx 2 ] { addr: 0x0000000087f59460, as_ptr: 0x0000000087f59658, as_obj: { tp: -2013948328, ref: 0, readable: 1, writable: 0, pipe: 0x0505050505050505, ip: 0x0000000080035558, off: 0, major: 1 } }
 [SLAB]           [ idx 3 ] { addr: 0x0000000087f59658, as_ptr: 0x0000000087f59850, as_obj: { tp: -2013947824, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
 [SLAB]           [ idx 4 ] { addr: 0x0000000087f59850, as_ptr: 0x0000000087f59a48, as_obj: { tp: -2013947320, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
 [SLAB]           [ idx 5 ] { addr: 0x0000000087f59a48, as_ptr: 0x0000000087f59c40, as_obj: { tp: -2013946816, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
 [SLAB]           [ idx 6 ] { addr: 0x0000000087f59c40, as_ptr: 0x0000000000000000, as_obj: { tp: 0, ref: 0, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
-[SLAB]           [ idx 7 ] { addr: 0x0000000087f59e38, as_ptr: 0x0505050505050505, as_obj: { tp: 84215045, ref: 84215045, readable: 5, writable: 5, pipe: 0x0505050505050505, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
-[SLAB]    [ full    slabs ]
+</code></pre>
+
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504 }
+[SLAB]    [ cache    slabs ]
+[SLAB]        [ slab 0x0000000087f59000 ] { freelist: 0x0000000087f59268, nxt: 0x0000000000000000 }
+[SLAB]           [ idx 0 ] { addr: 0x0000000087f59070, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0505050505050505, ip: 0x0000000080035558, off: 84215045, major: 1 } }
+[SLAB]           [ idx 1 ] { addr: 0x0000000087f59268, as_ptr: 0x0000000087f59658, as_obj: { tp: -2013948328, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087f43000, ip: 0x00000000800354d0, off: 1024, major: 1 } }
+[SLAB]           [ idx 2 ] { addr: 0x0000000087f59460, as_ptr: 0x0000000087f59850, as_obj: { tp: -2013947824, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087e19000, ip: 0x0000000080035558, off: 0, major: 1 } }
+[SLAB]           [ idx 3 ] { addr: 0x0000000087f59658, as_ptr: 0x0000000087f59a48, as_obj: { tp: -2013947320, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087eec000, ip: 0x00000000800355e0, off: 0, major: 1 } }
+[SLAB]           [ idx 4 ] { addr: 0x0000000087f59850, as_ptr: 0x0000000087f59c40, as_obj: { tp: -2013946816, ref: 0, readable: 0, writable: 1, pipe: 0x0000000087eec000, ip: 0x0000000080035668, off: 5, major: 1285 } }
+[SLAB]           [ idx 5 ] { addr: 0x0000000087f59a48, as_ptr: 0x0000000087f59460, as_obj: { tp: -2013948832, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087ead000, ip: 0x0505050505050505, off: 84215045, major: 1285 } }
+[SLAB]           [ idx 6 ] { addr: 0x0000000087f59c40, as_ptr: 0x0000000000000000, as_obj: { tp: 0, ref: 0, readable: 0, writable: 1, pipe: 0x0000000087ead000, ip: 0x00000000800355e0, off: 5, major: 1285 } }
 [SLAB]    [ partial slabs ]
-[SLAB]    [ free slabs ]
-</pre>
+[SLAB]        [ slab 0x0000000087e74000 ] { freelist: 0x0000000087e74020, nxt: 0x0000000087da2008 }
+[SLAB]           [ idx 0 ] { addr: 0x0000000087e74020, as_ptr: 0x0000000087e74410, as_obj: { tp: -2014886896, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087e73000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 1 ] { addr: 0x0000000087e74218, as_ptr: 0x0000000000000000, as_obj: { tp: 0, ref: 0, readable: 0, writable: 1, pipe: 0x0000000087e73000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 2 ] { addr: 0x0000000087e74410, as_ptr: 0x0000000087e749f8, as_obj: { tp: -2014885384, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087f34000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 3 ] { addr: 0x0000000087e74608, as_ptr: 0x0000000087e74218, as_obj: { tp: -2014887400, ref: 0, readable: 0, writable: 1, pipe: 0x0000000087f34000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 4 ] { addr: 0x0000000087e74800, as_ptr: 0x0000000087e74608, as_obj: { tp: -2014886392, ref: 0, readable: 0, writable: 1, pipe: 0x0000000087e19000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 5 ] { addr: 0x0000000087e749f8, as_ptr: 0x0000000087e74de8, as_obj: { tp: -2014884376, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087ddd000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 6 ] { addr: 0x0000000087e74bf0, as_ptr: 0x0000000087e74800, as_obj: { tp: -2014885888, ref: 0, readable: 0, writable: 1, pipe: 0x0000000000000000, ip: 0x0000000080035778, off: 5, major: 0 } }
+[SLAB]           [ idx 7 ] { addr: 0x0000000087e74de8, as_ptr: 0x0000000087e74bf0, as_obj: { tp: -2014884880, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087da1000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]        [ slab 0x0000000087da2000 ] { freelist: 0x0000000087da2218, nxt: 0x0000000087f59040 }
+[SLAB]           [ idx 0 ] { addr: 0x0000000087da2020, as_ptr: 0x0000000087da2de8, as_obj: { tp: -2015744536, ref: 0, readable: 0, writable: 1, pipe: 0x0000000087da1000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 1 ] { addr: 0x0000000087da2218, as_ptr: 0x0000000087da2608, as_obj: { tp: -2015746552, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087ee6000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 2 ] { addr: 0x0000000087da2410, as_ptr: 0x0000000087da2020, as_obj: { tp: -2015748064, ref: 0, readable: 0, writable: 1, pipe: 0x0000000087ee6000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 3 ] { addr: 0x0000000087da2608, as_ptr: 0x0000000087da29f8, as_obj: { tp: -2015745544, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087d99000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 4 ] { addr: 0x0000000087da2800, as_ptr: 0x0000000087da2410, as_obj: { tp: -2015747056, ref: 0, readable: 0, writable: 1, pipe: 0x0000000087d99000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 5 ] { addr: 0x0000000087da29f8, as_ptr: 0x0000000087da2bf0, as_obj: { tp: -2015745040, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087d48000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 6 ] { addr: 0x0000000087da2bf0, as_ptr: 0x0000000087da2800, as_obj: { tp: -2015746048, ref: 0, readable: 0, writable: 1, pipe: 0x0000000087d48000, ip: 0x0000000000000000, off: 0, major: 0 } }
+[SLAB]           [ idx 7 ] { addr: 0x0000000087da2de8, as_ptr: 0x0000000000000000, as_obj: { tp: 0, ref: 0, readable: 0, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800355e0, off: 5, major: 0 } }
+</code></pre>
 
 ### 實作 system call `sys_printfslab`
 
