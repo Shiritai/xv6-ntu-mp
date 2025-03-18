@@ -29,7 +29,7 @@
 
 1. 確保已安裝 [Git](https://git-scm.com/)
 2. 確保擁有 [GitHub 帳號](https://github.com/)，若無，請先註冊
-3. 透過 MP2 專屬 [GitHub Classroom 連結]()，點擊 **Accept this assignment**，系統將為您建立專屬的作業倉庫 `mp2-<USERNAME>`
+3. 透過 MP2 專屬 [GitHub Classroom 連結](https://classroom.github.com/a/lWbOc_kX)，點擊 **Accept this assignment**，系統將為您建立專屬的作業倉庫 `mp2-<USERNAME>`
 4. 存取您的 MP2 倉庫 `https://github.com/ntuos2025/mp2-<USERNAME>`
 5. 在本地端克隆倉庫：
     ```bash
@@ -41,7 +41,7 @@
     ```
 7. 運行 `mp2.sh`，此腳本將準備 **`ntuos/mp2` 容器**：
     ```bash
-    ./mp2.sh start
+    ./mp2.sh pull
     ```
 8. **(選擇性) 容器內 VS Code 開發環境設置：**
    
@@ -49,9 +49,13 @@
     - 開啟 VS Code，進入 **Docker 側邊欄**，找到 `ntuos/mp2`
     - 右鍵點擊 **Attach Visual Studio Code**
     - 選擇 `ntuos/mp2`，此時 VS Code 會開啟新的開發環境，可直接於容器內進行開發
-9. 測試環境是否正常運行：
+9. 進入環境（容器內命令行）：
     ```bash
-    ./mp2.sh test
+    ./mp2.sh bash
+    ```
+10. 運行功能測試 (public tests)：
+    ```bash
+    ./mp2.sh run
     ```
 
 ## 評分標準與繳交方式
@@ -62,15 +66,9 @@
 
 #### 基本要求
 
-- 除錯工具 (10%)
-  - [`sys_printfslab`](#實作-system-call-sys_printfslab) 系統呼叫 (5%)
-  - [`print_kmem_cache`](#print_kmem_cache-列印-struct-kmem_cache-的資訊) (5%)
 - [SLAB 設計](#struct-slab-設計) (5%)
-- 功能測試 (Public Tests) (45%)
-  - [`kmem_cache_create`](#kmem_cache_create-創建-kmem_cache) (5%)
-  - [`kmem_cache_alloc`](#kmem_cache_alloc-配置物件) (20%)
-  - [`kmem_cache_alloc`](#kmem_cache_alloc-配置物件) + [`kmem_cache_free`](#kmem_cache_free-釋放物件) (20%)
-- 隱藏測試 (Private Tests) (40%)
+- 功能測試 (Public Tests) (75%)
+- 隱藏測試 (Private Tests) (20%)
 
 #### 加分項目
 
