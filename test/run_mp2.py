@@ -79,17 +79,15 @@ def run_cache_check():
 def public_testcases(rng: range):
     """Define and run MP2 test cases."""
     os.makedirs(f"out/public", exist_ok=True)
-    os.makedirs(f"out/private", exist_ok=True)
     tests = list(rng)
     tests = [run_mp2_test(f"public/mp2-{t}", f"test/public/mp2-{t}.txt", 3) for t in tests]
     return tests
 
 def private_testcases(rng: range):
     """Define and run MP2 test cases."""
-    os.makedirs(f"out/public", exist_ok=True)
     os.makedirs(f"out/private", exist_ok=True)
     tests = list(rng)
-    tests = [run_mp2_test(f"private/mp2-{t}", f"test/private/mp2-{t}.txt", 3) for t in tests]
+    tests = [run_mp2_test(f"private/mp2-{t}", f"test/private/mp2-{t}.txt", 5) for t in tests]
     return tests
 
 if __name__ == "__main__":
@@ -100,7 +98,7 @@ if __name__ == "__main__":
     elif len(sys.argv) == 2 and sys.argv[1] == 'cache':
         run_cache_check()
     elif len(sys.argv) >= 2 and sys.argv[1] == 'private':
-        _from, _to = 0, 5
+        _from, _to = 0, 4
         if len(sys.argv) >= 3:
             _from = int(sys.argv[2])
         if len(sys.argv) >= 4:
@@ -108,9 +106,13 @@ if __name__ == "__main__":
         private_testcases(range(_from, _to))
     elif len(sys.argv) == 2 and sys.argv[1] == 'all':
         run_slab_check()
-        public_testcases(range(5, 6))
+        public_testcases(range(25))
         run_cache_check()
         run_list_check()
+        if os.path.exists("test/private"):
+            private_testcases(range(len([f for f in os.listdir('test/private') 
+                                         if os.path.isfile(os.path.join('test/private', f))
+                                         and f.startswith("mp2-") and f.endswith(".txt")])))
     else:
         _from, _to = 0, 25
         if len(sys.argv) >= 2:
