@@ -58,19 +58,19 @@ Please ensure the following steps are completed to set up your development envir
     ./mp2.sh test
     ```
 
-## Grading Criteria and Submission Method
+# Grading Criteria and Submission Method
 
-### Grading Criteria
+## Grading Criteria
 
 The total score for this assignment is **125%**, comprising **basic requirements and bonus items**. It is recommended that students **complete the basic implementation first before attempting the bonus items**.
 
-#### Basic Requirements
+### Basic Requirements
 
 - **[SLAB Design](#struct-slab-design) (5%)**
 - **Functionality Tests (Public Tests) (75%)**
 - **Hidden Tests (Private Tests) (40%)**
 
-#### Bonus Items
+### Bonus Items
 
 Bonus items do not conflict with the basic requirements and are independent of each other, allowing students to implement multiple items.
 
@@ -78,7 +78,7 @@ Bonus items do not conflict with the basic requirements and are independent of e
 - [`kmem_cache` Internal Fragmentation Optimization](#kmem_cache-internal-fragmentation-issue-bonus-item) (+10%)
 - [Managing SLAB with `kernel/list.h`](#struct-slab-design) (+10%)
 
-### Submission and Grading Method
+## Submission and Grading Method
 
 All code must be submitted via **GitHub Classroom** using Git. Ensure your final submission complies with the requirements.
 
@@ -86,7 +86,7 @@ You may submit unlimited times before the deadline. The assignment will be autom
 
 The final score will include both functionality tests and hidden tests. You can view the results by checking the GitHub Action runs in your MP2 repository.
 
-## Problem Background: Challenges in Kernel Memory Management
+# Problem Background: Challenges in Kernel Memory Management
 
 Imagine the kernel needs to allocate 100 system objects of size `40B`, such as `struct file` in xv6. If each object is stored in a separate page, not only does this incur the overhead of page allocation, but it also leads to severe internal fragmentation, especially for small system objects.
 
@@ -99,9 +99,9 @@ The Slab system, originating from SunOS source code, was used in early Linux ker
 
 On a side note, the lab where the MP2 TAs work is called NEWSLAB, which can be playfully split as "New Slab"—fittingly, the goal of MP2! Hopefully, this isn’t too cheesy.
 
-## Preliminary Design and API of the Slab Allocator
+# Preliminary Design and API of the Slab Allocator
 
-### Preliminary Design of the Slab Allocator
+## Preliminary Design of the Slab Allocator
 
 The goals of the Slab allocator design are:
 
@@ -171,11 +171,11 @@ kmem_cache_destroy(file_cache);
 
 This is the interface design of the Slab allocator in the MP2 assignment and the core objective of this implementation. In the following sections, we will delve into its specific implementation details.
 
-### API Interface
+## API Interface
 
 This assignment requires providing the following Slab APIs for use in the `xv6` kernel:
 
-#### 1. `kmem_cache_create`
+### 1. `kmem_cache_create`
 
 ```c
 struct kmem_cache *kmem_cache_create(const char *name, size_t size);
@@ -186,7 +186,7 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size);
   - `size`: Object size (memory requirement of a single object).
 - **Return Value**: Pointer to the newly created `kmem_cache`.
 
-#### 2. `kmem_cache_alloc`
+### 2. `kmem_cache_alloc`
 
 ```c
 void *kmem_cache_alloc(struct kmem_cache *cache);
@@ -196,7 +196,7 @@ void *kmem_cache_alloc(struct kmem_cache *cache);
   - `cache`: Pointer to the `kmem_cache` structure.
 - **Return Value**: Pointer to the allocated object on success; `NULL` on failure.
 
-#### 3. `kmem_cache_free`
+### 3. `kmem_cache_free`
 
 ```c
 void kmem_cache_free(struct kmem_cache *cache, void *obj);
@@ -206,15 +206,15 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj);
   - `cache`: Pointer to the `kmem_cache` structure.
   - `obj`: Pointer to the object to be freed.
 
-## Considerations for Implementing the Slab Allocator
+# Considerations for Implementing the Slab Allocator
 
-### `freelist` Data Structure
+## `freelist` Data Structure
 
 After reading the above, you may be eager to implement the SLAB memory allocation mechanism in `xv6`. However, a key challenge in this process is **how to design the `freelist` data structure**.
 
 First, `freelist` is essentially a contiguous memory region, i.e., **an array**. For any array, the time complexity of retrieving or releasing an element is typically $O(n)$, where $n$ is the maximum number of objects that can be stored in `freelist`. However, in a performance-critical Linux kernel, such high complexity is unacceptable. Thus, we need a **more suitable data structure** to optimize allocation and deallocation times.
 
-### Application of Linked Lists
+## Application of Linked Lists
 
 Readers familiar with data structures know that a **linked list** allows element removal and insertion in $O(1)$ time, making it ideal for implementing object allocation and deallocation—hence the name `freelist`. We can treat `freelist` as a linked list of unallocated objects and operate as follows:
 
@@ -223,7 +223,7 @@ Readers familiar with data structures know that a **linked list** allows element
 
 This reduces the time complexity of both allocation and deallocation to **$O(1)$**, significantly improving performance.
 
-### How to Create a Linked List in Contiguous Memory?
+## How to Create a Linked List in Contiguous Memory?
 
 An intuitive approach is to **create an additional linked list to track available memory addresses in the array**. Suppose the original object array is `objects`, and `freelist` stores the addresses of available objects:
 
@@ -294,7 +294,7 @@ struct file *f_after_f = (struct file *) r_next;
 
 Students may also place two pointers within a kernel object’s space to implement a doubly linked list. Please design an appropriate data structure for `freelist` based on the [Slab allocator implementation requirements](#implementation-requirements).
 
-### Number of Elements in `freelist`
+## Number of Elements in `freelist`
 
 For a slab occupying one page, the number of elements in `freelist` should be:
 
@@ -302,7 +302,7 @@ $$
 \frac{\text{Page size - Metadata size in a slab}}{\text{Size of each object}}
 $$
 
-### `kmem_cache` Data Structure
+## `kmem_cache` Data Structure
 
 `kmem_cache` is the core structure in the Slab allocator responsible for managing memory allocation for objects of the same type. Its initial form is:
 
@@ -356,15 +356,15 @@ struct kmem_cache {
 
 Here, `<ptr>` can be `struct slab *`, `void *`, or `struct list_head`, the latter being a Linux-style doubly linked list management approach provided in [`kernel/list.h`](../kernel/list.h). For usage details, refer to the documentation comments in that file. Students implementing Slab lists with `struct list_head` from this library will have a bonus opportunity.
 
-### Relationship Between Core Objects, `struct slab`, and `struct kmem_cache`
+## Relationship Between Core Objects, `struct slab`, and `struct kmem_cache`
 
 In the SLAB allocator for MP2, there are three key components whose relationships should be clearly understood.
 
-#### Kernel Objects
+### Kernel Objects
 
 Kernel objects refer to the data structures managed by the kernel, such as `struct file`. Each kernel object has a fixed size.
 
-#### `struct slab`
+### `struct slab`
 
 - **Occupies a single page of memory**, where a portion of the space is allocated for **metadata**, while the remaining space is divided into equal-sized units, forming a **`freelist` (free object list)**. Each unit in the `freelist` can store one kernel object.  
 - **Different types of kernel objects are managed in separate Slabs**, ensuring independent management for different object types.  
@@ -381,7 +381,7 @@ The diagram above illustrates the state transition of a free slab before and aft
 
 In the function signature of `kmem_cache_free`, where only `struct kmem_cache *cache` and the core object pointer `void *obj` are provided, determining which `struct slab` the given `obj` belongs to is a critical design challenge. Consider what design approaches or techniques can be used to map `obj` to its corresponding `slab`.
 
-#### `struct kmem_cache`
+### `struct kmem_cache`
 
 - **Manages all slabs containing the same type of core object**, ensuring efficient memory allocation and deallocation.  
 - **For example, the system may create a separate `kmem_cache` for `struct file` and `struct proc`**, each dedicated to managing the slabs for their respective objects. *(This assignment does not involve modifications to `struct proc`.)*  
@@ -390,7 +390,7 @@ In the function signature of `kmem_cache_free`, where only `struct kmem_cache *c
 
 As shown in the diagram, a `kmem_cache` may manage multiple metadata entries and maintain one or more linked lists of slabs.
 
-#### Relationship Between `freelist` and `slab`
+### Relationship Between `freelist` and `slab`
 
 To efficiently access the memory managed by `freelist`, it is essential to have a clear understanding of the memory layout of structures and pages. The diagram below illustrates the memory layout of a slab:  
 
@@ -399,7 +399,7 @@ To efficiently access the memory managed by `freelist`, it is essential to have 
 Consider how to access the memory regions corresponding to each object in the diagram (`space 0 ~ 7`).  
 Hint: [Pointer Arithmetic](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3220.pdf#subsection.6.5.7).
 
-### Synchronization and Race Conditions in `kmem_cache`
+## Synchronization and Race Conditions in `kmem_cache`
 
 In multi-core and multi-threaded environments, operations on `kmem_cache` involve modifying and managing Slab lists, potentially leading to race conditions. When multiple CPUs access `kmem_cache` simultaneously—especially during object allocation (`kmem_cache_alloc()`) or deallocation (`kmem_cache_free()`)—data inconsistency or memory corruption may occur without proper synchronization.
 
@@ -433,7 +433,7 @@ void some_func() {
 
 When implementing Slab functionality and applying it to `file.c`, pay close attention to thread safety issues.
 
-### `kmem_cache` Internal Fragmentation Issue (Bonus Item)
+## `kmem_cache` Internal Fragmentation Issue (Bonus Item)
 
 `struct kmem_cache` itself is a **dynamically allocated system object**, typically occupying **a full page**, but its own size is much smaller, leading to memory waste. To address this, the remaining space can be used to store allocatable objects within the Slab.
 
@@ -443,9 +443,9 @@ To comply with the [implementation requirements](#print_kmem_cache-printing-stru
 - In the printed information, set `<slab_addr>` to the memory address of `struct kmem_cache` itself.  
 - In the printed information, set `<nxt_slab_addr>` to `0x00...00`.
 
-## Prerequisite Information for Implementation
+# Prerequisite Information for Implementation
 
-### File Modification Rules
+## File Modification Rules
 
 - **Ensure that your student ID is recorded in the `student_id.txt` file.**  
 - Restricted files in the following branches **must not be modified**:
@@ -465,7 +465,7 @@ To comply with the [implementation requirements](#print_kmem_cache-printing-stru
 
 - **Students are free to add new files or modify other parts of the code, except for the restrictions mentioned above.**
 
-### Simple Kernel Debugger
+## Simple Kernel Debugger
 
 Debugging newly added features in large-scale software projects is a challenging task. To facilitate this, many projects integrate logging or debugging systems to help developers diagnose issues. However, **xv6 only provides basic output functionality**, such as `printf`, which is limited in terms of debugging and testing capabilities. To improve debugging efficiency and testing flexibility, we have implemented a **simple kernel debugging system** for students to utilize.
 
@@ -485,7 +485,7 @@ For this MP2 assignment, **all output must be handled using the `debug` macro fu
 
 For detailed usage instructions, please refer to the [`kernel/debug.h`](../kernel/debug.h) documentation.
 
-### Dynamic Debugging Mode Switching
+## Dynamic Debugging Mode Switching
 
 The `debugswitch` command is provided in `xv6`, allowing developers to **toggle debugging mode via the command line**. Running `debugswitch` will **switch between enabling and disabling debug output**, making it easier to conduct tests and diagnose issues.
 
@@ -529,7 +529,7 @@ console        3 22 0
 [FILE] fileclose
 ```
 
-### Adjusting the Default Debug Mode
+## Adjusting the Default Debug Mode
 
 The default debugging mode can be configured in [`param.h`](../kernel/param.h).  
 Students may adjust the debug mode locally based on their development needs. However, **when submitting to GitHub, `MP2_DEFAULT_DEBUG_MODE` must be set to `1`** (debug mode enabled) to ensure proper evaluation.
@@ -539,11 +539,11 @@ Students may adjust the debug mode locally based on their development needs. How
 #define MP2_DEFAULT_DEBUG_MODE 1 // Debug mode enabled by default
 ```
 
-## Implementation Requirements
+# Implementation Requirements
 
 This assignment offers students significant flexibility to customize the `slab` design, provided the following specifications are followed.
 
-### `struct slab` Design
+## `struct slab` Design
 
 Design the `struct slab` data structure. Since kernel developers typically aim to maximize memory utilization, students are encouraged to minimize `struct slab`’s memory footprint to enhance space efficiency.
 
@@ -590,7 +590,7 @@ The `struct slab` design will be graded based on three criteria:
    - Must use [`struct list_head`](../kernel/list.h) in `struct slab` to maintain inter-Slab linkage.
    - Full marks (45%) in functionality tests are required to earn this additional 10%.
 
-### `struct kmem_cache` Design
+## `struct kmem_cache` Design
 
 ```c
 struct kmem_cache {
@@ -617,7 +617,7 @@ Key considerations:
 3. **Optionality of `full` and `free`**
    `full` and `free` in `kmem_cache` are optional. Students may refer to [Linux Kernel SLUB design](https://github.com/torvalds/linux/blob/0fed89a961ea851945d23cc35beb59d6e56c0964/mm/slub.c#L154) or adopt other suitable methods, provided they meet [implementation specifications](#print_kmem_cache-printing-struct-kmem_cache-information).
 
-### Slab Functionality
+## Slab Functionality
 
 Implement the following functions in [`slab.c`](./kernel/slab.c):
 
@@ -642,7 +642,7 @@ All Slab memory management functions should use `[SLAB] ` as a prefix for output
 [SLAB] Alloc request on cache file
 ```
 
-### `kmem_cache_create`: Creating `kmem_cache`
+## `kmem_cache_create`: Creating `kmem_cache`
 
 Before successfully creating and returning `kmem_cache`, output the following:
 
@@ -658,7 +658,7 @@ Before successfully creating and returning `kmem_cache`, output the following:
 
 Additionally, in `kmem_cache_create`, a new slab should not be initialized; the allocation of a new slab should be implemented on demand during `kmem_cache_alloc`.
 
-### `kmem_cache_alloc`: Allocating Objects
+## `kmem_cache_alloc`: Allocating Objects
 
 When allocating objects, follow the flowchart below and output corresponding information. Replace variables in **angle brackets (`<>`)** with actual values, ensuring each line is prefixed with `[SLAB] ` and words are separated by a single space.
 
@@ -670,7 +670,7 @@ When allocating objects, follow the flowchart below and output corresponding inf
 
 In addition, students can also print other customized debug messages, as long as they do not conflict with the print format in the flowchart. As suggestion, one can print custom debug messages with other prefixes (such as lowercase `[slab]`, etc.).
 
-### `kmem_cache_free`: Freeing Objects
+## `kmem_cache_free`: Freeing Objects
 
 When freeing objects, follow the flowchart below and output corresponding information. Ensure output complies with specifications, replacing variables in **angle brackets (`<>`)**, with all messages prefixed with `[SLAB] ` and words separated by a single space.
 
@@ -686,7 +686,7 @@ Additionally, if **the number of (`partial` + `free`) Slabs exceeds `MP2_MIN_AVA
 
 In addition, students can also print other customized debug messages, as long as they do not conflict with the print format in the flowchart. As suggestion, one can print custom debug messages with other prefixes (such as lowercase `[slab]`, etc.).
 
-### Applying the Slab Allocator to `struct file` Management
+## Applying the Slab Allocator to `struct file` Management
 
 In xv6, `struct file` was originally managed by `ftable` in `file.c`. Replace it with `struct kmem_cache *file_cache` and adjust `file.c` accordingly.
 
@@ -748,15 +748,15 @@ fileclose(struct file *f)
 
 Note: **Do not modify** the **print-related code** added to `file.c`. Debugging messages prefixed with `[FILE] ` should be output in `fileinit`, `filealloc`, and `fileclose` (when `ref` drops to 0).
 
-### `print_kmem_cache`: Printing `struct kmem_cache` Information
+## `print_kmem_cache`: Printing `struct kmem_cache` Information
 
 When printing `struct kmem_cache`, `struct slab` should be categorized into `<slab_type>` (e.g., `full`, `partial`, etc.) based on the number of remaining allocatable objects. 
 
-## Output Categories  
+# Output Categories  
 
 The output is divided into five categories:  
 
-#### 1. `<kmem_cache_status>`: Basic Information of `kmem_cache`  
+### 1. `<kmem_cache_status>`: Basic Information of `kmem_cache`  
 ```log
 [SLAB] kmem_cache { name: <name>, obj_size: <object_size>, in_cache_obj: <in_cache_obj> }
 ```
@@ -764,7 +764,7 @@ The output is divided into five categories:
 - `<obj_size>`: The size of each object in the `kmem_cache` (corresponding to `kmem_cache::object_size`).  
 - `<in_cache_obj>`: Whether the [internal fragmentation issue](#kmem_cache-internal-fragmentation-issue-bonus-item) is implemented; if yes, it is `1`, otherwise it is `0`.
 
-#### 2. `<slab_list_status>`: Slab List Status  
+### 2. `<slab_list_status>`: Slab List Status  
 ```log
 [SLAB] <SPACE>[ <slab_type><SPACE>slabs ]
 ```
@@ -772,7 +772,7 @@ The output is divided into five categories:
 - `<slab_type>`: The type of the slab, which can be `full`, `partial`, `free`, or [`cache`](#kmem_cache-internal-fragmentation-issue-bonus-item).  
 - **`full` and `free` slabs can be inferred and thus do not need to be printed.**  
 
-#### 3. `<slab_status>`: Status of a Single Slab  
+### 3. `<slab_status>`: Status of a Single Slab  
 ```log
 [SLAB] <SPACE>[ slab <slab_addr> ] { freelist: <freelist>, nxt: <next_slab_addr> }
 ```
@@ -781,7 +781,7 @@ The output is divided into five categories:
 - `<freelist>`: The starting address of the `freelist` within the slab.  
 - `<nxt_slab_addr>`: The memory address of the next slab in the linked list. 
 
-#### 4. `<obj_status>`: Status of a Core Object  
+### 4. `<obj_status>`: Status of a Core Object  
 ```log
 [SLAB] <SPACE>[ idx <idx> ] { addr: <entry_addr>, as_ptr: <as_ptr>, as_obj: {<as_obj>} }
 ```
@@ -791,13 +791,13 @@ The output is divided into five categories:
 - `<as_ptr>`: The value obtained by interpreting the object as a pointer.  
 - `<as_obj>`: The output of interpreting the object as a system object (processed by `slab_obj_printer`).
 
-### 5. `<print_kmem_cache_end>`：函式終止符號
+## 5. `<print_kmem_cache_end>`：函式終止符號
 
 ```log
 [SLAB] print_kmem_cache end
 ```
 
-## Output Format Example  
+# Output Format Example  
 ```log
 [SLAB] <kmem_cache_status>
 [SLAB] <slab_list_status 0>
@@ -912,7 +912,7 @@ Example:
 [SLAB] print_kmem_cache end
 </code></pre>
 
-### Implementing System Call `sys_printfslab`
+## Implementing System Call `sys_printfslab`
 
 Implement `sys_printfslab` to print the Slab (`struct kmem_cache`) for `file` as a system call.
 
@@ -930,7 +930,141 @@ int main(int argc, char *argv[])
 
 This code earns points if it compiles successfully, regardless of whether it prints the correct Slab information. By default, it cannot yet compile.
 
-## References
+# Appendix
+
+## Container-Based Development and `mp2.sh` Script
+
+Within the MP2 container environment, developers have system administrator privileges, allowing them to install necessary development tools. This approach ensures complete consistency between the development and runtime environments, offering high reproducibility and stability.
+
+Developers may opt to continue using the traditional development methods from MP0 and MP1 or adopt container-based development, utilizing the `mp2.sh` script for environment management and test execution.
+
+### (Optional) Configuring a Container Development Environment with VS Code
+
+To use Visual Studio Code (VS Code) for development inside the container, follow these steps:
+
+1. **Install Required Extensions**:
+   - [Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker): Provides Docker container management capabilities.
+   - [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers): Enables opening a development environment within a container.
+
+2. **Connect to the Container**:
+   - Launch VS Code and click the **Docker** icon in the left activity bar to access the Docker sidebar.
+   - Locate `ntuos/mp2` in the container list.
+   - Right-click `ntuos/mp2` and select **Attach Visual Studio Code**.
+   - VS Code will open a new window, automatically connecting to the `ntuos/mp2` container’s development environment.
+
+Once completed, you can directly edit code and perform development tasks within the container.
+
+## `mp2.sh` Script Usage Guide
+
+The `mp2.sh` script provides a set of command-line tools for managing the MP2 container environment and test workflows. Key functionalities are outlined below:
+
+### Display Full Usage Information
+
+```bash
+./mp2.sh
+```
+- **Function**: Displays all available commands and descriptions for `mp2.sh`.
+- **Sample Output**:
+  ```
+  mp2.sh - Command line tool for ntuos2025 MP2 (last updated: 2025/03/18)
+
+  Usage:
+    ./mp2.sh pull                   Pull the 'ntuos/mp2' Docker image.
+    ./mp2.sh test <from> [<to>]     Run test cases in a volatile container.
+    ./mp2.sh container [cmd]        Manage container: start, bash, finish.
+    ./mp2.sh testcase <from> [<to>] Run test cases directly without a container.
+  ```
+
+### Start the Container Environment
+
+```bash
+./mp2.sh container start
+```
+- **Function**: Launches the `ntuos/mp2` container in the background.
+- **Description**: The container remains active until manually stopped.
+
+### Access the Container Command Line
+
+```bash
+./mp2.sh container bash
+```
+- **Function**: Opens a Bash terminal within the running container.
+- **Prerequisite**: The container must first be started with `./mp2.sh container start`.
+- **Description**: Allows execution of commands or development tasks inside the container.
+
+### Stop and Remove the Container
+
+```bash
+./mp2.sh container finish
+```
+- **Function**: Stops and removes the running container.
+- **Description**: Adjusts file permissions in the MP2 directory to ensure continued accessibility in the external environment.
+
+### Running Tests
+
+The `mp2.sh` script supports two test execution methods: temporary execution outside the container and direct execution inside the container. Test cases are numbered from 0, totaling 25 cases (0–24).
+
+#### Execution Outside the Container (Similar to MP0 and MP1)
+
+The following command launches a temporary container to run tests:
+
+```bash
+./mp2.sh test
+```
+- **Function**: Executes all test cases.
+- **Description**: Starts a temporary container that is automatically removed upon completion.
+
+Specify a test range (`<to>` is exclusive):
+
+```bash
+./mp2.sh test <from> <to>
+```
+- **Example**: Run test cases 4 through 6:
+  ```bash
+  ./mp2.sh test 4 7
+  ```
+- **Description**: `<to>` is set to 7; since the range is exclusive, cases 4, 5, and 6 are executed.
+
+For a single test case, omit `<to>`:
+```bash
+./mp2.sh test 4
+```
+- **Description**: Runs test case 4 (equivalent to `test 4 5`).
+
+#### Execution Inside the Container
+
+For developers using container-based development, tests can be run directly within the container:
+
+```bash
+./mp2.sh testcase <from> <to>
+```
+- **Function**: Executes the specified range of test cases in the current directory.
+- **Prerequisite**: Must first enter the container (see [Access the Container Command Line](#access-the-container-command-line)).
+- **Example**: Run test cases 4 through 6:
+  ```bash
+  ./mp2.sh testcase 4 7
+  ```
+- **Description**: Functions similarly to `./mp2.sh test` but does not launch a new container.
+
+### Notes and Troubleshooting
+
+#### Permissions Issues
+
+During container-based development, file permissions in the MP2 directory may become restricted outside the container due to a mismatch between the container’s default user ID (1000) and the local user ID.
+
+- **Solutions**:
+  1. **Automatic Permission Adjustment**:
+     - Run `./mp2.sh container finish`, which automatically restores directory permissions to the local user.
+  2. **Manual Permission Adjustment**:
+     - If the issue persists, execute:
+       ```bash
+       sudo chown -R $(id -u):$(id -g) <MP2_REPO>
+       ```
+       - Replace `<MP2_REPO>` with the actual MP2 directory path, e.g., `./mp2`.
+
+- **Recommendation**: Always execute `./mp2.sh container finish` after completing container-based development to prevent permission conflicts.
+
+# References
 
 1. [xv6: a simple, Unix-like teaching operating system](https://pdos.csail.mit.edu/6.828/2023/xv6/book-riscv-rev3.pdf)  
 2. [ISO/IEC 9899:2024 (C Language Standard)](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3220.pdf)  
