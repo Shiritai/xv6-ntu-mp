@@ -11,6 +11,7 @@ int main(int argc, char *argv[])
     if (!strcmp(buf, "Ok"))
     {
       printfslab();
+      sleep(1);
       printf("Ok");
       break;
     }

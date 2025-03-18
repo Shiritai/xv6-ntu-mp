@@ -143,6 +143,7 @@ UPROGS=\
 	$U/_zombie\
 	$U/_debugswitch\
 	$U/_prepare\
+	$U/_checkstr\
 	$U/_gah\
 	$U/_oak\
 	$U/_oap\

@@ -49,15 +49,17 @@ def test(points, title=None, parent=None):
             if parent:
                 sys.stdout.write("\n")
             sys.stdout.flush()
+            real_point = points
+            _point = None
             try:
                 if parent_failed:
                     raise AssertionError('Parent failed: %s' % parent.__name__)
                 _point = fn()
             except AssertionError as e:
                 fail = str(e)
+                _point = 0
 
-            real_point = points
-            if _point is not None and _point <= points:
+            if _point is not None and isinstance(_point, int) and _point <= points:
                 real_point = _point
             # Display and handle test result
             POSSIBLE += points

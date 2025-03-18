@@ -1,1 +1,2 @@
 echo Ok > f1
+checkstr f1 Ok
