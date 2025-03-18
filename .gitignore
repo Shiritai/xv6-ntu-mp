@@ -31,4 +31,5 @@ test/check_slab.c
 test/check_slab.py
 test/check_slab.pyx
 test/build
+test/private
 tmp
