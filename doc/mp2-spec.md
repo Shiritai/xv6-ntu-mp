@@ -41,16 +41,20 @@ Please ensure the following steps are completed to set up your development envir
     ```
 7. Run `mp2.sh` to prepare the **`ntuos/mp2` container**:
     ```bash
-    ./mp2.sh start
+    ./mp2.sh pull
     ```
 8. **(Optional) Set up VS Code development environment inside the container:**
     - Install the [Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker) and [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extensions.
     - Open VS Code, go to the **Docker sidebar**, and locate `ntuos/mp2`.
     - Right-click and select **Attach Visual Studio Code**.
     - Choose `ntuos/mp2`. VS Code will open a new development environment, allowing direct development within the container.
-9. Test whether the environment is functioning correctly:
+9. Enter the testing environment (inside container, command line):
     ```bash
-    ./mp2.sh test
+    ./mp2.sh bash
+    ```
+10. Run functinoality test (public tests):
+    ```bash
+    ./mp2.sh run
     ```
 
 ## Grading Criteria and Submission Method
@@ -61,14 +65,8 @@ The total score for this assignment is **125%**, comprising **basic requirements
 
 #### Basic Requirements
 
-- **Debugging Tools (10%)**
-  - [`sys_printfslab`](#implementing-system-call-sys_printfslab) system call (5%)
-  - [`print_kmem_cache`](#print_kmem_cache-printing-struct-kmem_cache-information) (5%)
 - **[SLAB Design](#struct-slab-design) (5%)**
-- **Functionality Tests (Public Tests) (45%)**
-  - [`kmem_cache_create`](#kmem_cache_create-creating-kmem_cache) (5%)
-  - [`kmem_cache_alloc`](#kmem_cache_alloc-allocating-objects) (20%)
-  - [`kmem_cache_alloc`](#kmem_cache_alloc-allocating-objects) + [`kmem_cache_free`](#kmem_cache_free-freeing-objects) (20%)
+- **Functionality Tests (Public Tests) (75%)**
 - **Hidden Tests (Private Tests) (40%)**
 
 #### Bonus Items
