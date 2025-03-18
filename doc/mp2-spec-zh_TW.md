@@ -12,7 +12,7 @@
 
 
 
-## Overview
+## 概述
 
 在 MP2 作業中，我們將探討 **核心小型物件的記憶體配置與釋放機制**，並請學生在 `xv6` 作業系統上 **設計並實作 SLAB 分配器**。
 
@@ -39,38 +39,29 @@
     ```log
     b12345678
     ```
-7. 運行 `mp2.sh`，此腳本將準備 **`ntuos/mp2` 容器**：
+7. 運行 `mp2.sh` MP2 腳本工具：
     ```bash
-    ./mp2.sh pull
+    ./mp2.sh pull  # 準備 ntuos/mp2 容器
     ```
-8. **(選擇性) 容器內 VS Code 開發環境設置：**
-   
-    - 安裝 [Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker) 及 [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) 擴充套件
-    - 開啟 VS Code，進入 **Docker 側邊欄**，找到 `ntuos/mp2`
-    - 右鍵點擊 **Attach Visual Studio Code**
-    - 選擇 `ntuos/mp2`，此時 VS Code 會開啟新的開發環境，可直接於容器內進行開發
-9. 進入環境（容器內命令行）：
+    其他使用方式可以使用 `./mp2.sh` 查看。
+8. 運行功能測試 (public tests)：
     ```bash
-    ./mp2.sh bash
-    ```
-10. 運行功能測試 (public tests)：
-    ```bash
-    ./mp2.sh run
+    ./mp2.sh test
     ```
 
-## 評分標準與繳交方式
+# 評分標準與繳交方式
 
-### 評分標準
+## 評分標準
 
 本作業總分 **125%**，其中包含 **基本要求與加分項目**。建議學生 **先完成基本實作，再挑戰額外的加分項目**。
 
-#### 基本要求
+### 基本要求
 
 - [SLAB 設計](#struct-slab-設計) (5%)
 - 功能測試 (Public Tests) (75%)
 - 隱藏測試 (Private Tests) (20%)
 
-#### 加分項目
+### 加分項目
 
 加分項目與基本要求不衝突，且加分項目不互相影響，可以選擇實現多個項目。
 
@@ -78,7 +69,7 @@
 - [`kmem_cache` 內部碎裂優化](#kmem_cache-的內部碎裂問題-加分項目) (+10%)
 - [以 `kernel/list.h` 管理 SLAB](#struct-slab-設計) (+10%)
 
-### 提交與評分方式
+## 提交與評分方式
 
 所有程式碼將透過 git 繳交至 **GitHub Classroom**，請確保您的最終提交符合規範。
 
@@ -86,7 +77,7 @@
 
 最終得分將包含功能測試與隱藏測試，可至同學 mp2 的 Repository 中點選 Github Action 查看運行結果。
 
-## 問題背景：核心記憶體管理的挑戰
+# 問題背景：核心記憶體管理的挑戰
 
 想像今天 kernel 要分配 100 個大小為 `40B` 個系統物件，比如 xv6 中的 `struct file`。若每個物件都要以一個頁面儲存，不僅需要配置頁面時的開銷，還會遇到非常嚴重的內部碎裂問題，特別是面對小型系統物件的配置。
 
@@ -99,9 +90,9 @@ Slab 便是這樣一個系統，源自 SunOS 原始碼，為過去 Linux kernel 
 
 題外話，MP2 的助教們所屬的實驗室簡稱為 NEWSLAB，可以斷句為 NewSlab，這便是我們 MP2 的目標！嗯...希望不要太冷。
 
-## Slab 配置器的初步設計與 API
+# Slab 配置器的初步設計與 API
 
-### Slab 配置器的初步設計
+## Slab 配置器的初步設計
 
 在 Slab 配置器的設計中，我們的目標是：
 
@@ -171,11 +162,11 @@ kmem_cache_destroy(file_cache);
 
 這是 MP2 作業中 Slab 配置器的介面設計，也是本次實作的核心目標。在接下來的章節中，我們將深入探討其具體實作細節。
 
-### API 介面
+## API 介面
 
 本次作業應提供以下 slab API，以供 `xv6` 核心使用：
 
-#### 1. `kmem_cache_create`
+### 1. `kmem_cache_create`
 
 ```c
 struct kmem_cache *kmem_cache_create(const char *name, size_t size);
@@ -186,7 +177,7 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size);
   - `size`：物件大小 (單一物件的記憶體需求)。
 - **回傳值**: 指向新建立的 `kmem_cache` 的指標。
 
-#### 2. `kmem_cache_alloc`
+### 2. `kmem_cache_alloc`
 
 ```c
 void *kmem_cache_alloc(struct kmem_cache *cache);
@@ -196,7 +187,7 @@ void *kmem_cache_alloc(struct kmem_cache *cache);
   - `cache`：指向 `kmem_cache` 結構的指標。
 - **回傳值**: 成功時回傳指向已分配物件的指標，失敗時回傳 `NULL`。
 
-#### 3. `kmem_cache_free`
+### 3. `kmem_cache_free`
 
 ```c
 void kmem_cache_free(struct kmem_cache *cache, void *obj);
@@ -206,15 +197,15 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj);
   - `cache`：指向 `kmem_cache` 結構的指標。
   - `obj`：指向待釋放物件的指標。
 
-## Slab 配置器的實作的考量點
+# Slab 配置器的實作的考量點
 
-### `freelist` 資料結構
+## `freelist` 資料結構
 
 在閱讀前述內容後，您或許已經迫不及待地想在 `xv6` 中實作 SLAB 記憶體分配機制。然而，在實作過程中，**如何設計 `freelist` 資料結構** 將是一個關鍵挑戰。
 
 首先，`freelist` 本質上是一塊連續的記憶體區域，亦即 **一個陣列**。對於任何陣列來說，獲取可用元素或釋放元素的時間複雜度通常為 $O(n)$，其中 $n$ 為 `freelist` 中可放置的的最大總物件數。然而，在追求高效能的 Linux 核心中，如此高的複雜度顯然不可接受。因此，我們需要採用 **更適合的資料結構** 來優化分配與釋放的時間。
 
-### 鏈結串列的應用
+## 鏈結串列的應用
 
 學習過資料結構的讀者應該熟悉，**鏈結串列** 允許在 $O(1)$ 的時間內進行元素的移除和插入，可以分別用來實作物件的分配與釋放，這正是 `freelist` 的命名由來。我們可以將 `freelist` 視為一個尚未分配物件的鏈結串列，並透過以下方式進行操作：
 
@@ -223,7 +214,7 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj);
 
 如此一來，**物件分配與釋放的時間複雜度均為 $O(1)$**，大幅提升效能。
 
-### 如何為連續記憶體建立鏈結串列？
+## 如何為連續記憶體建立鏈結串列？
 
 一種直觀的做法是 **額外建立一個鏈結串列來記錄陣列中的可用記憶體地址**。假設原本的物件陣列為 `objects`，而 `freelist` 用於存放可用物件的地址，結構如下：
 
@@ -294,7 +285,7 @@ struct file *f_after_f = (struct file *) r_next;
 
 同學們也可以在一個核心物件的空間內放兩個指標，實現雙向鏈結串列。請根據 [Slab 配置器的實作要求](#實作要求)，為 freelist 設計合適資料結構。
 
-### `freelist` 的元素數量
+## `freelist` 的元素數量
 
 考慮一個 slab 佔用一個頁面，`freelist` 中應該有
 
@@ -304,7 +295,7 @@ $$
 
 個元素。
 
-### `kmem_cache` 資料結構
+## `kmem_cache` 資料結構
 
 `kmem_cache` 是 Slab 配置器中負責管理同類型物件記憶體分配的核心結構，其雛形如下：
 
@@ -360,15 +351,15 @@ struct kmem_cache {
 
 其中 `<ptr>` 可為 `struct slab *`、`void *`，或 `struct list_head` 等型別，後者為 Linux 風格的雙向鏈結串列管理方式，提供於 [`kernel/list.h`](../kernel/list.h)。如需瞭解 [`kernel/list.h`](../kernel/list.h) 的使用方式，請參考該檔案內的文檔註釋。採用該函式庫提供的 `struct list_head` 實作 slab 清單的同學將獲得加分機會。
 
-### 核心物件、`struct slab` 與 `struct kmem_cache` 的關係
+## 核心物件、`struct slab` 與 `struct kmem_cache` 的關係
 
 在 MP2 的 SLAB 配置器中，有三個關鍵角色，其關係應予以明確釐清。
 
-#### 核心物件
+### 核心物件
 
 核心所管理的資料結構，例如 `struct file`。每個核心物件的大小皆為固定長度。
 
-#### `struct slab`
+### `struct slab`
 
 - **佔用單個頁面的記憶體區塊**，其中部分空間存放 Slab 的 **元數據 (metadata)**，其餘空間則被切割為大小相同的記憶體單元，形成 **`freelist` (可用物件清單)**。`freelist` 內的每個單元可存放一個核心物件。  
 - **不同類型的核心物件會存放於對應類型的 Slab 中**，以確保管理的獨立性。  
@@ -385,7 +376,7 @@ struct kmem_cache {
 
 此外，在 `kmem_cache_free` 的函式簽名中，僅提供 `struct kmem_cache *cache` 及核心物件指標 `void *obj` 的情況下，如何確定 `obj` 所屬的 `struct slab` 是一項重要的設計課題。請思考有哪些設計方案或技術可用於實現 `obj` 到 `slab` 的映射？
 
-#### `struct kmem_cache`
+### `struct kmem_cache`
 
 - **負責管理所有屬於同一類型核心物件的 Slab**，確保記憶體分配與釋放的高效運行。  
 - **例如，系統可能為 `struct file` 和 `struct proc` 各自建立一個 `kmem_cache`**，專門管理其對應的 Slab。(本次作業不涉及 `struct proc` 相關程式碼)
@@ -394,7 +385,7 @@ struct kmem_cache {
 
 由上圖可見 `kmem_cache` 可能管理多個元數據，並管理一至多個 slab 鏈結序列。
 
-#### `freelist` 與 `slab` 的關係 
+### `freelist` 與 `slab` 的關係 
 
 有效存取 `freelist` 管理的記憶體空間，需對結構體與頁面記憶體的佈局有清晰的理解。下圖展示了 Slab 的記憶體佈局示意圖：  
 
@@ -403,7 +394,7 @@ struct kmem_cache {
 請思考如何存取圖中各個物件對應的記憶體區域 (`space 0 ~ 7`)。  
 提示：[指標運算 (Pointer Arithmetic)](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3220.pdf#subsection.6.5.7)。
 
-### `kmem_cache` 的同步控制與競爭議題
+## `kmem_cache` 的同步控制與競爭議題
 
 在多核心與多執行緒環境中，`kmem_cache` 的操作涉及對 Slab 清單的修改與管理，因此可能會產生競爭條件 (race condition)。當多個 CPU 同時存取 `kmem_cache`，特別是在執行物件分配 (`kmem_cache_alloc()`) 或釋放 (`kmem_cache_free()`) 操作時，若未採取適當的同步機制，可能導致資料不一致或記憶體損壞。
 
@@ -437,7 +428,7 @@ void some_func() {
 
 在實作 slab 的功能以及應用 slab 於 `file.c` 時請務必注意執行緒安全議題。
 
-### `kmem_cache` 的內部碎裂問題 (加分項目)
+## `kmem_cache` 的內部碎裂問題 (加分項目)
 
 `struct kmem_cache` 本身屬於 **動態配置的系統物件**，通常佔用 **一個完整的頁面**，但其自身大小遠小於頁面大小，導致記憶體浪費。為解決此問題，可以將剩餘空間用來存放 Slab 內的可配置物件。
 
@@ -447,9 +438,9 @@ void some_func() {
 * 列印的資訊中 `<slab_addr>` 直接對應 `struct kmem_cache` 自身在記憶體中的地址。
 * 列印的資訊中 `<nxt_slab_addr>` 設為 `0x00...00`。
 
-## 實作前需詳閱的資訊
+# 實作前需詳閱的資訊
 
-### 檔案修改規則
+## 檔案修改規則
 
 - **請確保在 `student_id.txt` 檔案中填入您的學號**。  
 - 以下分支中的受限制檔案 **禁止修改**：
@@ -467,7 +458,7 @@ void some_func() {
   - 其他部分可進行調整，以**使 xv6 使用 `struct kmem_cache` 管理 `struct file`**。  
 - 除上述限制外，學生可自由新增檔案或修改其他程式碼。
 
-### 簡易核心除錯器
+## 簡易核心除錯器
 
 在大型軟體專案中，為新增功能除錯是一項極具挑戰性的工作。為此，許多專案內建了日誌記錄或除錯系統，以協助開發人員進行問題排查。然而，xv6 **僅提供基本的輸出功能**，如 `printf`，這對於除錯與測試而言較為受限。因此，我們提供了一個 **簡易核心除錯系統**，以提升除錯效率與測試靈活性，請同學們善加利用。
 
@@ -487,7 +478,7 @@ debug("[FILE] filealloc");
 
 詳細使用方式請參閱 [`kernel/debug.h`](../kernel/debug.h) 核心文件。
 
-### 動態切換除錯模式
+## 動態切換除錯模式
 
 我們在 xv6 中提供了 `debugswitch` 命令，允許開發人員 **透過命令行切換除錯模式**。執行 `debugswitch` 後，系統將在 **開啟/關閉除錯輸出** 之間切換，便於測試與診斷。
 
@@ -531,7 +522,7 @@ console        3 22 0
 [FILE] fileclose
 ```
 
-### 調整預設除錯模式
+## 調整預設除錯模式
 
 預設的除錯模式可透過 [`param.h`](../kernel/param.h) 進行設定。  
 開發時，同學們可根據需求調整本機的除錯模式，但 **請確保提交至 GitHub 的 `MP2_DEFAULT_DEBUG_MODE` 為 `1`**，即 **開啟除錯模式**，以確保評分系統的正確性。
@@ -541,11 +532,11 @@ console        3 22 0
 #define MP2_DEFAULT_DEBUG_MODE 1 // 預設開啟除錯模式
 ```
 
-## 實作要求
+# 實作要求
 
 本作業提供學生們高度的靈活性，允許對 `slab` 進行自訂設計，只需遵循以下規範。
 
-### `struct slab` 設計
+## `struct slab` 設計
 
 請設計 `struct slab` 資料結構。由於核心開發者通常傾向於最大化記憶體利用率，因此建議學生最小化 `struct slab` 的記憶體佔用，以提升對記憶體空間的利用率。
 
@@ -592,7 +583,7 @@ struct slab {
    - 需在 `struct slab` 中 **使用 [`struct list_head`](../kernel/list.h) 維護 Slab 間的鏈結**。
    - 同學的程式碼 **需在功能測試的部分取得滿分 (45%)** 才會獲得這部分額外 10% 的加分
 
-### `struct kmem_cache` 的設計
+## `struct kmem_cache` 的設計
 
 ```c
 struct kmem_cache {
@@ -620,7 +611,7 @@ struct kmem_cache {
 3. `full` 和 `free` 的可選性
    `kmem_cache` 的 `full` 與 `free` 變數為可選項，學生可以參考 [Linux Kernel 中 SLUB 的設計方式](https://github.com/torvalds/linux/blob/0fed89a961ea851945d23cc35beb59d6e56c0964/mm/slub.c#L154)，或採用其他適合的實作方法，只要符合[實作規範](#print_kmem_cache-列印-struct-kmem_cache-的資訊)，即可獲得相應評分。
 
-### Slab 提供的功能
+## Slab 提供的功能
 
 請在 [`slab.c`](./kernel/slab.c) 中實作以下函式：
 
@@ -645,7 +636,7 @@ void print_kmem_cache(struct kmem_cache *, void (*)(void *));
 [SLAB] Alloc request on cache file
 ```
 
-### `kmem_cache_create`: 創建 `kmem_cache`
+## `kmem_cache_create`: 創建 `kmem_cache`
 
 在成功創建並返回 `kmem_cache` 之前，請輸出以下資訊：
 
@@ -661,7 +652,7 @@ void print_kmem_cache(struct kmem_cache *, void (*)(void *));
 
 另外在 `kmem_cache_create` 中不應該初始化新的 slab，新的 slab 的配置應該 `kmem_cache_alloc` 時依需求實現。
 
-### `kmem_cache_alloc`: 配置物件
+## `kmem_cache_alloc`: 配置物件
 
 在配置物件時，請依照以下流程圖執行，並輸出相應資訊。請將 **尖括號 (`<>`) 內的變數替換為實際數值**，並確保每行輸出皆以 `[SLAB] ` 為前綴，每個字中間間隔一個空白。
 
@@ -673,7 +664,7 @@ void print_kmem_cache(struct kmem_cache *, void (*)(void *));
 
 除此之外，同學們也可以列印其他自訂的除錯訊息，只要不和流程圖中出現的列印格式相衝突即可。建議以其他前綴 (比如小寫的 `[slab]` 等) 列印自定義的除錯訊息。
 
-### `kmem_cache_free`: 釋放物件
+## `kmem_cache_free`: 釋放物件
 
 在釋放物件時，請依照以下流程圖執行，並輸出相應資訊。請確保輸出符合規範，並替換 **尖括號 (`<>`) 內的變數**，所有訊息均需加上 `[SLAB] ` 前綴，每個字中間間隔一個空白。
 
@@ -689,7 +680,7 @@ void print_kmem_cache(struct kmem_cache *, void (*)(void *));
 
 除此之外，同學們也可以列印其他自訂的除錯訊息，只要不和流程圖中出現的列印格式相衝突即可。建議以其他前綴 (比如小寫的 `[slab]` 等) 列印自定義的除錯訊息。
 
-### 將 slab 配置器應用於 `struct file` 的管理
+## 將 slab 配置器應用於 `struct file` 的管理
 
 在 xv6 中，原本負責管理 `struct file` 的結構為 `file.c` 中的 `ftable`。請將其替換為 `struct kmem_cache *file_cache`，並相應調整 `file.c` 的實現。
 
@@ -751,13 +742,13 @@ fileclose(struct file *f)
 
 請同學們 **不要更動** 在 `file.c` 中添加的 **列印相關程式碼**，在 `fileinit`、`filealloc` 和 `fileclose` (ref 降至 0 時) 應該印出以 `[FILE] ` 為前綴的除錯訊息。
 
-### `print_kmem_cache` 列印 `struct kmem_cache` 的資訊
+## `print_kmem_cache` 列印 `struct kmem_cache` 的資訊
 
 在列印 `struct kmem_cache` 時，應根據 `struct slab` 內剩餘可分配物件的數量，將 `struct slab` 分類為 `<slab_type>`（例如 `full`、`partial` 等）。
 
 輸出的資訊分為五類：
 
-#### 1. `<kmem_cache_status>`：`kmem_cache` 的基本資訊
+### 1. `<kmem_cache_status>`：`kmem_cache` 的基本資訊
 
 ```log
 [SLAB] kmem_cache { name: <name>, obj_size: <object_size>, at: <kmem_cache_addr>, in_cache_obj: <in_cache_obj> }
@@ -767,7 +758,7 @@ fileclose(struct file *f)
 - `<kmem_cache_addr>`：`kmem_cache` 的記憶體地址。
 - `<in_cache_obj>`：是否實作[內部碎裂問題](#kmem_cache-的內部碎裂問題-加分項目)，是則為 `1`，否則為 `0。
 
-#### 2. `<slab_list_status>`：Slab 清單狀態
+### 2. `<slab_list_status>`：Slab 清單狀態
 
 ```log
 [SLAB] <SPACE>[ <slab_type><SPACE>slabs ]
@@ -776,7 +767,7 @@ fileclose(struct file *f)
 - `<slab_type>`：Slab 類型，可為 `full`、`partial`、`free` 或 [`cache`](#kmem_cache-的內部碎裂問題)。
 - **`full` 和 `free` 的 Slab 可透過推論確定，故無須輸出。**
 
-#### 3. `<slab_status>`：單個 Slab 狀態
+### 3. `<slab_status>`：單個 Slab 狀態
 
 ```log
 [SLAB] <SPACE>[ slab <slab_addr> ] { freelist: <freelist>, nxt: <next_slab_addr> }
@@ -787,7 +778,7 @@ fileclose(struct file *f)
 - `<freelist>`：該 Slab 內部 `freelist` 的起始地址。
 - `<nxt_slab_addr>`：該 Slab 在鏈結串列中的下一個 Slab 地址。
 
-#### 4. `<obj_status>`：單個核心物件的狀態 
+### 4. `<obj_status>`：單個核心物件的狀態 
 
 ```log
 [SLAB] <SPACE>[ idx <idx> ] { addr: <entry_addr>, as_ptr: <as_ptr>, as_obj: {<as_obj>} }
@@ -798,13 +789,13 @@ fileclose(struct file *f)
 - `<as_ptr>`：將該物件解釋為指標後的值。
 - `<as_obj>`：將該物件作為系統物件解析並輸出（對應 `slab_obj_printer` 的輸出）。
 
-### 5. `<print_kmem_cache_end>`：函式終止符號
+## 5. `<print_kmem_cache_end>`：函式終止符號
 
 ```log
 [SLAB] print_kmem_cache end
 ```
 
-#### 輸出格式範例
+### 輸出格式範例
 
 ```log
 [SLAB] <kmem_cache_status>
@@ -920,7 +911,7 @@ fileclose(struct file *f)
 [SLAB] print_kmem_cache end
 </code></pre>
 
-### 實作 system call `sys_printfslab`
+## 實作 system call `sys_printfslab`
 
 請同學們實現 `sys_printfslab`，印出 file 之 slab (`struct kmem_cache`) 的系統呼叫。
 
@@ -938,7 +929,141 @@ int main(int argc, char *argv[])
 
 上述程式碼只要能被正常編譯，無論是否印出正確的 slab，都能得到這部分的分數。預設還無法編譯成功。
 
-## 參考資料
+# 附錄
+
+## 容器內開發與 `mp2.sh` 腳本
+
+在 MP2 的容器環境中，開發者具備系統管理員權限，可自行安裝所需的開發工具。此方式確保開發環境與運行環境完全一致，提供高度的可重現性與穩定性。
+
+開發者可選擇沿用 MP0 和 MP1 的傳統開發方式，或採用容器內開發並搭配 `mp2.sh` 腳本進行環境管理與測試執行。
+
+### (可選項) 使用 VS Code 配置容器開發環境
+
+為在容器內使用 Visual Studio Code (VS Code) 進行開發，請按照以下步驟設置：
+
+1. **安裝必要擴充套件**：
+   - [Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker)：提供 Docker 容器管理功能。
+   - [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)：支援在容器內開啟開發環境。
+
+2. **連接至容器**：
+   - 啟動 VS Code，點擊左側活動欄中的 **Docker** 圖標，進入 Docker 側邊欄。
+   - 在容器清單中找到 `ntuos/mp2`。
+   - 右鍵點擊 `ntuos/mp2`，選擇 **Attach Visual Studio Code**。
+   - VS Code 將開啟新視窗，並自動連接到 `ntuos/mp2` 容器內的開發環境。
+
+完成上述步驟後，即可在容器內直接編輯程式碼並執行開發任務。
+
+## `mp2.sh` 腳本使用說明
+
+`mp2.sh` 腳本提供了一套命令列工具，用於管理 MP2 的容器環境與測試流程。以下為主要功能：
+
+### 查看完整使用說明
+
+```bash
+./mp2.sh
+```
+- **功能**：顯示 `mp2.sh` 的所有可用命令與說明。
+- **輸出範例**：
+  ```
+  mp2.sh - Command line tool for ntuos2025 MP2 (last updated: 2025/03/18)
+
+  Usage:
+    ./mp2.sh pull                   Pull the 'ntuos/mp2' Docker image.
+    ./mp2.sh test <from> [<to>]     Run test cases in a volatile container.
+    ./mp2.sh container [cmd]        Manage container: start, bash, finish.
+    ./mp2.sh testcase <from> [<to>] Run test cases directly without a container.
+  ```
+
+### 啟動容器環境
+
+```bash
+./mp2.sh container start
+```
+- **功能**：在背景啟動 `ntuos/mp2` 容器。
+- **說明**：容器啟動後將持續運行，直到手動停止。
+
+### 進入容器命令列
+
+```bash
+./mp2.sh container bash
+```
+- **功能**：在運行中的容器內開啟 Bash 終端機。
+- **前提**：需先執行 `./mp2.sh container start`。
+- **說明**：允許在容器內執行命令或進行開發。
+
+### 停止並移除容器
+
+```bash
+./mp2.sh container finish
+```
+- **功能**：停止並移除運行中的容器。
+- **說明**：同時調整 MP2 資料夾的檔案權限，確保外部環境可繼續存取。
+
+### 運行測試
+
+`mp2.sh` 支援兩種測試執行方式：容器外臨時執行與容器內直接執行。測試案例編號從 0 開始，共 25 筆（0-24）。
+
+#### 在容器外執行（類似 MP0、MP1）
+
+以下命令啟動臨時容器並運行測試：
+
+```bash
+./mp2.sh test
+```
+- **功能**：運行所有測試案例。
+- **說明**：啟動一個臨時容器，執行完畢後自動移除。
+
+指定測試範圍（`<to>` 為排除上限）：
+
+```bash
+./mp2.sh test <from> <to>
+```
+- **範例**：運行第 4 至 6 號測試案例：
+  ```bash
+  ./mp2.sh test 4 7
+  ```
+- **說明**：`<to>` 為 7，因範圍不包含上限，故執行 4、5、6。
+
+若僅測試單一案例，省略 `<to>` 即可：
+```bash
+./mp2.sh test 4
+```
+- **說明**：執行第 4 號測試案例（等同於 `test 4 5`）。
+
+#### 在容器內執行
+
+若採用容器內開發，可在容器內直接運行測試：
+
+```bash
+./mp2.sh testcase <from> <to>
+```
+- **功能**：在當前目錄執行指定範圍的測試案例。
+- **前提**：需先進入容器（參見[進入容器命令列](#進入容器命令列)）。
+- **範例**：運行第 4 至 6 號測試案例：
+  ```bash
+  ./mp2.sh testcase 4 7
+  ```
+- **說明**：用法與 `./mp2.sh test` 相同，但不啟動新容器。
+
+### 注意事項與疑難排解
+
+#### 權限問題
+
+容器內開發可能因預設使用者 ID（1000）與本機使用者 ID 不一致，導致 MP2 資料夾內的檔案在容器外無法修改。
+
+- **解決方法**：
+  1. **自動調整權限**：
+     - 執行 `./mp2.sh container finish`，腳本會自動將資料夾權限還原至本機使用者。
+  2. **手動調整權限**：
+     - 若問題持續，執行以下命令：
+       ```bash
+       sudo chown -R $(id -u):$(id -g) <MP2_REPO>
+       ```
+       - 將 `<MP2_REPO>` 替換為 MP2 資料夾路徑，例如 `./mp2`。
+
+- **建議**：每次完成容器內開發後，務必執行 `./mp2.sh container finish`，以避免權限衝突。
+
+# 參考資料
 
 1. [xv6: a simple, Unix-like teaching operating system](https://pdos.csail.mit.edu/6.828/2023/xv6/book-riscv-rev3.pdf)
 2. [ISO/IEC 9899:2024 (C 語言規格書)](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3220.pdf)
