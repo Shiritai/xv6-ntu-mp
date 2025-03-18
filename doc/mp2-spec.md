@@ -50,11 +50,12 @@ Please ensure the following steps are completed to set up your development envir
     - Choose `ntuos/mp2`. VS Code will open a new development environment, allowing direct development within the container.
 9. Enter the testing environment (inside container, command line):
     ```bash
-    ./mp2.sh bash
+    ./mp2.sh run
     ```
+    Inside the container, students have sudo privilege to customize your development tools.
 10. Run functinoality test (public tests):
     ```bash
-    ./mp2.sh run
+    ./mp2.sh test
     ```
 
 ## Grading Criteria and Submission Method
