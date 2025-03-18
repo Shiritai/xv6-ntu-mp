@@ -2,7 +2,6 @@
 
 #include "spinlock.h"
 #include "types.h"
-#include "list.h"
 
 // struct run {
 //   struct run *next;
