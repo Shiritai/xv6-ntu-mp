@@ -52,23 +52,24 @@ def test(points, title=None, parent=None):
             try:
                 if parent_failed:
                     raise AssertionError('Parent failed: %s' % parent.__name__)
-                fn()
+                _point = fn()
             except AssertionError as e:
                 fail = str(e)
 
+            real_point = points
+            if _point is not None and _point <= points:
+                real_point = _point
             # Display and handle test result
             POSSIBLE += points
             if points:
-                print("%s: %s" % (title, \
-                    (color("red", "FAIL") if fail else color("green", "OK"))), end=' ')
+                print(f"{title}: {color('red', 'FAIL') if fail or real_point == 0 else color('yellow', 'PARTIAL') if real_point != points else color('green', 'OK')} {f'({real_point}/{points})'}", end=' ')
             if time.time() - start > 0.1:
                 print("(%.1fs)" % (time.time() - start), end=' ')
             print()
             if fail:
                 print("    %s" % fail.replace("\n", "\n    "))
             else:
-                TOTAL += points
-                print()
+                TOTAL += real_point
                 print()
             for callback in run_test.on_finish:
                 callback(fail)
@@ -119,14 +120,10 @@ def run_tests():
     limit = list(map(str.lower, args))
     try:
         for test in TESTS:
-            if not limit or any(l in test.title.lower() for l in limit):
-                test()
-        if not limit:
-            print("Score: %d/%d" % (TOTAL, POSSIBLE))
+            test()
+        print("Score: %d/%d" % (TOTAL, POSSIBLE))
     except KeyboardInterrupt:
         pass
-    if TOTAL < POSSIBLE:
-        sys.exit(1)
 
 def get_current_test():
     if not CURRENT_TEST:
@@ -216,7 +213,7 @@ def maybe_unlink(*paths):
             if e.errno != errno.ENOENT:
                 raise
 
-COLORS = {"default": "\033[0m", "red": "\033[31m", "green": "\033[32m"}
+COLORS = {"default": "\033[0m", "red": "\033[31m", "green": "\033[32m", "yellow": "\033[33m"}
 
 def color(name, text):
     if options.color == "always" or (options.color == "auto" and os.isatty(1)):

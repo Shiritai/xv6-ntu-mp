@@ -2,7 +2,6 @@
 
 #include "spinlock.h"
 #include "types.h"
-#include "list.h"
 
 // adjust the following definition to...
 #define MP2_IN_CACHE_FREELIST // use in-cache freelist

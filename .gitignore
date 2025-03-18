@@ -18,7 +18,18 @@ user/usys.S
 
 # mp2
 out
+test/pseudo_fslab.c
 test/pseudo_fslab.py
 test/pseudo_fslab.pyx
+test/check_cache.c
+test/check_cache.py
+test/check_cache.pyx
+test/check_list.c
+test/check_list.py
+test/check_list.pyx
+test/check_slab.c
+test/check_slab.py
+test/check_slab.pyx
 test/build
+test/private
 tmp
