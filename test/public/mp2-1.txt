@@ -1,1 +1,1 @@
-echo Ok | gah . 1 | oak
+echo Ok > ok

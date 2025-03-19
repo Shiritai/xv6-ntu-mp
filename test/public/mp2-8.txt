@@ -1,1 +1,1 @@
-echo Ok | gah . 8 | oak | oap
+echo Ok | gah . 8 | oak | oap > ok

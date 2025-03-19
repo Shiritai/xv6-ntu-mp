@@ -1,2 +1,2 @@
-echo Ok | gah . 1 | oak | gah . 8 | oak > ok
+echo Ok | gah . 2 | oak | gah . 8 | oak end > ok
 checkstr ok Ok
