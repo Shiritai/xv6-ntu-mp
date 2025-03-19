@@ -2,11 +2,11 @@
 
 ## Basic Information
 
-* **Full Score**: 125% (Basic: 100%, Bonus: 25%)
-* **Release Date**: March 18, 2025
-* **Due Date**: April 1, 2025
-* **TA Email**: ntuos@googlegroups.com
-* **TA Hours**: Wednesday 1:00–2:00 p.m., Friday 11:00 a.m.–12:00 p.m., at B04
+* Full Score: 125% (Basic: 100%, Bonus: 25%)
+* Release Date: March 18, 2025
+* Due Date: April 1, 2025
+* TA Email: ntuos@googlegroups.com
+* TA Hours: Wednesday 1:00–2:00 p.m., Friday 11:00 a.m.–12:00 p.m., at CSIE B04
 
 [TOC]
 
@@ -25,37 +25,28 @@ Through this assignment, students will gain hands-on experience in **designing a
 
 ## Environment Setup and Preparation
 
-Please ensure the following steps are completed to set up your development environment:
+Please confirm the following steps to ensure your development environment is properly set up:
 
-1. Verify that [Git](https://git-scm.com/) is installed.
-2. Ensure you have a [GitHub account](https://github.com/). If not, please register one.
-3. Access the MP2-specific [GitHub Classroom link]() and click **Accept this assignment**. The system will create a dedicated repository for you: `mp2-<USERNAME>`.
-4. Access your MP2 repository at `https://github.com/ntuos2025/mp2-<USERNAME>`.
+1. Ensure [Git](https://git-scm.com/) is installed.
+2. Ensure you have a [GitHub account](https://github.com/). If not, please register first.
+3. Access the MP2-specific [GitHub Classroom link](https://classroom.github.com/a/lWbOc_kX), click **Accept this assignment**, and the system will create a dedicated repository for you named `mp2-<USERNAME>`.
+4. Visit your MP2 repository at `https://github.com/ntuos2025/mp2-<USERNAME>`.
 5. Clone the repository locally:
     ```bash
     git clone https://github.com/ntuos2025/mp2-<USERNAME>
     ```
-6. Fill in your student ID in the `student_id.txt` file within the repository, e.g.:
+6. Fill in your student ID in the `student_id.txt` file within the repository, for example:
     ```log
     b12345678
     ```
-7. Run `mp2.sh` to prepare the **`ntuos/mp2` container**:
+7. Run the `mp2.sh` MP2 script tool:
     ```bash
-    ./mp2.sh pull
+    ./mp2.sh pull  # Prepare the ntuos/mp2 container
     ```
-8. **(Optional) Set up VS Code development environment inside the container:**
-    - Install the [Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker) and [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extensions.
-    - Open VS Code, go to the **Docker sidebar**, and locate `ntuos/mp2`.
-    - Right-click and select **Attach Visual Studio Code**.
-    - Choose `ntuos/mp2`. VS Code will open a new development environment, allowing direct development within the container.
-9. Enter the testing environment (inside container, command line):
+    For additional usage details, run `./mp2.sh` to view them.
+8. [Run functionality tests](#mp2sh-script-usage-guide) (public tests):
     ```bash
-    ./mp2.sh run
-    ```
-    Inside the container, students have sudo privilege to customize your development tools.
-10. Run functinoality test (public tests):
-    ```bash
-    ./mp2.sh test
+    ./mp2.sh test [cmd]
     ```
 
 # Grading Criteria and Submission Method
@@ -66,9 +57,11 @@ The total score for this assignment is **125%**, comprising **basic requirements
 
 ### Basic Requirements
 
-- **[SLAB Design](#struct-slab-design) (5%)**
-- **Functionality Tests (Public Tests) (75%)**
-- **Hidden Tests (Private Tests) (40%)**
+- [SLAB Design](#struct-slab-design) (5%)
+- Functionality Tests (Public Tests) (75%)
+  - Includes 25 test cases, each worth 3%.
+- Hidden Tests (Private Tests) (20%)
+  - Includes 4 test cases, each worth 5%.
 
 ### Bonus Items
 
@@ -932,137 +925,194 @@ This code earns points if it compiles successfully, regardless of whether it pri
 
 # Appendix
 
-## Container-Based Development and `mp2.sh` Script
+## Development Inside Containers
 
-Within the MP2 container environment, developers have system administrator privileges, allowing them to install necessary development tools. This approach ensures complete consistency between the development and runtime environments, offering high reproducibility and stability.
+In the MP2 container environment, developers can perform development tasks within the container. This approach ensures that the development environment is identical to the runtime environment, offering high reproducibility and stability. Additionally, developers have system administrator privileges within the container, allowing them to install necessary development tools as needed.
 
-Developers may opt to continue using the traditional development methods from MP0 and MP1 or adopt container-based development, utilizing the `mp2.sh` script for environment management and test execution.
+Developers may opt to continue using the traditional development methods from MP0 and MP1 or adopt container-based development, utilizing the `mp2.sh` script to manage the environment and execute tests.
 
-### (Optional) Configuring a Container Development Environment with VS Code
+### (Optional) Configuring VS Code for Container Development
 
 To use Visual Studio Code (VS Code) for development inside the container, follow these steps:
 
 1. **Install Required Extensions**:
    - [Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker): Provides Docker container management capabilities.
-   - [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers): Enables opening a development environment within a container.
+   - [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers): Enables development within a container environment.
 
 2. **Connect to the Container**:
-   - Launch VS Code and click the **Docker** icon in the left activity bar to access the Docker sidebar.
+   - Launch VS Code, click the **Docker** icon in the left activity bar to access the Docker sidebar.
    - Locate `ntuos/mp2` in the container list.
    - Right-click `ntuos/mp2` and select **Attach Visual Studio Code**.
-   - VS Code will open a new window, automatically connecting to the `ntuos/mp2` container’s development environment.
+   - VS Code will open a new window and automatically connect to the development environment inside the `ntuos/mp2` container.
 
-Once completed, you can directly edit code and perform development tasks within the container.
+After completing these steps, you can directly edit code and perform development tasks within the container.
 
-## `mp2.sh` Script Usage Guide
-
-The `mp2.sh` script provides a set of command-line tools for managing the MP2 container environment and test workflows. Key functionalities are outlined below:
-
-### Display Full Usage Information
-
-```bash
-./mp2.sh
-```
-- **Function**: Displays all available commands and descriptions for `mp2.sh`.
-- **Sample Output**:
-  ```
-  mp2.sh - Command line tool for ntuos2025 MP2 (last updated: 2025/03/18)
-
-  Usage:
-    ./mp2.sh pull                   Pull the 'ntuos/mp2' Docker image.
-    ./mp2.sh test <from> [<to>]     Run test cases in a volatile container.
-    ./mp2.sh container [cmd]        Manage container: start, bash, finish.
-    ./mp2.sh testcase <from> [<to>] Run test cases directly without a container.
-  ```
-
-### Start the Container Environment
+### Starting the Container Environment
 
 ```bash
 ./mp2.sh container start
 ```
+
 - **Function**: Launches the `ntuos/mp2` container in the background.
 - **Description**: The container remains active until manually stopped.
 
-### Access the Container Command Line
+### Accessing the Container Command Line
 
 ```bash
 ./mp2.sh container bash
 ```
+
 - **Function**: Opens a Bash terminal within the running container.
 - **Prerequisite**: The container must first be started with `./mp2.sh container start`.
-- **Description**: Allows execution of commands or development tasks inside the container.
+- **Description**: Provides a command-line interface inside the container for executing commands or development tasks.
 
-### Stop and Remove the Container
+### Stopping and Removing the Container
 
 ```bash
 ./mp2.sh container finish
 ```
+
 - **Function**: Stops and removes the running container.
-- **Description**: Adjusts file permissions in the MP2 directory to ensure continued accessibility in the external environment.
+- **Description**: Simultaneously adjusts the file permissions of the MP2 folder to ensure accessibility in the external environment.
 
-### Running Tests
+### Permission Issues
 
-The `mp2.sh` script supports two test execution methods: temporary execution outside the container and direct execution inside the container. Test cases are numbered from 0, totaling 25 cases (0–24).
-
-#### Execution Outside the Container (Similar to MP0 and MP1)
-
-The following command launches a temporary container to run tests:
-
-```bash
-./mp2.sh test
-```
-- **Function**: Executes all test cases.
-- **Description**: Starts a temporary container that is automatically removed upon completion.
-
-Specify a test range (`<to>` is exclusive):
-
-```bash
-./mp2.sh test <from> <to>
-```
-- **Example**: Run test cases 4 through 6:
-  ```bash
-  ./mp2.sh test 4 7
-  ```
-- **Description**: `<to>` is set to 7; since the range is exclusive, cases 4, 5, and 6 are executed.
-
-For a single test case, omit `<to>`:
-```bash
-./mp2.sh test 4
-```
-- **Description**: Runs test case 4 (equivalent to `test 4 5`).
-
-#### Execution Inside the Container
-
-For developers using container-based development, tests can be run directly within the container:
-
-```bash
-./mp2.sh testcase <from> <to>
-```
-- **Function**: Executes the specified range of test cases in the current directory.
-- **Prerequisite**: Must first enter the container (see [Access the Container Command Line](#access-the-container-command-line)).
-- **Example**: Run test cases 4 through 6:
-  ```bash
-  ./mp2.sh testcase 4 7
-  ```
-- **Description**: Functions similarly to `./mp2.sh test` but does not launch a new container.
-
-### Notes and Troubleshooting
-
-#### Permissions Issues
-
-During container-based development, file permissions in the MP2 directory may become restricted outside the container due to a mismatch between the container’s default user ID (1000) and the local user ID.
+Development inside the container may result in permission issues due to a mismatch between the default user ID (1000) and the local user ID, preventing files in the MP2 folder from being edited outside the container.
 
 - **Solutions**:
   1. **Automatic Permission Adjustment**:
-     - Run `./mp2.sh container finish`, which automatically restores directory permissions to the local user.
+     - Run `./mp2.sh container finish`, and the script will automatically adjust the folder permissions to match the local user.
   2. **Manual Permission Adjustment**:
-     - If the issue persists, execute:
+     - If the issue persists, execute the following command:
        ```bash
        sudo chown -R $(id -u):$(id -g) <MP2_REPO>
        ```
-       - Replace `<MP2_REPO>` with the actual MP2 directory path, e.g., `./mp2`.
+       - Replace `<MP2_REPO>` with the path to the MP2 folder, e.g., `./mp2`.
 
-- **Recommendation**: Always execute `./mp2.sh container finish` after completing container-based development to prevent permission conflicts.
+- **Recommendation**: After completing development inside the container, it is recommended to run `./mp2.sh container finish` to prevent permission conflicts.
+
+## `mp2.sh` Script Usage Guide
+
+The `mp2.sh` script provides a set of command-line tools for managing the MP2 container environment and test workflows. Below are the main functions:
+
+### Viewing the Full Usage Guide
+
+```bash
+./mp2.sh
+```
+- **Function**: Displays all available commands and their descriptions for `mp2.sh`.
+    ```
+    mp2.sh - Command line tool for ntuos2025 MP2 (Last Updated: 2025/03/19)
+
+    Usage:
+      ./mp2.sh pull              Pull the '$IMAGE_NAME' Docker image.
+      ./mp2.sh test [case]       Run specific public test cases in a volatile container:
+      ./mp2.sh container [cmd]   Manage the development container:
+      ./mp2.sh testcase [case]   Run test cases directly (assumes inside container):
+    ```
+
+### Running Tests Outside the Container (Similar to MP0, MP1)
+
+The following command launches a temporary container and executes tests:
+
+```bash
+./mp2.sh test [case]
+```
+- **Function**: Runs specified public test cases within a volatile container.
+- **Options**:
+  - `all`: Executes all specification and functionality tests.
+  - `slab`: Evaluates the slab structure design score (partial bonus).
+  - `func <from> [<to>]`: Executes functionality tests by number:
+    - Range: From `<from>` to `<to>` (inclusive).
+    - If `<to>` is omitted, only `<from>` is executed.
+    - If both `<from>` and `<to>` are omitted, all tests (0-24) are executed.
+    - Test indices: 0 to 24 (inclusive).
+  - `list`: Evaluates the Linux-style list API usage score (bonus).
+  - `cache`: Evaluates the in-cache fragmentation score (bonus).
+  - `custom`: Executes a custom test loaded from `test/custom/mytest.txt`.
+- **Description**: Launches a temporary container, runs the specified tests, and removes the container afterward.
+
+**Examples**:
+- Run all tests:
+  ```bash
+  ./mp2.sh test all
+  ```
+- Run functionality test number 4:
+  ```bash
+  ./mp2.sh test func 4
+  ```
+- Run functionality tests 4 to 6:
+  ```bash
+  ./mp2.sh test func 4 6
+  ```
+
+### Running Tests Inside the Container
+
+If using container-based development, tests can be run directly within the container:
+
+```bash
+./mp2.sh testcase [case]
+```
+- **Function**: Executes specified test cases in the current environment without starting a new container.
+- **Prerequisite**: You must first enter the container (see [Accessing the Container Command Line](#accessing-the-container-command-line)).
+- **Options**:
+  - `all`: Executes all specification and functionality tests.
+  - `slab`: Evaluates the slab structure design score (partial bonus).
+  - `func <from> [<to>]`: Executes functionality tests by number:
+    - Range: From `<from>` to `<to>` (inclusive).
+    - If `<to>` is omitted, only `<from>` is executed.
+    - If both `<from>` and `<to>` are omitted, all tests (0-24) are executed.
+    - Test indices: 0 to 24 (inclusive).
+  - `list`: Evaluates the Linux-style list API usage score (bonus).
+  - `cache`: Evaluates the in-cache fragmentation score (bonus).
+  - `custom`: Executes a custom test loaded from `test/custom/mytest.txt`.
+- **Description**: Assumes execution within the container; usage is identical to `./mp2.sh test`, but runs in the existing environment.
+
+**Examples**:
+- Run all tests:
+  ```bash
+  ./mp2.sh testcase all
+  ```
+- Run functionality tests 4 to 6:
+  ```bash
+  ./mp2.sh testcase func 4 6
+  ```
+
+### Accessing the Container Command Line
+
+To perform development inside the container, use the following command to manage it:
+
+```bash
+./mp2.sh container [cmd]
+```
+- **Subcommands**:
+  - `start`: Launches the development container in the background.
+  - `bash`: Opens a Bash terminal within the running container.
+  - `finish`: Stops and removes the container.
+- **Examples**:
+  - Start the container:
+    ```bash
+    ./mp2.sh container start
+    ```
+  - Enter the container:
+    ```bash
+    ./mp2.sh container bash
+    ```
+  - Stop the container:
+    ```bash
+    ./mp2.sh container finish
+    ```
+
+### Custom Tests
+
+The MP2 testing framework supports the execution of tests with custom commands.
+
+```bash
+./mp2.sh test custom    # Outside the container
+./mp2.sh testcase custom # Inside the container
+```
+
+Developers can edit `test/custom/mytest.txt` to run tests based on custom commands. The interpreter implemented by the teaching assistant will parse the execution state to verify correctness.
 
 # References
 
