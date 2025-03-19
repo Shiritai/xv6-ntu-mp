@@ -36,6 +36,7 @@ def run_mp2_test(test_name: str, script_file: str, points: int) -> None:
 
         # Run QEMU with the script
         output_file = f"out/{test_name}.out"
+        os.makedirs("/".join(output_file.split("/")[:-1]), exist_ok=True)
         r = Runner(save(output_file))
         r.run_qemu(shell_script(script), tg_base='qemu', timeout=150)
 
@@ -59,7 +60,9 @@ def run_slab_check():
     def test_case():
         # Clean previous build artifacts silently
         os.system("make clean > /dev/null 2>&1")
-        r = Runner()
+        output_file = "out/slab_check.out"
+        os.makedirs("/".join(output_file.split("/")[:-1]), exist_ok=True)
+        r = Runner(save(output_file))
         r.run_qemu(shell_script("mp2"), tg_base='qemu', timeout=150)
         res = check_slab(r.qemu.output)
         return res
@@ -70,7 +73,9 @@ def run_cache_check():
     def test_case():
         # Clean previous build artifacts silently
         os.system("make clean > /dev/null 2>&1")
-        r = Runner()
+        output_file = "out/cache_check.out"
+        os.makedirs("/".join(output_file.split("/")[:-1]), exist_ok=True)
+        r = Runner(save(output_file))
         r.run_qemu(shell_script("mp2"), tg_base='qemu', timeout=150)
         res = check_cache(r.qemu.output)
         return res
@@ -78,20 +83,23 @@ def run_cache_check():
 
 def public_testcases(rng: range):
     """Define and run MP2 test cases."""
-    os.makedirs(f"out/public", exist_ok=True)
     tests = list(rng)
     tests = [run_mp2_test(f"public/mp2-{t}", f"test/public/mp2-{t}.txt", 3) for t in tests]
     return tests
 
 def private_testcases(rng: range):
     """Define and run MP2 test cases."""
-    os.makedirs(f"out/private", exist_ok=True)
     tests = list(rng)
     tests = [run_mp2_test(f"private/mp2-{t}", f"test/private/mp2-{t}.txt", 5) for t in tests]
     return tests
 
+def run_custom_test():
+    return run_mp2_test(f"custom/mytest", f"test/custom/mytest.txt", 0)
+
 if __name__ == "__main__":
-    if len(sys.argv) == 2 and sys.argv[1] == 'slab':
+    if len(sys.argv) == 2 and sys.argv[1] == 'custom':
+        run_custom_test()
+    elif len(sys.argv) == 2 and sys.argv[1] == 'slab':
         run_slab_check()
     elif len(sys.argv) == 2 and sys.argv[1] == 'list':
         run_list_check()
@@ -120,5 +128,4 @@ if __name__ == "__main__":
         if len(sys.argv) >= 3:
             _to = int(sys.argv[2])
         public_testcases(range(_from, _to))
-        run_slab_check()
     run_tests()

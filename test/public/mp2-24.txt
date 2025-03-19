@@ -1,4 +1,4 @@
 ls > ok
-echo Ok | gah . 8 | oak > ok
-ls > ok
+echo Ok | gah . 8 | oak end > ok
 checkstr ok Ok
+ls > ok

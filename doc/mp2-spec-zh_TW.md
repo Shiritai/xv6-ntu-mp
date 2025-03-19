@@ -6,7 +6,7 @@
 * Release Date: 2025/03/18
 * Due Date: 2025/03/31 23:59:59
 * TA email: ntuos@googlegroups.com
-* TA hours: Wed. 13-14 p.m., Fri. 11 a.m. -12 p.m., at B04
+* TA hours: Wed. 13-14 p.m., Fri. 11 a.m. -12 p.m., at CSIE B04
 
 [TOC]
 
@@ -44,9 +44,9 @@
     ./mp2.sh pull  # 準備 ntuos/mp2 容器
     ```
     其他使用方式可以使用 `./mp2.sh` 查看。
-8. 運行功能測試 (public tests)：
+8. [運行功能測試](#mp2sh-腳本使用說明) (public tests)：
     ```bash
-    ./mp2.sh test
+    ./mp2.sh test [case]  # See the appendix for more information
     ```
 
 # 評分標準與繳交方式
@@ -59,7 +59,9 @@
 
 - [SLAB 設計](#struct-slab-設計) (5%)
 - 功能測試 (Public Tests) (75%)
+  - 包含 25 筆測資，每筆 3%
 - 隱藏測試 (Private Tests) (20%)
+  - 包含 4 筆測資，每筆 5%
 
 ### 加分項目
 
@@ -931,137 +933,193 @@ int main(int argc, char *argv[])
 
 # 附錄
 
-## 容器內開發與 `mp2.sh` 腳本
+## 容器內開發
 
-在 MP2 的容器環境中，開發者具備系統管理員權限，可自行安裝所需的開發工具。此方式確保開發環境與運行環境完全一致，提供高度的可重現性與穩定性。
+在 MP2 的容器環境中，開發者可以在容器內進行開發，此方式確保開發環境與執行環境完全一致，提供高度的可重現性和穩定性。此外開發者在容器內擁有系統管理員權限，可自行安裝所需的開發工具。
 
-開發者可選擇沿用 MP0 和 MP1 的傳統開發方式，或採用容器內開發並搭配 `mp2.sh` 腳本進行環境管理與測試執行。
+開發者可選擇沿用 MP0 和 MP1 的傳統開發方式，或採用容器內開發，並使用 `mp2.sh` 腳本管理環境和執行測試。
 
-### (可選項) 使用 VS Code 配置容器開發環境
+### (可選) 配置 VS Code 容器開發環境
 
-為在容器內使用 Visual Studio Code (VS Code) 進行開發，請按照以下步驟設置：
+若要在容器內使用 Visual Studio Code (VS Code) 進行開發，請按照以下步驟設置：
 
-1. **安裝必要擴充套件**：
-   - [Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker)：提供 Docker 容器管理功能。
-   - [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)：支援在容器內開啟開發環境。
+1. 安裝必要擴充功能：
+    * [Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker)：支援 Docker 容器管理。
+    * [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)：啟用容器內開發環境。
+2. 連接到容器：
+    * 啟動 VS Code，點擊左側活動欄的 Docker 圖標，進入 Docker 側邊欄。
+    * 在容器列表中找到 `ntuos/mp2`。
+    * 右鍵點擊 `ntuos/mp2`，選擇 Attach Visual Studio Code。
+    * VS Code 將開啟新窗口，並自動連接到 `ntuos/mp2` 容器的開發環境。
 
-2. **連接至容器**：
-   - 啟動 VS Code，點擊左側活動欄中的 **Docker** 圖標，進入 Docker 側邊欄。
-   - 在容器清單中找到 `ntuos/mp2`。
-   - 右鍵點擊 `ntuos/mp2`，選擇 **Attach Visual Studio Code**。
-   - VS Code 將開啟新視窗，並自動連接到 `ntuos/mp2` 容器內的開發環境。
-
-完成上述步驟後，即可在容器內直接編輯程式碼並執行開發任務。
-
-## `mp2.sh` 腳本使用說明
-
-`mp2.sh` 腳本提供了一套命令列工具，用於管理 MP2 的容器環境與測試流程。以下為主要功能：
-
-### 查看完整使用說明
-
-```bash
-./mp2.sh
-```
-- **功能**：顯示 `mp2.sh` 的所有可用命令與說明。
-- **輸出範例**：
-  ```
-  mp2.sh - Command line tool for ntuos2025 MP2 (last updated: 2025/03/18)
-
-  Usage:
-    ./mp2.sh pull                   Pull the 'ntuos/mp2' Docker image.
-    ./mp2.sh test <from> [<to>]     Run test cases in a volatile container.
-    ./mp2.sh container [cmd]        Manage container: start, bash, finish.
-    ./mp2.sh testcase <from> [<to>] Run test cases directly without a container.
-  ```
+完成以上步驟後，即可在容器內直接編輯程式碼並執行開發任務。
 
 ### 啟動容器環境
 
 ```bash
 ./mp2.sh container start
 ```
-- **功能**：在背景啟動 `ntuos/mp2` 容器。
-- **說明**：容器啟動後將持續運行，直到手動停止。
+
+* 功能：在背景啟動 `ntuos/mp2` 容器。
+* 說明：容器啟動後將保持運行狀態，直到手動停止。
 
 ### 進入容器命令列
 
 ```bash
 ./mp2.sh container bash
 ```
-- **功能**：在運行中的容器內開啟 Bash 終端機。
-- **前提**：需先執行 `./mp2.sh container start`。
-- **說明**：允許在容器內執行命令或進行開發。
+
+* 功能：在運行中的容器內開啟 Bash 終端。
+* 前提：需先執行 `./mp2.sh container start` 啟動容器。
+* 說明：提供容器內的命令列介面，用於執行指令或開發。
 
 ### 停止並移除容器
 
 ```bash
 ./mp2.sh container finish
 ```
-- **功能**：停止並移除運行中的容器。
-- **說明**：同時調整 MP2 資料夾的檔案權限，確保外部環境可繼續存取。
 
-### 運行測試
+* 功能：停止並移除運行中的容器。
+* 說明：同時修正 MP2 資料夾的檔案權限，確保外部環境可正常存取。
 
-`mp2.sh` 支援兩種測試執行方式：容器外臨時執行與容器內直接執行。測試案例編號從 0 開始，共 25 筆（0-24）。
+### 權限問題
 
-#### 在容器外執行（類似 MP0、MP1）
+容器內開發可能因預設使用者 ID（1000）與本機使用者 ID 不匹配，導致 MP2 資料夾中的檔案在容器外無法編輯。
+
+* 解決方法：
+    1. 自動修正權限：
+        * 執行 `./mp2.sh container finish`，腳本會自動將資料夾權限調整為本機使用者。
+    2. 手動修正權限：
+        * 若問題仍存在，可執行以下命令：
+        ```bash
+        sudo chown -R $(id -u):$(id -g) <MP2_REPO>
+        ```
+          * 將 `<MP2_REPO>` 替換為 MP2 資料夾路徑，例如 `./mp2`。
+
+建議：每次完成容器內開發後，建議執行 `./mp2.sh container finish`，以避免權限衝突。
+
+## `mp2.sh` 腳本使用說明
+
+`mp2.sh` 腳本提供了一組命令列工具，用於管理 MP2 的容器環境和測試流程。以下為主要功能：
+
+### 查看完整使用說明
+
+```bash
+./mp2.sh
+```
+- **功能**：顯示 `mp2.sh` 的所有可用命令及其說明。
+    ```
+    mp2.sh - Command line tool for ntuos2025 MP2 (Last Updated: 2025/03/19)
+
+    Usage:
+      ./mp2.sh pull              Pull the '$IMAGE_NAME' Docker image.
+      ./mp2.sh test [case]       Run specific public test cases in a volatile container:
+      ./mp2.sh container [cmd]   Manage the development container:
+      ./mp2.sh testcase [case]   Run test cases directly (assumes inside container):
+    ```
+
+### 在容器外執行（類似 MP0、MP1）
 
 以下命令啟動臨時容器並運行測試：
 
 ```bash
-./mp2.sh test
+./mp2.sh test [case]
 ```
-- **功能**：運行所有測試案例。
-- **說明**：啟動一個臨時容器，執行完畢後自動移除。
+- **功能**：在揮發性（volatile）容器中運行指定的公共測試案例。
+- **選項**：
+  - `all`：執行所有規格（specification）和功能性（functionality）測試。
+  - `slab`：評估 slab 結構設計得分（部分加分）。
+  - `func <from> [<to>]`：按編號執行功能性測試：
+    - 範圍：從 `<from>` 到 `<to>`（包含邊界）。
+    - 若省略 `<to>`，僅執行 `<from>`。
+    - 若 `<from>` 和 `<to>` 均省略，執行所有測試（編號 0-24）。
+    - 測試編號：0 到 24（含）。
+  - `list`：評估 Linux 風格列表 API 使用得分（加分）。
+  - `cache`：評估內部緩存碎片得分（加分）。
+  - `custom`：執行自定義測試（從 `test/custom/mytest.txt` 載入）。
+- **說明**：啟動臨時容器，執行指定測試後自動移除。
 
-指定測試範圍（`<to>` 為排除上限）：
-
-```bash
-./mp2.sh test <from> <to>
-```
-- **範例**：運行第 4 至 6 號測試案例：
+**範例**：
+- 執行所有測試：
   ```bash
-  ./mp2.sh test 4 7
+  ./mp2.sh test all
   ```
-- **說明**：`<to>` 為 7，因範圍不包含上限，故執行 4、5、6。
+- 執行第 4 號功能性測試：
+  ```bash
+  ./mp2.sh test func 4
+  ```
+- 執行第 4 至 6 號功能性測試：
+  ```bash
+  ./mp2.sh test func 4 6
+  ```
 
-若僅測試單一案例，省略 `<to>` 即可：
+### 在容器內執行
+
+若採用容器內開發，可直接在容器內運行測試：
+
 ```bash
-./mp2.sh test 4
+./mp2.sh testcase [case]
 ```
-- **說明**：執行第 4 號測試案例（等同於 `test 4 5`）。
-
-#### 在容器內執行
-
-若採用容器內開發，可在容器內直接運行測試：
-
-```bash
-./mp2.sh testcase <from> <to>
-```
-- **功能**：在當前目錄執行指定範圍的測試案例。
+- **功能**：在當前環境中執行指定的測試案例，不啟動新容器。
 - **前提**：需先進入容器（參見[進入容器命令列](#進入容器命令列)）。
-- **範例**：運行第 4 至 6 號測試案例：
+- **選項**：
+  - `all`：執行所有規格和功能性測試。
+  - `slab`：評估 slab 結構設計得分（部分加分）。
+  - `func <from> [<to>]`：按編號執行功能性測試：
+    - 範圍：從 `<from>` 到 `<to>`（包含邊界）。
+    - 若省略 `<to>`，僅執行 `<from>`。
+    - 若 `<from>` 和 `<to>` 均省略，執行所有測試（編號 0-24）。
+    - 測試編號：0 到 24（含）。
+  - `list`：評估 Linux 風格列表 API 使用得分（加分）。
+  - `cache`：評估內部緩存碎片得分（加分）。
+  - `custom`：執行自定義測試（從 `test/custom/mytest.txt` 載入）。
+- **說明**：假設已在容器內運行，用法與 `./mp2.sh test` 相同，但直接使用現有環境。
+
+**範例**：
+- 執行所有測試：
   ```bash
-  ./mp2.sh testcase 4 7
+  ./mp2.sh testcase all
   ```
-- **說明**：用法與 `./mp2.sh test` 相同，但不啟動新容器。
+- 執行第 4 至 6 號功能性測試：
+  ```bash
+  ./mp2.sh testcase func 4 6
+  ```
 
-### 注意事項與疑難排解
+### 進入容器命令列
 
-#### 權限問題
+若需在容器內進行開發，可使用以下命令管理容器：
 
-容器內開發可能因預設使用者 ID（1000）與本機使用者 ID 不一致，導致 MP2 資料夾內的檔案在容器外無法修改。
+```bash
+./mp2.sh container [cmd]
+```
+- **子命令**：
+  - `start`：在背景啟動開發容器。
+  - `bash`：在運行中的容器內開啟 Bash 終端。
+  - `finish`：停止並移除容器。
+- **範例**：
+  - 啟動容器：
+    ```bash
+    ./mp2.sh container start
+    ```
+  - 進入容器：
+    ```bash
+    ./mp2.sh container bash
+    ```
+  - 結束容器：
+    ```bash
+    ./mp2.sh container finish
+    ```
 
-- **解決方法**：
-  1. **自動調整權限**：
-     - 執行 `./mp2.sh container finish`，腳本會自動將資料夾權限還原至本機使用者。
-  2. **手動調整權限**：
-     - 若問題持續，執行以下命令：
-       ```bash
-       sudo chown -R $(id -u):$(id -g) <MP2_REPO>
-       ```
-       - 將 `<MP2_REPO>` 替換為 MP2 資料夾路徑，例如 `./mp2`。
+### 客製化測試
 
-- **建議**：每次完成容器內開發後，務必執行 `./mp2.sh container finish`，以避免權限衝突。
+MP2 的測試框架支援執行自訂命令的測試功能。
+
+```bash
+./mp2.sh test custom    # 在容器外執行
+./mp2.sh testcase custom # 在容器內執行
+```
+
+開發者可編輯 `test/custom/mytest.txt` 來執行基於自訂命令的測試。助教實作的直譯器將解析執行狀態以驗證其正確性。
 
 # 參考資料
 

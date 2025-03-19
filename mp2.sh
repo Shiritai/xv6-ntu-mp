@@ -19,32 +19,39 @@ is_container_running() {
 # Function to display usage
 usage() {
     cat <<EOF
-mp2.sh - Command Line Tool for ntuos2025 MP2 (Last Updated: 2025/03/19)
+mp2.sh - Command line tool for ntuos2025 MP2 (Last Updated: 2025/03/19)
 
 Usage:
   ./mp2.sh pull                   Pull the '$IMAGE_NAME' Docker image.
 
-  ./mp2.sh test <from> [<to>]     Run public test cases in a volatile container.
-                                  - Tests run from <from> to <to> (exclusive).
-                                  - If <to> is omitted, runs only test <from>.
-                                  - If both are omitted, runs all test cases.
-                                  - Indices start at 0.
+  ./mp2.sh test [case]            Run specific public test cases in a volatile container:
+    all                           - Run all specification and functionality tests.
+    slab                          - Check slab structure design score (partial bonus).
+    func <from> [<to>]            - Run functionality tests by number:
+                                    - Range: <from> to <to> (inclusive).
+                                    - If <to> omitted, runs only <from>.
+                                    - If both omitted, runs all (0-24).
+                                    - Indices: 0 to 24 (inclusive).
+    list                          - Check Linux-style list API usage score (bonus).
+    cache                         - Check in-cache fragmentation score (bonus).
+    custom                        - Run custom test from 'test/custom/mytest.txt'.
 
   ./mp2.sh container [cmd]        Manage the development container:
-    start                         Start the container in the background.
-    bash                          Open a bash shell in the running container.
-    finish                        Stop and remove the container.
+    start                         - Start the container in the background.
+    bash                          - Open a bash shell in the running container.
+    finish                        - Stop and remove the container.
 
-  ./mp2.sh testcase <from> [<to>] Run test cases directly without a volatile container.
-                                  - Same range rules as 'test' apply.
-                                  - Assume you're in the container.
-
-  ./mp2.sh testspec [opt]         Run specification test cases:
-    slab                          Check slab structure design score (partial bonus).
-    list                          Check Linux-style list API usage score (bonus).
-    cache                         Check in-cache fragmentation score (bonus).
-
-  ./mp2.sh testall                   Run all specification and functionality tests.
+  ./mp2.sh testcase [case]        Run test cases directly (assumes inside container):
+    all                           - Run all specification and functionality tests.
+    slab                          - Check slab structure design score (partial bonus).
+    func <from> [<to>]            - Run functionality tests by number:
+                                    - Range: <from> to <to> (inclusive).
+                                    - If <to> omitted, runs only <from>.
+                                    - If both omitted, runs all (0-24).
+                                    - Indices: 0 to 24 (inclusive).
+    list                          - Check Linux-style list API usage score (bonus).
+    cache                         - Check in-cache fragmentation score (bonus).
+    custom                        - Run custom test from 'test/custom/mytest.txt'.
 EOF
 }
 
@@ -61,8 +68,7 @@ case "$1" in
         ;;
     "test")
         $DOCKER_CMD run --rm -it -v "$(realpath "$SCRIPT_DIR"):/home/student/mp2" \
-            -w /home/student/mp2 -u 1000:1000 "$IMAGE_NAME" ./mp2.sh testcase "$2" "$3"
-            # -w /home/student/mp2 -u 1000:1000 "$IMAGE_NAME" bash
+            -w /home/student/mp2 -u 1000:1000 "$IMAGE_NAME" ./mp2.sh testcase "$2" "$3" "$4" "$5"
         ;;
     "container")
         case "$2" in
@@ -109,51 +115,44 @@ case "$1" in
         if [ ! -d "$TEST_DIR" ]; then
             mkdir -p "$TEST_DIR" || { echo "Error: Failed to create '$TEST_DIR'." >&2; exit 1; }
         fi
+        cur_wd=$(pwd)
         rm -rf "$TEST_DIR" || true
         cp -r . "$TEST_DIR" || { echo "Error: Failed to copy files to '$TEST_DIR'." >&2; exit 1; }
         cd "$TEST_DIR" || { echo "Error: Failed to change directory to '$TEST_DIR'." >&2; exit 1; }
-        if [ -n "$2" ]; then
-            from="$2"
-            to=$((from + 1))
-            [ -n "$3" ] && to="$3"
-            python3 test/run_mp2.py "$from" "$to"
-        else
-            python3 test/run_mp2.py
-        fi
-        ;;
-    "private")
-        if [ ! -d "$TEST_DIR" ]; then
-            mkdir -p "$TEST_DIR" || { echo "Error: Failed to create '$TEST_DIR'." >&2; exit 1; }
-        fi
-        rm -rf "$TEST_DIR" || true
-        cp -r . "$TEST_DIR" || { echo "Error: Failed to copy files to '$TEST_DIR'." >&2; exit 1; }
-        cd "$TEST_DIR" || { echo "Error: Failed to change directory to '$TEST_DIR'." >&2; exit 1; }
-        if [ -n "$2" ]; then
-            from="$2"
-            to=$((from + 1))
-            [ -n "$3" ] && to="$3"
-            python3 test/run_mp2.py private "$from" "$to"
-        else
-            python3 test/run_mp2.py private
-        fi
-        ;;
-    "testspec")
-        if [ ! -d "$TEST_DIR" ]; then
-            mkdir -p "$TEST_DIR" || { echo "Error: Failed to create '$TEST_DIR'." >&2; exit 1; }
-        fi
-        rm -rf "$TEST_DIR" || true
-        cp -r . "$TEST_DIR" || { echo "Error: Failed to copy files to '$TEST_DIR'." >&2; exit 1; }
-        cd "$TEST_DIR" || { echo "Error: Failed to change directory to '$TEST_DIR'." >&2; exit 1; }
-        python3 test/run_mp2.py "$2"
-        ;;
-    "testall")
-        if [ ! -d "$TEST_DIR" ]; then
-            mkdir -p "$TEST_DIR" || { echo "Error: Failed to create '$TEST_DIR'." >&2; exit 1; }
-        fi
-        rm -rf "$TEST_DIR" || true
-        cp -r . "$TEST_DIR" || { echo "Error: Failed to copy files to '$TEST_DIR'." >&2; exit 1; }
-        cd "$TEST_DIR" || { echo "Error: Failed to change directory to '$TEST_DIR'." >&2; exit 1; }
-        python3 test/run_mp2.py all
+
+        case "$2" in
+        func)
+            if [ -n "$3" ]; then
+                from="$3"
+                to=$from
+                [ -n "$4" ] && to="$4"
+                to=$((to + 1))
+                python3 test/run_mp2.py "$from" "$to"
+            else
+                python3 test/run_mp2.py
+            fi
+            ;;
+        all|slab|list|cache|custom)
+            python3 test/run_mp2.py "$2"
+            ;;
+        private)
+            if [ -n "$3" ]; then
+                from="$3"
+                to=$from
+                [ -n "$4" ] && to="$4"
+                to=$((to + 1))
+                python3 test/run_mp2.py private "$from" "$to"
+            else
+                python3 test/run_mp2.py private
+            fi
+            ;;
+        *)
+            usage
+            ;;
+        esac
+
+        sudo cp -r "$TEST_DIR/out" "$cur_wd"
+        sudo chown -R "$USER" "$cur_wd/out"
         ;;
     *)
         usage

@@ -7,7 +7,9 @@ int main(int argc, char *argv[])
   int n;
   int pid_to_kill = 0;
 
-  printf("%d", getpid());
+  if (!(argc == 2 && !strcmp(argv[1], "end"))) {
+    printf("%d", getpid());
+  }
 
   while ((n = read(0, buf, sizeof(buf))) > 0)
   {
