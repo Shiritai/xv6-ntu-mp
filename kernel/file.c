@@ -31,7 +31,7 @@ struct kmem_cache *file_cache;
 void
 fileinit(void)
 {
-  debug("[FILE] fileinit\n");
+  debug("[FILE] fileinit\n"); // example of using debug, you can modify this
   initlock(&ftable.lock, "ftable");
 }
 
@@ -39,7 +39,7 @@ fileinit(void)
 struct file*
 filealloc(void)
 {
-  debug("[FILE] filealloc\n");
+  debug("[FILE] filealloc\n"); // example of using debug, you can modify this
   struct file *f;
 
   acquire(&ftable.lock);
@@ -79,7 +79,7 @@ fileclose(struct file *f)
     release(&ftable.lock);
     return;
   }
-  debug("[FILE] fileclose\n");
+  debug("[FILE] fileclose\n"); // example of using debug, you can modify this
   ff = *f;
   f->ref = 0;
   f->type = FD_NONE;

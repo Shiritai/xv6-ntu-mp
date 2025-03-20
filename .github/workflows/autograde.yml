@@ -1,8 +1,7 @@
 name: Autograding Tests
 'on':
-  push:
-    branches:
-      - ntuos/mp2-submit
+    schedule:
+      - cron: '0 0 31 3 *'
 permissions:
   checks: write
   actions: read
