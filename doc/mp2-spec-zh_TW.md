@@ -4,7 +4,7 @@
 
 * 滿分: 125% (基本部分: 100%, 加分部分 25%)
 * Release Date: 2025/03/18
-* Due Date: 2025/03/31 23:59:59
+* Due Date: 2025/04/03 23:59:59
 * TA email: ntuos@googlegroups.com
 * TA hours: Wed. 13-14 p.m., Fri. 11 a.m. -12 p.m., at CSIE B04
 
@@ -29,25 +29,26 @@
 
 1. 確保已安裝 [Git](https://git-scm.com/)
 2. 確保擁有 [GitHub 帳號](https://github.com/)，若無，請先註冊
-3. 透過 MP2 專屬 [GitHub Classroom 連結](https://classroom.github.com/a/lWbOc_kX)，點擊 **Accept this assignment**，系統將為您建立專屬的作業倉庫 `mp2-<USERNAME>`
-4. 存取您的 MP2 倉庫 `https://github.com/ntuos2025/mp2-<USERNAME>`
-5. 在本地端克隆倉庫：
+3. 透過 MP2 專屬 [GitHub Classroom 連結](https://classroom.github.com/a/r5_6Ja6Y)，點擊 **Accept this assignment**，系統將為同學建立專屬的作業 Repository `mp2-<USERNAME>`
+4. 存取同學的 MP2 Repository `https://github.com/ntuos2025/mp2-<USERNAME>`
+5. 在本地端複製 Repository：
     ```bash
     git clone https://github.com/ntuos2025/mp2-<USERNAME>
     ```
-6. 在倉庫內的 `student_id.txt` 檔案中填入您的學號，例如：
+6. 在 Repository 內的 `student_id.txt` 檔案中填入同學的學號，例如：
     ```log
     b12345678
     ```
 7. 運行 `mp2.sh` MP2 腳本工具：
     ```bash
-    ./mp2.sh pull  # 準備 ntuos/mp2 容器
+    ./mp2.sh setup # 進行基本設定
     ```
     其他使用方式可以使用 `./mp2.sh` 查看。
 8. [運行功能測試](#mp2sh-腳本使用說明) (public tests)：
     ```bash
     ./mp2.sh test [case]  # See the appendix for more information
     ```
+    由於模板的程式碼還沒實現 system call，預設編譯將不會通過。
 
 # 評分標準與繳交方式
 

@@ -4,7 +4,7 @@
 
 * Full Score: 125% (Basic: 100%, Bonus: 25%)
 * Release Date: March 18, 2025
-* Due Date: April 1, 2025
+* Due Date: April 3, 2025
 * TA Email: ntuos@googlegroups.com
 * TA Hours: Wednesday 1:00–2:00 p.m., Friday 11:00 a.m.–12:00 p.m., at CSIE B04
 
@@ -29,25 +29,26 @@ Please confirm the following steps to ensure your development environment is pro
 
 1. Ensure [Git](https://git-scm.com/) is installed.
 2. Ensure you have a [GitHub account](https://github.com/). If not, please register first.
-3. Access the MP2-specific [GitHub Classroom link](https://classroom.github.com/a/lWbOc_kX), click **Accept this assignment**, and the system will create a dedicated repository for you named `mp2-<USERNAME>`.
-4. Visit your MP2 repository at `https://github.com/ntuos2025/mp2-<USERNAME>`.
+3. Visit the MP2-specific [GitHub Classroom link](https://classroom.github.com/a/r5_6Ja6Y), click **Accept this assignment**, and the system will create a dedicated assignment repository for you named `mp2-<USERNAME>`.
+4. Access your MP2 repository at `https://github.com/ntuos2025/mp2-<USERNAME>`.
 5. Clone the repository locally:
     ```bash
     git clone https://github.com/ntuos2025/mp2-<USERNAME>
     ```
-6. Fill in your student ID in the `student_id.txt` file within the repository, for example:
+6. Enter your student ID in the `student_id.txt` file within the repository, for example:
     ```log
     b12345678
     ```
 7. Run the `mp2.sh` MP2 script tool:
     ```bash
-    ./mp2.sh pull  # Prepare the ntuos/mp2 container
+    ./mp2.sh setup  # Basic setup
     ```
     For additional usage details, run `./mp2.sh` to view them.
 8. [Run functionality tests](#mp2sh-script-usage-guide) (public tests):
     ```bash
-    ./mp2.sh test [cmd]
+    ./mp2.sh test [case]  # See the appendix for more information
     ```
+    Since the template code has not yet implemented the system call, the default compilation will not succeed.
 
 # Grading Criteria and Submission Method
 
@@ -73,11 +74,23 @@ Bonus items do not conflict with the basic requirements and are independent of e
 
 ## Submission and Grading Method
 
-All code must be submitted via **GitHub Classroom** using Git. Ensure your final submission complies with the requirements.
+This assignment introduces a fully automated submission and grading process. Students only need to push their code to GitHub, and the system will automatically perform grading and submit the results.
 
-You may submit unlimited times before the deadline. The assignment will be automatically graded using a prepared GitHub Action, which will check submission history and test results to determine the final score.
+The grading consists of the following four tests, and students can view the execution results in the GitHub Actions section of their personal MP2 repository:
 
-The final score will include both functionality tests and hidden tests. You can view the results by checking the GitHub Action runs in your MP2 repository.
+- **Slab Structure Test** (5% + 5% bonus)
+- **Functionality Test** (75%)
+  - If the functionality test score exceeds 66 points, the following two bonus tests will be conducted; otherwise, the bonus item evaluation will be skipped:
+    - **List API Test** (+10%)
+    - **In-Cache Test** (+10%)
+  - Note: This logic differs from the execution method of `./mp2.sh test all`. The latter is designed to allow students to test all cases in one go, regardless of their score.
+- **Hidden Test** (20%)
+
+Before the deadline, students may submit their code an unlimited number of times. The assignment will be automatically graded via pre-configured GitHub Actions, which will review the commit history and test results, with outcomes available for viewing on the GitHub Actions interface.
+
+Final grading will occur one week after the deadline (2025/04/10 00:00:00) and scores will be automatically uploaded. Submissions are still accepted after the deadline (2025/04/03), but points will be deducted based on the number of days late, with a 20% reduction per day, dropping to 0% on the fifth day (2025/04/08). Students can check their final grading results on GitHub Actions after 2025/04/10.
+
+Students are [required to strictly adhere to file modification rules](#file-modification-rules). To prevent accidental modification of restricted files during submission, it is recommended to run `./mp2.sh setup`, which activates a Git Hook to protect restricted files. After the deadline, teaching assistants will review submissions for any unauthorized modifications to restricted files. If violations are found, it will be considered cheating, and the assignment will be graded as 0 points. Additionally, if a student attempts to exploit security vulnerabilities to affect their own or others' scores, upon verification, it will be deemed cheating, and the assignment will be graded as 0 points.
 
 # Problem Background: Challenges in Kernel Memory Management
 
