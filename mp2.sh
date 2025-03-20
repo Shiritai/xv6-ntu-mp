@@ -28,6 +28,13 @@ is_container_running() {
     [ -n "$($DOCKER_CMD ps -q --filter name="$CONTAINER_NAME")" ]
 }
 
+# Try with sudo if task failed
+maysudo() {
+    if ! "$@" >/dev/null 2>&1; then
+        sudo "$@"
+    fi
+}
+
 # Function to display usage
 usage() {
     cat <<EOF
@@ -78,9 +85,22 @@ case "$1" in
             exit 1
         fi
         ;;
+    "setup")
+        HOOKS_DIR=".git/hooks"
+        mkdir -p "$HOOKS_DIR" || exit 1
+
+        # List of hook names.
+        HOOKS=(pre-commit)
+
+        for hook in "${HOOKS[@]}"; do
+            ln -sf "$SCRIPT_DIR/scripts/${hook}" "$HOOKS_DIR/$hook" || exit 1
+            maysudo chmod +x "$HOOKS_DIR/$hook"
+        done
+        ;;
     "test")
         $DOCKER_CMD run --rm $DOCKER_IT_FLAG -v "$(realpath "$SCRIPT_DIR"):/home/student/mp2" \
             -w /home/student/mp2 -u 1000:1000 "$IMAGE_NAME" ./mp2.sh testcase "$2" "$3" "$4" "$5"
+        ([[ -d $SCRIPT_DIR/out ]] && maysudo chown -R "$(id -u):$(id -g)" "$SCRIPT_DIR/out") || true
         ;;
     "container")
         case "$2" in
@@ -112,7 +132,7 @@ case "$1" in
                     echo "Stopping container '$CONTAINER_NAME'..."
                     $DOCKER_CMD rm -f "$CONTAINER_NAME"
                     echo "Container '$CONTAINER_NAME' stopped."
-                    sudo chown -R "$(id -u):$(id -g)" "$SCRIPT_DIR"
+                    maysudo chown -R "$(id -u):$(id -g)" "$SCRIPT_DIR"
                 else
                     echo "Container '$CONTAINER_NAME' is not running."
                 fi
@@ -124,6 +144,8 @@ case "$1" in
         esac
         ;;
     "testcase")
+        # Copy this repo to $TEST_DIR and run it,
+        # to ensure that developers can edit when running tests
         if [ ! -d "$TEST_DIR" ]; then
             mkdir -p "$TEST_DIR" || { echo "Error: Failed to create '$TEST_DIR'." >&2; exit 1; }
         fi
@@ -139,13 +161,13 @@ case "$1" in
                 to=$from
                 [ -n "$4" ] && to="$4"
                 to=$((to + 1))
-                python3 test/run_mp2.py "$from" "$to"
+                python3 $TEST_DIR/test/run_mp2.py "$from" "$to"
             else
-                python3 test/run_mp2.py
+                python3 $TEST_DIR/test/run_mp2.py
             fi
             ;;
         all|slab|list|cache|custom)
-            python3 test/run_mp2.py "$2"
+            python3 $TEST_DIR/test/run_mp2.py "$2"
             ;;
         private)
             if [ -n "$3" ]; then
@@ -153,19 +175,20 @@ case "$1" in
                 to=$from
                 [ -n "$4" ] && to="$4"
                 to=$((to + 1))
-                python3 test/run_mp2.py private "$from" "$to"
+                python3 $TEST_DIR/test/run_mp2.py private "$from" "$to"
             else
-                python3 test/run_mp2.py private
+                python3 $TEST_DIR/test/run_mp2.py private
             fi
             ;;
         *)
             usage
+            exit 0
             ;;
         esac
 
         if [ -d "$TEST_DIR/out" ]; then
-            sudo cp -r "$TEST_DIR/out" "$cur_wd" || echo "Warning: Failed to copy output to $cur_wd"
-            sudo chown -R "$(id -u):$(id -g)" "$cur_wd/out" || echo "Warning: Failed to chown $cur_wd/out"
+            maysudo cp -r "$TEST_DIR/out" "$cur_wd" || echo "Warning: Failed to copy output to $cur_wd"
+            maysudo chown -R "$(id -u):$(id -g)" "$cur_wd/out" || echo "Warning: Failed to chown $cur_wd/out"
         fi
         ;;
     *)

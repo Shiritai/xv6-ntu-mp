@@ -37,11 +37,11 @@ def run_mp2_test(test_name: str, script_file: str, points: int) -> None:
         # Run QEMU with the script
         output_file = f"out/{test_name}.out"
         os.makedirs("/".join(output_file.split("/")[:-1]), exist_ok=True)
-        r = Runner(save(output_file))
-        r.run_qemu(shell_script(script), tg_base='qemu', timeout=150)
+        r = Runner(save(output_file), stop_on_line(r".*panic:.*"),
+                   stop_on_line(r".*[MP2] <FAILED>.*"))
+        r.run_qemu(shell_script(script), tg_base='qemu', timeout=20)
 
         # Interpret the QEMU output
-        # interpreter(r.qemu.output.splitlines(), True)
         interpreter(r.qemu.output.splitlines())
 
     return test_case
@@ -62,8 +62,9 @@ def run_slab_check():
         os.system("make clean > /dev/null 2>&1")
         output_file = "out/slab_check.out"
         os.makedirs("/".join(output_file.split("/")[:-1]), exist_ok=True)
-        r = Runner(save(output_file))
-        r.run_qemu(shell_script("mp2"), tg_base='qemu', timeout=150)
+        r = Runner(save(output_file), stop_on_line(r".*panic:.*"),
+                   stop_on_line(r".*[MP2] <FAILED>.*"))
+        r.run_qemu(shell_script(["mp2"]), tg_base='qemu', timeout=20)
         res = check_slab(r.qemu.output)
         return res
     return test_case
@@ -75,8 +76,9 @@ def run_cache_check():
         os.system("make clean > /dev/null 2>&1")
         output_file = "out/cache_check.out"
         os.makedirs("/".join(output_file.split("/")[:-1]), exist_ok=True)
-        r = Runner(save(output_file))
-        r.run_qemu(shell_script("mp2"), tg_base='qemu', timeout=150)
+        r = Runner(save(output_file), stop_on_line(r".*panic:.*"),
+                   stop_on_line(r".*[MP2] <FAILED>.*"))
+        r.run_qemu(shell_script(["mp2"]), tg_base='qemu', timeout=20)
         res = check_cache(r.qemu.output)
         return res
     return test_case

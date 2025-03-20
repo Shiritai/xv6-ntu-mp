@@ -119,13 +119,13 @@ def run_tests():
     reset_fs()
 
     # Run tests
-    limit = list(map(str.lower, args))
     try:
         for test in TESTS:
             test()
         print("Score: %d/%d" % (TOTAL, POSSIBLE))
     except KeyboardInterrupt:
         pass
+    return TOTAL
 
 def get_current_test():
     if not CURRENT_TEST:
@@ -421,7 +421,7 @@ class Runner():
             # Wait for QEMU to start or make to fail.  This will set
             # self.gdb if QEMU starts.
             self.qemu.on_output = [self.__monitor_start]
-            self.__react([self.qemu], timeout=90)
+            self.__react([self.qemu], timeout=30)
             self.qemu.on_output = []
             if self.gdb is None:
                 print("Failed to connect to QEMU; output:")
@@ -567,7 +567,7 @@ def stop_on_line(regexp):
     """Returns a monitor that stops when QEMU prints a line matching
     'regexp'."""
 
-    def stop(line):
+    def stop(_):
         raise TerminateTest
     return call_on_line(regexp, stop)
 

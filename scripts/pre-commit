@@ -1,0 +1,75 @@
+#!/bin/bash
+#
+# An example hook script to verify what is about to be committed.
+# Called by "git commit" with no arguments.  The hook should
+# exit with non-zero status after issuing an appropriate message if
+# it wants to stop the commit.
+#
+# To enable this hook, rename this file to "pre-commit".
+
+PROTECTED_FILES=(
+    # basic
+    mp2.sh
+    scripts/pre-commit
+    # kernel part
+    kernel/main.c
+    kernel/mp2_checker.h
+    kernel/param.h
+    kernel/file.h
+    kernel/list.h
+    # test part
+    test/check_cache.cpython-39-x86_64-linux-gnu.so
+    test/check_list.cpython-39-x86_64-linux-gnu.so
+    test/check_slab.cpython-39-x86_64-linux-gnu.so
+    test/pseudo_fslab.cpython-39-x86_64-linux-gnu.so
+    test/congratulation.txt
+    test/gradelib.py
+    test/private_tests.zip.enc
+    test/public
+    test/setup.py
+    test/run_mp2.py
+    # user programs
+    user/cat.c
+    user/debugswitch.c
+    user/forktest.c
+    user/grind.c
+    user/initcode.S
+    user/ln.c
+    user/mkdir.c
+    user/mp2-private.c
+    user/oap.c
+    user/printf.c
+    user/sh.c
+    user/tee.c
+    user/umalloc.c
+    user/user.ld
+    user/usys.pl
+    user/zombie.c
+    user/checkstr.c
+    user/echo.c
+    user/gah.c
+    user/grep.c
+    user/init.c
+    user/kill.c
+    user/ls.c
+    user/mp2.c
+    user/oak.c
+    user/prepare.c
+    user/rm.c
+    user/stressfs.c
+    user/ulib.c
+    user/user.h
+    user/usertests.c
+    user/wc.c
+    # action part
+    .github/workflows/autograde.yml
+)
+
+MODIFIED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+
+for FILE in "${PROTECTED_FILES[@]}"; do
+    if echo "$MODIFIED_FILES" | grep -q "^$FILE$"; then
+        echo "Error: cannot commit a protected file $FILE"
+        exit 1
+    fi
+done
