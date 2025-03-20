@@ -10,7 +10,7 @@
 PROTECTED_FILES=(
     # basic
     mp2.sh
-    action_grader.sh
+    scripts/action_grader.sh
     scripts/pre-commit
     # kernel part
     kernel/main.c
@@ -23,7 +23,7 @@ PROTECTED_FILES=(
     test/check_list.cpython-39-x86_64-linux-gnu.so
     test/check_slab.cpython-39-x86_64-linux-gnu.so
     test/pseudo_fslab.cpython-39-x86_64-linux-gnu.so
-    test/congratulation.txt
+    test/congratulations.txt
     test/gradelib.py
     test/private_tests.zip.enc
     test/public
@@ -64,6 +64,7 @@ PROTECTED_FILES=(
     user/wc.c
     # action part
     .github/workflows/autograde.yml
+    .github/workflows/autosubmit.yml
 )
 
 MODIFIED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
