@@ -4,23 +4,23 @@ function get_from_score() {
     "$@" | tail -n 1 | sed 's/Score: \([0-9]*\)\/\([0-9]*\)/\1/' || echo 0
 }
 
-get_from_score ./mp2.sh test slab | tee tmp.txt
-SLAB=$(cat tmp.txt)
+./mp2.sh test slab | tee tmp.txt
+SLAB=$(get_from_score cat tmp.txt)
 echo "Slab structure grade: $SLAB"
 
-get_from_score ./mp2.sh test func | tee tmp.txt
-FUNC=$(cat tmp.txt)
+./mp2.sh test func | tee tmp.txt
+FUNC=$(get_from_score cat tmp.txt)
 echo "Functionality test grade: $FUNC"
 
 thresh=66
 
 if [[ $FUNC -ge $thresh ]]; then
     echo "Functionality test score is at least $thresh, run bonus test"
-    get_from_score ./mp2.sh test list | tee tmp.txt
-    LIST=$(cat tmp.txt)
+    ./mp2.sh test list | tee tmp.txt
+    LIST=$(get_from_score cat tmp.txt)
     echo "Bonus (list api): $LIST"
-    get_from_score ./mp2.sh test cache | tee tmp.txt
-    CACHE=$(cat tmp.txt)
+    ./mp2.sh test cache | tee tmp.txt
+    CACHE=$(get_from_score cat tmp.txt)
     echo "Bonus (in-cache): $CACHE"
     BONUS=$(( LIST + CACHE ))
 else
@@ -28,8 +28,8 @@ else
     BONUS=0
 fi
 
-get_from_score ./mp2.sh test private | tee tmp.txt
-PRIVATE=$(cat tmp.txt)
+./mp2.sh test private | tee tmp.txt
+PRIVATE=$(get_from_score cat tmp.txt)
 echo "Private test grade: $PRIVATE"
 
 SCORE=$(( SLAB + FUNC + BONUS + PRIVATE ))
