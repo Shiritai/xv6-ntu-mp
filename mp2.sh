@@ -38,9 +38,11 @@ maysudo() {
 # Function to display usage
 usage() {
     cat <<EOF
-mp2.sh - Command line tool for ntuos2025 MP2 (Last Updated: 2025/03/19)
+mp2.sh - Command line tool for ntuos2025 MP2 (Last Updated: 2025/03/21)
 
 Usage:
+  ./mp2.sh setup                  Setup the development environment for this repository.
+
   ./mp2.sh pull                   Pull the '$IMAGE_NAME' Docker image.
 
   ./mp2.sh test [case]            Run specific public test cases in a volatile container:

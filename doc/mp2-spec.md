@@ -4,7 +4,8 @@
 
 * Full Score: 125% (Basic: 100%, Bonus: 25%)
 * Release Date: March 18, 2025
-* Due Date: April 3, 2025
+* Due Date: April 3, 2025 23:59:59
+* Late Submission Until: April 8, 2025 23:59:59
 * TA Email: ntuos@googlegroups.com
 * TA Hours: Wednesday 1:00–2:00 p.m., Friday 11:00 a.m.–12:00 p.m., at CSIE B04
 
@@ -29,7 +30,7 @@ Please confirm the following steps to ensure your development environment is pro
 
 1. Ensure [Git](https://git-scm.com/) is installed.
 2. Ensure you have a [GitHub account](https://github.com/). If not, please register first.
-3. Visit the MP2-specific [GitHub Classroom link](https://classroom.github.com/a/r5_6Ja6Y), click **Accept this assignment**, and the system will create a dedicated assignment repository for you named `mp2-<USERNAME>`.
+3. Visit the MP2-specific [GitHub Classroom link](), click **Accept this assignment**, and the system will create a dedicated assignment repository for you named `mp2-<USERNAME>`.
 4. Access your MP2 repository at `https://github.com/ntuos2025/mp2-<USERNAME>`.
 5. Clone the repository locally:
     ```bash
@@ -86,9 +87,9 @@ The grading consists of the following four tests, and students can view the exec
   - Note: This logic differs from the execution method of `./mp2.sh test all`. The latter is designed to allow students to test all cases in one go, regardless of their score.
 - **Hidden Test** (20%)
 
-Before the deadline, students may submit their code an unlimited number of times. The assignment will be automatically graded via pre-configured GitHub Actions, which will review the commit history and test results, with outcomes available for viewing on the GitHub Actions interface.
+Before the deadline, students may submit their code an unlimited number of times. The assignment will be automatically graded via pre-configured GitHub Actions once at 3/31 00:00:00, which will review the commit history and test results, with outcomes available for viewing on the GitHub Actions interface. Please note that when GitHub Actions completes and displays a green dot, it does not necessarily mean a full score has been achieved. To check your score, please view the details within GitHub Actions.
 
-Final grading will occur one week after the deadline (2025/04/10 00:00:00) and scores will be automatically uploaded. Submissions are still accepted after the deadline (2025/04/03), but points will be deducted based on the number of days late, with a 20% reduction per day, dropping to 0% on the fifth day (2025/04/08). Students can check their final grading results on GitHub Actions after 2025/04/10.
+Final grading will automatically occur one week after the deadline (2025/04/10 00:00:00) and scores will be uploaded. Submissions are still accepted after the deadline (2025/04/03), but points will be deducted based on the number of days late, with a 20% reduction per day, dropping to 0% on the fifth day (2025/04/08). Students can check their final grading results on GitHub Actions after 2025/04/10.
 
 Students are [required to strictly adhere to file modification rules](#file-modification-rules). To prevent accidental modification of restricted files during submission, it is recommended to run `./mp2.sh setup`, which activates a Git Hook to protect restricted files. After the deadline, teaching assistants will review submissions for any unauthorized modifications to restricted files. If violations are found, it will be considered cheating, and the assignment will be graded as 0 points. Additionally, if a student attempts to exploit security vulnerabilities to affect their own or others' scores, upon verification, it will be deemed cheating, and the assignment will be graded as 0 points.
 
@@ -101,7 +102,7 @@ By leveraging the fact that these system objects are of the same size, the kerne
 > <img src="./img/slab-alloc.png" style="zoom:30%;" />
 > Review the course slides.
 
-The Slab system, originating from SunOS source code, was used in early Linux kernels to manage memory allocation for small system objects. This assignment will guide students in **designing and implementing a new Slab memory allocation system** to improve memory management efficiency for small objects.
+The Slab system, originating from SunOS source code, was used in early Linux kernels to manage memory allocation for small system objects. This assignment will guide students in **designing and implementing a new Slab memory allocation system** to improve memory management efficiency for small objects like `struct file` in xv6.
 
 On a side note, the lab where the MP2 TAs work is called NEWSLAB, which can be playfully split as "New Slab"—fittingly, the goal of MP2! Hopefully, this isn’t too cheesy.
 
@@ -218,7 +219,7 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj);
 
 After reading the above, you may be eager to implement the SLAB memory allocation mechanism in `xv6`. However, a key challenge in this process is **how to design the `freelist` data structure**.
 
-First, `freelist` is essentially a contiguous memory region, i.e., **an array**. For any array, the time complexity of retrieving or releasing an element is typically $O(n)$, where $n$ is the maximum number of objects that can be stored in `freelist`. However, in a performance-critical Linux kernel, such high complexity is unacceptable. Thus, we need a **more suitable data structure** to optimize allocation and deallocation times.
+First, `freelist` is essentially a contiguous memory region, i.e., **an array**. For any array, the time complexity of retrieving or releasing an element is typically $O(n)$, where $n$ is the maximum number of objects that can be stored in `freelist`. However, in a performance-critical kernel like Linux kernel, such high complexity is unacceptable. Thus, we need a **more suitable data structure** to optimize allocation and deallocation times.
 
 ## Application of Linked Lists
 
@@ -437,7 +438,24 @@ void some_func() {
 }
 ```
 
-When implementing Slab functionality and applying it to `file.c`, pay close attention to thread safety issues.
+When implementing slab functionality and applying slab to `file.c`, please pay close attention to synchronization and concurrency issues. In MP2, students are required to place `acquire` and `release` at the entry and exit points, respectively, of slab API-related functions, adopting the most conservative approach to ensure safety, as shown below.
+
+```c
+void some_api(struct kmem_cache *cache, ...)
+{
+    acquire(&cache->lock);
+
+    if (...) {
+        ...
+        release(&cache->lock);
+        return;
+    }
+    ...
+    
+    release(&cache->lock);
+    return;
+}
+```
 
 ## `kmem_cache` Internal Fragmentation Issue (Bonus Item)
 
@@ -447,29 +465,30 @@ To comply with the [implementation requirements](#print_kmem_cache-printing-stru
 
 - Treat `struct kmem_cache` as a slab with `<slab_type>` set to `cache`.  
 - In the printed information, set `<slab_addr>` to the memory address of `struct kmem_cache` itself.  
-- In the printed information, set `<nxt_slab_addr>` to `0x00...00`.
+- In the printed information, set `<nxt_slab_addr>` to `0x00...00` (all zeros).
 
 # Prerequisite Information for Implementation
 
 ## File Modification Rules
 
-- **Ensure that your student ID is recorded in the `student_id.txt` file.**  
-- Restricted files in the following branches **must not be modified**:
-  - **Restricted Git branch:** `ntuos/mp2-submit`
-  - **Restricted files:**
-    - `kernel/file.h`
-    - `kernel/list.h`
-    - `kernel/param.h`
-    - All source code in the `user/` directory  
-  - **Any modifications to the restricted files within the `ntuos/mp2-submit` branch will be considered a violation, resulting in a zero score for the assignment.**  
-  - **Modifications may be made in other Git branches.**  
-  - **Local changes to restricted files are allowed but must not be committed to the restricted branch.**  
-
-- **Modifications to `kernel/file.c`:**
-  - **Do not modify** any debugging output code that starts with the `[FILE] ` prefix.
-  - Other parts of the file may be adjusted to enable **`xv6` to manage `struct file` using `struct kmem_cache`**.  
-
-- **Students are free to add new files or modify other parts of the code, except for the restrictions mentioned above.**
+- **Please ensure that you enter your student ID in the `student_id.txt` file.**  
+- Restricted files **must not be modified**:  
+  - **Restricted files**:  
+    - `mp2.h`  
+    - `action_grader.h`  
+    - `scripts/pre-commit`  
+    - `kernel/main.c`  
+    - `kernel/mp2_checker.h`  
+    - `kernel/file.h`  
+    - `kernel/list.h`  
+    - `kernel/param.h`  
+    - All code within the `.github/` directory  
+    - All files within the `test/` directory, except `test/custom/mytest.txt`  
+    - All existing files within the `user/` directory; students may additionally implement other user programs for testing purposes  
+  - **Any modifications to restricted files will be considered a violation and will result in a zero score for this assignment.**  
+  - Modifications to restricted files are permitted locally but must not be committed to Github.
+- Beyond the above restrictions, students are free to add new files or modify other code.  
+- Using `./mp2.sh setup` can automatically prevent students from attempting to submit problematic changes.
 
 ## Simple Kernel Debugger
 
@@ -493,7 +512,7 @@ For detailed usage instructions, please refer to the [`kernel/debug.h`](../kerne
 
 ## Dynamic Debugging Mode Switching
 
-The `debugswitch` command is provided in `xv6`, allowing developers to **toggle debugging mode via the command line**. Running `debugswitch` will **switch between enabling and disabling debug output**, making it easier to conduct tests and diagnose issues.
+The `debugswitch` command is provided by us in `xv6`, allowing developers to **toggle debugging mode via the command line**. Running `debugswitch` will **switch between enabling and disabling debug output**, making it easier to conduct tests and diagnose issues.
 
 Example execution of `debugswitch`:
 ```sh
@@ -535,16 +554,6 @@ console        3 22 0
 [FILE] fileclose
 ```
 
-## Adjusting the Default Debug Mode
-
-The default debugging mode can be configured in [`param.h`](../kernel/param.h).  
-Students may adjust the debug mode locally based on their development needs. However, **when submitting to GitHub, `MP2_DEFAULT_DEBUG_MODE` must be set to `1`** (debug mode enabled) to ensure proper evaluation.
-
-```c
-// in param.h
-#define MP2_DEFAULT_DEBUG_MODE 1 // Debug mode enabled by default
-```
-
 # Implementation Requirements
 
 This assignment offers students significant flexibility to customize the `slab` design, provided the following specifications are followed.
@@ -583,18 +592,20 @@ The `struct slab` design will be graded based on three criteria:
    | 7      | 1%      |
    | $\ge$ 8 | 0%      |
 
-2. Number of Objects Accommodated in `slab::freelist` (2%)
-   During testing, `struct file` is 504 bytes. Grading scale:
+2. **Number of Objects Accommodated in `slab::freelist` (2%)**  
+   During testing, since the size of a `struct file` is 504 Bytes, a single page should ideally accommodate up to 8 `struct file` objects. The grading criteria are as follows:
 
-   | Number of `struct file` Objects | Score |
-   |---------------------------------|-------|
-   | 8                              | 2%    |
-   | 7                              | 1%    |
-   | $\le$ 6                        | 0%    |
+   | Number of `struct file` Objects Accommodated | Score |
+   |---------------------------------------------|-------|
+   | 8                                           | 2%    |
+   | 7                                           | 1%    |
+   | $\le$ 6                                     | 0%    |
+
+   Additionally, for the bonus section related to internal fragmentation, the number of objects allocated using the remaining space in `struct kmem_cache` does not affect the scoring of this part.
 
 3. Using `struct list_head` for Slab Management (Bonus +10%)
    - Must use [`struct list_head`](../kernel/list.h) in `struct slab` to maintain inter-Slab linkage.
-   - Full marks (45%) in functionality tests are required to earn this additional 10%.
+   - Over 66 score in functionality tests are required to earn this additional 10 points.
 
 ## `struct kmem_cache` Design
 
@@ -615,10 +626,10 @@ struct kmem_cache {
 Key considerations:
 
 1. **Free Slab Release Mechanism**
-   To reduce memory waste from excessive free Slabs, when the total number of available Slabs (`partial + free`) exceeds `MP2_MIN_AVAIL_SLAB` defined in [`param.h`](../kernel/param.h), and a new Slab becomes fully free (`free`), its memory should be actively released. This will be tested via `kmem_cache_free`.
+   To reduce memory waste from excessive free Slabs, when the total number of available Slabs (`partial + free`) exceeds `MP2_MIN_AVAIL_SLAB` defined in [`param.h`](../kernel/param.h), and a new Slab becomes fully free (`free`), memory of some free slab should be actively released. This will be tested via `kmem_cache_free`.
 
 2. **Internal Fragmentation Optimization**
-   Due to [internal fragmentation issues](#kmem_cache-internal-fragmentation-issue-bonus-item), allocating and freeing objects using `kmem_cache`’s internal space (setting their `<slab_addr>` to `kmem_cache`’s address) earns an additional **7%**.
+   Due to [internal fragmentation issues](#kmem_cache-internal-fragmentation-issue-bonus-item), allocating and freeing objects using `kmem_cache`’s internal space (setting their `<slab_addr>` to `kmem_cache`’s address) earns an additional **10%**.
 
 3. **Optionality of `full` and `free`**
    `full` and `free` in `kmem_cache` are optional. Students may refer to [Linux Kernel SLUB design](https://github.com/torvalds/linux/blob/0fed89a961ea851945d23cc35beb59d6e56c0964/mm/slub.c#L154) or adopt other suitable methods, provided they meet [implementation specifications](#print_kmem_cache-printing-struct-kmem_cache-information).
@@ -652,15 +663,14 @@ All Slab memory management functions should use `[SLAB] ` as a prefix for output
 
 Before successfully creating and returning `kmem_cache`, output the following:
 
-```log
-[SLAB] New kmem_cache (name: <name>, object size: <obj_size> bytes, at: <kmem_cache_addr>, max objects per slab: <max_objs>, support in cache obj: <in_cache_obj>) is created
-```
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 6px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] New kmem_cache (name: &lt;name&gt;, object size: &lt;obj_size&gt; bytes, at: &lt;kmem_cache_addr&gt;, max objects per slab: &lt;max_objs&gt;, support in cache obj: &lt;in_cache_obj&gt;) is created
+</code></pre>
 
 - **`<name>`**: Name of the new `kmem_cache` (`kmem_cache::name`).
 - **`<obj_size>`**: Size of objects within the `kmem_cache` (`kmem_cache::object_size`, in bytes).
 - **`<kmem_cache_addr>`**: Memory address of `kmem_cache`.
 - **`<max_objs>`**: Maximum number of objects within a `slab`.
-- **`<in_cache_obj>`**: Whether it supports the internal allocation of objects in kmem_cache, i.e., whether a solution to the [internal fragmentation issue](#kmem_cache-internal-fragmentation-issue-bonus-item) is implemented. If implemented, it is `1`; otherwise, it is `0`.
+- **`<in_cache_obj>`**: Whether it supports the internal allocation of objects in kmem_cache, i.e., whether a solution to the [internal fragmentation issue](#kmem_cache-internal-fragmentation-issue-bonus-item) is implemented. If implemented, it is the maximum number of objects inside kmem_cache; otherwise, it is `0`.
 
 Additionally, in `kmem_cache_create`, a new slab should not be initialized; the allocation of a new slab should be implemented on demand during `kmem_cache_alloc`.
 
@@ -674,6 +684,21 @@ When allocating objects, follow the flowchart below and output corresponding inf
 - **`<slab_addr>`**: Memory address of the Slab containing the object.
 - **`<obj_addr>`**: Memory address of the allocated object.
 
+The printing details are as follows:
+
+- Before allocating an object  
+    ```log
+    [SLAB] Alloc request on cache <name>
+    ```
+- When creating a new slab  
+    ```log
+    [SLAB] A new slab <slab_addr> (<name>) is allocated
+    ```
+- When an object is allocated  
+    ```log
+    [SLAB] Object <obj_addr> in slab <slab_addr> (<name>) is allocated and initialized
+    ```
+    
 In addition, students can also print other customized debug messages, as long as they do not conflict with the print format in the flowchart. As suggestion, one can print custom debug messages with other prefixes (such as lowercase `[slab]`, etc.).
 
 ## `kmem_cache_free`: Freeing Objects
@@ -688,9 +713,22 @@ When freeing objects, follow the flowchart below and output corresponding inform
 - **`<before>`**: State of the object’s Slab before freeing (`full/partial/free/cache`).
 - **`<after>`**: State of the object’s Slab after freeing (`full/partial/free/cache`).
 
-Additionally, if **the number of (`partial` + `free`) Slabs exceeds `MP2_MIN_AVAIL_SLAB`** and the object’s Slab becomes fully free (`free`), release the Slab to reclaim memory.
+The printing details are as follows:
 
-In addition, students can also print other customized debug messages, as long as they do not conflict with the print format in the flowchart. As suggestion, one can print custom debug messages with other prefixes (such as lowercase `[slab]`, etc.).
+- Before freeing an object  
+    ```log
+    [SLAB] Free <obj_addr> in slab <slab_addr> (<name>)
+    ```
+- When freeing an empty slab  
+    ```log
+    [SLAB] Slab <slab_addr> (<name>) is freed due to save memory
+    ```
+- When the function ends  
+    ```log
+    [SLAB] End of free
+    ```
+
+Additionally, if **the number of (`partial` + `free`) Slabs exceeds `MP2_MIN_AVAIL_SLAB`** and the object’s Slab becomes fully free (`free`), release the Slab to reclaim memory. Also, students can also print other customized debug messages, as long as they do not conflict with the print format in the flowchart. As suggestion, one can print custom debug messages with other prefixes (such as lowercase `[slab]`, etc.).
 
 ## Applying the Slab Allocator to `struct file` Management
 
@@ -723,87 +761,57 @@ void fileprint_metadata(void *f) {
 }
 
 struct kmem_cache *file_cache;
-
-void
-fileinit(void)
-{
-  debug("[FILE] fileinit\n");
-  // ...
-}
-
-// Allocate a file structure.
-struct file*
-filealloc(void)
-{
-  debug("[FILE] filealloc\n");
-  // ...
-}
-
-// ...
-
-void
-fileclose(struct file *f)
-{
-  // ...
-  debug("[FILE] fileclose\n");
-  ff = *f;
-  f->ref = 0;
-  // ...
-}
 ```
-
-Note: **Do not modify** the **print-related code** added to `file.c`. Debugging messages prefixed with `[FILE] ` should be output in `fileinit`, `filealloc`, and `fileclose` (when `ref` drops to 0).
 
 ## `print_kmem_cache`: Printing `struct kmem_cache` Information
 
 When printing `struct kmem_cache`, `struct slab` should be categorized into `<slab_type>` (e.g., `full`, `partial`, etc.) based on the number of remaining allocatable objects. 
 
-# Output Categories  
-
 The output is divided into five categories:  
 
 ### 1. `<kmem_cache_status>`: Basic Information of `kmem_cache`  
-```log
-[SLAB] kmem_cache { name: <name>, obj_size: <object_size>, in_cache_obj: <in_cache_obj> }
-```
-- `<name>`: The name of the `kmem_cache` (corresponding to `kmem_cache::name`).  
-- `<obj_size>`: The size of each object in the `kmem_cache` (corresponding to `kmem_cache::object_size`).  
-- `<in_cache_obj>`: Whether the [internal fragmentation issue](#kmem_cache-internal-fragmentation-issue-bonus-item) is implemented; if yes, it is `1`, otherwise it is `0`.
+
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 8px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: &lt;name&gt;, obj_size: &lt;object_size&gt;, at: &lt;kmem_cache_addr&gt;, in_cache_obj: &lt;in_cache_obj&gt; }
+</code></pre>
+
+- `<name>`: The name of the `kmem_cache` (corresponding to `kmem_cache::name`).
+- `<obj_size>`: The size of each object in the `kmem_cache` (corresponding to `kmem_cache::object_size`).
+- `<in_cache_obj>`: Whether the [internal fragmentation issue](#kmem_cache-internal-fragmentation-issue-bonus-item) is implemented; if yes, it is the maximum number of objects inside kmem_cache, otherwise it is `0`.
 
 ### 2. `<slab_list_status>`: Slab List Status  
 ```log
 [SLAB] <SPACE>[ <slab_type><SPACE>slabs ]
 ```
-- `<SPACE>`: One or more spaces (` `) or `\t`.  
-- `<slab_type>`: The type of the slab, which can be `full`, `partial`, `free`, or [`cache`](#kmem_cache-internal-fragmentation-issue-bonus-item).  
+- `<SPACE>`: One or more spaces `" "` or `"\t"`.
+- `<slab_type>`: The type of the slab, which can be `full`, `partial`, `free`, or [`cache`](#kmem_cache-internal-fragmentation-issue-bonus-item).
 - **`full` and `free` slabs can be inferred and thus do not need to be printed.**  
 
 ### 3. `<slab_status>`: Status of a Single Slab  
 ```log
 [SLAB] <SPACE>[ slab <slab_addr> ] { freelist: <freelist>, nxt: <next_slab_addr> }
 ```
-- `<SPACE>`: One or more spaces (` `) or `\t`.  
-- `<slab_addr>`: The memory address of the slab.  
-- `<freelist>`: The starting address of the `freelist` within the slab.  
+- `<SPACE>`: One or more spaces `" "` or `"\t"`.
+- `<slab_addr>`: The memory address of the slab.
+- `<freelist>`: The starting address of the `freelist` within the slab.
 - `<nxt_slab_addr>`: The memory address of the next slab in the linked list. 
 
 ### 4. `<obj_status>`: Status of a Core Object  
 ```log
 [SLAB] <SPACE>[ idx <idx> ] { addr: <entry_addr>, as_ptr: <as_ptr>, as_obj: {<as_obj>} }
 ```
-- `<SPACE>`: One or more spaces (` `) or `\t`.  
-- `<idx>`: The index of the object within its slab, ordered by ascending memory address.  
-- `<entry_addr>`: The memory address of the object, printed in the order defined by `slab::freelist`.  
-- `<as_ptr>`: The value obtained by interpreting the object as a pointer.  
+- `<SPACE>`: One or more spaces `" "` or `"\t"`.
+- `<idx>`: The index of the object within its slab, ordered by ascending memory address.
+- `<entry_addr>`: The memory address of the object, printed in the order defined by `slab::freelist`.
+- `<as_ptr>`: The value obtained by interpreting the object as a pointer.
 - `<as_obj>`: The output of interpreting the object as a system object (processed by `slab_obj_printer`).
 
-## 5. `<print_kmem_cache_end>`：函式終止符號
+### 5. `<print_kmem_cache_end>` Ending Mark
 
 ```log
 [SLAB] print_kmem_cache end
 ```
 
-# Output Format Example  
+### Output Format Example  
 ```log
 [SLAB] <kmem_cache_status>
 [SLAB] <slab_list_status 0>
@@ -1015,7 +1023,7 @@ The `mp2.sh` script provides a set of command-line tools for managing the MP2 co
 ```
 - **Function**: Displays all available commands and their descriptions for `mp2.sh`.
     ```
-    mp2.sh - Command line tool for ntuos2025 MP2 (Last Updated: 2025/03/19)
+    mp2.sh - Command line tool for ntuos2025 MP2 (Last Updated: 2025/03/21)
 
     Usage:
       ./mp2.sh pull              Pull the '$IMAGE_NAME' Docker image.
@@ -1058,6 +1066,8 @@ The following command launches a temporary container and executes tests:
   ```bash
   ./mp2.sh test func 4 6
   ```
+
+After the execution of test, the corresponding log file `out/**/*.out` wil be generated, students can check them for debugging.
 
 ### Running Tests Inside the Container
 
@@ -1126,6 +1136,53 @@ The MP2 testing framework supports the execution of tests with custom commands.
 ```
 
 Developers can edit `test/custom/mytest.txt` to run tests based on custom commands. The interpreter implemented by the teaching assistant will parse the execution state to verify correctness.
+
+## Git Commands Used in This Assignment
+
+Git is the most essential and fundamental tool for developers to develop and manage code, providing file history and branch management. In this assignment, students will use Git to download, edit, and submit their work.
+
+The following sections introduce the Git commands used in this assignment from an accessible and easy-to-understand perspective.
+
+### Downloading and Preparing for the Assignment
+
+After obtaining the link of your personal Repository (a remote storage for code), you can download the assignment using the following command:
+
+```bash
+git clone https://github.com/ntuos2025/mp2-<USERNAME>
+```
+
+Then, navigate to the assignment directory:
+
+```bash
+cd mp2-<USERNAME>
+```
+
+Before starting development with Git, please configure your basic Git information:
+
+```bash
+git config --global user.name <YOUR_NAME>
+git config --global user.email <YOUR_EMAIL>
+```
+
+Optionally, you can specify the default editor for Git operations in command-line mode:
+
+```bash
+git config --global core.editor <VIM_NANO_ETC...>
+```
+
+You can then begin development. As a reminder, please ensure you update your student ID in the `student_id.txt` file.
+
+### Development Workflow with Git
+
+The flowchart below illustrates several commands that may be used in this assignment:
+
+![](./img/mp2-git.png)
+
+For students using Git for the first time, a graphical interface might be a more user-friendly option. Fortunately, Visual Studio Code (VS Code) provides built-in Git integration by default. You can access the Source Control button in the left sidebar, which offers a graphical interface for common Git operations.
+
+![](./img/vscode-git.png)
+
+Additionally, we recommend using the VS Code [Git Graph](https://marketplace.visualstudio.com/items?itemName=mhutchie.git-graph) extension, which visualizes Git change history.
 
 # References
 
