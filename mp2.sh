@@ -7,8 +7,20 @@ CONTAINER_NAME="mp2"
 TEST_DIR="$HOME/run_test"
 
 # Check if sudo is required for Docker
+DOCKER_CMD="docker"
 if ! docker ps >/dev/null 2>&1; then
     DOCKER_CMD="sudo docker"
+fi
+
+DOCKER_IT_FLAG="-it"
+if [ -n "$GITHUB_ACTIONS" ]; then
+    DOCKER_IT_FLAG=""
+elif [ -n "$TRAVIS" ]; then
+    DOCKER_IT_FLAG=""
+elif [ -n "$GITLAB_CI" ]; then
+    DOCKER_IT_FLAG=""
+else
+    DOCKER_IT_FLAG=""
 fi
 
 # Function to check if container is running
@@ -67,7 +79,7 @@ case "$1" in
         fi
         ;;
     "test")
-        $DOCKER_CMD run --rm -it -v "$(realpath "$SCRIPT_DIR"):/home/student/mp2" \
+        $DOCKER_CMD run --rm $DOCKER_IT_FLAG -v "$(realpath "$SCRIPT_DIR"):/home/student/mp2" \
             -w /home/student/mp2 -u 1000:1000 "$IMAGE_NAME" ./mp2.sh testcase "$2" "$3" "$4" "$5"
         ;;
     "container")
@@ -77,7 +89,7 @@ case "$1" in
                     echo "Container '$CONTAINER_NAME' is already running."
                 else
                     echo "Starting '$CONTAINER_NAME'..."
-                    if $DOCKER_CMD run -d -it -v "$(realpath "$SCRIPT_DIR"):/home/student/mp2" \
+                    if $DOCKER_CMD run -d $DOCKER_IT_FLAG -v "$(realpath "$SCRIPT_DIR"):/home/student/mp2" \
                         -w /home/student/mp2 -u 1000:1000 --name "$CONTAINER_NAME" "$IMAGE_NAME" bash; then
                         echo "Container '$CONTAINER_NAME' started."
                         $DOCKER_CMD exec "$CONTAINER_NAME" sudo chown -R 1000:1000 .
@@ -89,7 +101,7 @@ case "$1" in
                 ;;
             "bash")
                 if is_container_running; then
-                    $DOCKER_CMD exec -it "$CONTAINER_NAME" bash
+                    $DOCKER_CMD exec $DOCKER_IT_FLAG "$CONTAINER_NAME" bash
                 else
                     echo "Error: Container '$CONTAINER_NAME' is not running." >&2
                     exit 1
@@ -151,8 +163,10 @@ case "$1" in
             ;;
         esac
 
-        sudo cp -r "$TEST_DIR/out" "$cur_wd"
-        sudo chown -R "$USER" "$cur_wd/out"
+        if [ -d "$TEST_DIR/out" ]; then
+            sudo cp -r "$TEST_DIR/out" "$cur_wd" || echo "Warning: Failed to copy output to $cur_wd"
+            sudo chown -R "$(id -u):$(id -g)" "$cur_wd/out" || echo "Warning: Failed to chown $cur_wd/out"
+        fi
         ;;
     *)
         usage
