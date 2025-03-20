@@ -27,5 +27,5 @@ jobs:
 
       - name: Run all the tests
         id: test-all
-        run: ./action_grader.sh
+        run: scripts/action_grader.sh
         shell: bash

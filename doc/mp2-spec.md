@@ -946,6 +946,19 @@ This code earns points if it compiles successfully, regardless of whether it pri
 
 # Appendix
 
+## Code Structure Introduction
+
+The template code for the MP2 assignment is based on [mit-pdos/xv6-riscv](https://github.com/mit-pdos/xv6-riscv), consistent with MP0 and MP1. It includes the `Makefile`, `kernel/`, and `user/` directories, which contain the kernel and user programs, respectively, as well as `mkfs/` for building the file system. On top of this, the teaching assistants have added:
+
+- `student_id.txt`: A file to assist with grading; please ensure you fill in your student ID.
+- `mp2.sh`: A tool for managing the MP2 assignment.
+- `doc/`: Specification requirements for this MP2 assignment in both Chinese and English (Markdown + PDF).
+- `scripts/`: Various helper scripts.
+- `test/`: A testing system based on the original source code’s `Makefile`.
+- `.github/`: Code related to GitHub Actions.
+
+When testing, students can use the kernel’s command-line interface (`make qemu`) as in MP0 and MP1, or utilize the script tools provided by the teaching assistants. If you choose to use them, we recommend using [`./mp2.sh`](../mp2.sh) as the interface for invoking the testing system.
+
 ## Development Inside Containers
 
 In the MP2 container environment, developers can perform development tasks within the container. This approach ensures that the development environment is identical to the runtime environment, offering high reproducibility and stability. Additionally, developers have system administrator privileges within the container, allowing them to install necessary development tools as needed.

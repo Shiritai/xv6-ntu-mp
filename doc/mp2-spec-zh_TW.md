@@ -961,6 +961,19 @@ int main(int argc, char *argv[])
 
 # 附錄
 
+## 程式碼架構介紹
+
+MP2 作業的模板程式碼基於 [mit-pdos/xv6-riscv](https://github.com/mit-pdos/xv6-riscv)，與 MP0、1 相同，皆有 `Makefile`、`kernel/`、`user/` 資料夾，分別放置核心與 user program，還有 `mkfs/` 建立檔案系統。在此之上，助教新增
+
+*  `student_id.txt`: 協助評分的文件，請務必填上同學的學號
+*  `mp2.sh`: 管理 MP2 作業用的工具
+*  `doc/`: 本次 MP2 作業的中英文規格要求 (markdown + pdf)
+*  `scripts/`: 一些幫手腳本
+*  `test/`: 基於原始碼下 `Makefile` 的測試系統
+*  `.github/`: 與 github action 相關的程式碼
+
+同學們在測試時可以和 MP0、1 一樣使用核心的命令行界面 (`make qemu`)，也可以使用助教提供的腳本工具。請若要使用，推薦使用 [`./mp2.sh`](../mp2.sh) 作為調用測試系統的接口。
+
 ## 容器內開發
 
 在 MP2 的容器環境中，開發者可以在容器內進行開發，此方式確保開發環境與執行環境完全一致，提供高度的可重現性和穩定性。此外開發者在容器內擁有系統管理員權限，可自行安裝所需的開發工具。
