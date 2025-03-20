@@ -10,7 +10,7 @@
 PROTECTED_FILES=(
     # basic
     mp2.sh
-    action_grader.sh
+    scripts/action_grader.sh
     scripts/pre-commit
     # kernel part
     kernel/main.c
