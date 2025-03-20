@@ -1,8 +1,7 @@
-name: Autograding Tests
+name: Scheduled Submit Workflow
 'on':
-  push:
-    branches:
-      - ntuos/mp2-submit
+    schedule:
+      - cron: '0 0 10 4 *'
 permissions:
   checks: write
   actions: read
@@ -61,9 +60,25 @@ jobs:
           echo "SCORE=$SCORE" >> $GITHUB_ENV
           echo "STUDENT_ID=$STUDENT_ID" >> $GITHUB_ENV
 
-          if [[ $SCORE -ge 100 ]]; then
-              cat test/congratulations.txt
-          fi
-
           echo "Student $STUDENT_ID got score: $SCORE"
         shell: bash
+
+      - name: Submit grade to TA's repo
+        run: |
+          git config --global user.name "Student Bot"
+          git config --global user.email "student@github.com"
+
+          git clone "https://$GITHUB_ACTOR:${{ secrets.TA_REPO_TOKEN }}@github.com/${{ secrets.TA_REPO }}.git" grades_repo
+          cd grades_repo
+
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "$STUDENT_ID,$SCORE,$TIMESTAMP" | tee -a $STUDENT_ID.txt
+
+          git add $STUDENT_ID.txt
+          git commit -m "Update grade for $STUDENT_ID"
+          git push
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TA_REPO: ${{ secrets.TA_REPO }}
+          TA_REPO_TOKEN: ${{ secrets.TA_REPO_TOKEN }}
