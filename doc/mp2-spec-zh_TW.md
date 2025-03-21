@@ -30,7 +30,9 @@
 
 1. 確保已安裝 [Git](https://git-scm.com/)
 2. 確保擁有 [GitHub 帳號](https://github.com/)，若無，請先註冊
-3. 透過 MP2 專屬 [GitHub Classroom 連結](https://classroom.github.com/a/99lR2XaX)，點擊 **Accept this assignment**，系統將為同學建立專屬的作業 Repository `mp2-<USERNAME>`
+3. 透過以下 MP2 專屬 GitHub Classroom 連結，點擊 **Accept this assignment**，系統將為同學建立專屬的作業 Repository `mp2-<USERNAME>`。由於本課程學生人數較多，故分成兩個 classroom，推薦使用第一個連結加入，請同學不要重複加入。
+   1. [連結一 (推薦)](https://classroom.github.com/a/8RRWnxeC)
+   2. [連結二](https://classroom.github.com/a/99lR2XaX)
 4. 存取同學的 MP2 Repository `https://github.com/ntuos2025/mp2-<USERNAME>`
 5. 在本地端複製 Repository：
     ```bash

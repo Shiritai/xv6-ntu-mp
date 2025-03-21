@@ -30,7 +30,9 @@ Please confirm the following steps to ensure your development environment is pro
 
 1. Ensure [Git](https://git-scm.com/) is installed.
 2. Ensure you have a [GitHub account](https://github.com/). If not, please register first.
-3. Visit the MP2-specific [GitHub Classroom link](https://classroom.github.com/a/99lR2XaX), click **Accept this assignment**, and the system will create a dedicated assignment repository for you named `mp2-<USERNAME>`.
+3. Through the following MP2 exclusive GitHub Classroom links, click **Accept this assignment**, and the system will create a dedicated assignment repository `mp2-<USERNAME>` for each student. Due to the large number of students in this course, it is divided into two classrooms. It is recommended to use the first link to join, and please do not join repeatedly.
+   1. [Link 1 (Recommended)](https://classroom.github.com/a/8RRWnxeC)
+   2. [Link 2](https://classroom.github.com/a/99lR2XaX)
 4. Access your MP2 repository at `https://github.com/ntuos2025/mp2-<USERNAME>`.
 5. Clone the repository locally:
     ```bash
