@@ -475,7 +475,7 @@ To comply with the [implementation requirements](#print_kmem_cache-printing-stru
 - Restricted files **must not be modified**:  
   - **Restricted files**:  
     - `mp2.h`  
-    - `action_grader.h`  
+    - `scripts/action_grader.h`  
     - `scripts/pre-commit`  
     - `kernel/main.c`  
     - `kernel/mp2_checker.h`  
@@ -1005,7 +1005,7 @@ To use Visual Studio Code (VS Code) for development inside the container, follow
 
 2. **Connect to the Container**:
    - Launch VS Code, click the **Docker** icon in the left activity bar to access the Docker sidebar.
-   - Locate `ntuos/mp2` in the container list.
+   - Locate `ntuos/mp2` in the container list, check if it's running (you can see a green ▶︎ mark).
    - Right-click `ntuos/mp2` and select **Attach Visual Studio Code**.
    - VS Code will open a new window and automatically connect to the development environment inside the `ntuos/mp2` container.
 

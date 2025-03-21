@@ -483,7 +483,7 @@ void some_api(struct kmem_cache *cache, ...)
 - 受限制檔案 **禁止修改**：
   - **受限制的檔案**：
     - `mp2.h`
-    - `action_grader.h`
+    - `scripts/action_grader.h`
     - `scripts/pre-commit`
     - `kernel/main.c`
     - `kernel/mp2_checker.h`
@@ -1019,7 +1019,7 @@ MP2 作業的模板程式碼基於 [mit-pdos/xv6-riscv](https://github.com/mit-p
     * [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)：啟用容器內開發環境。
 2. 連接到容器：
     * 啟動 VS Code，點擊左側活動欄的 Docker 圖標，進入 Docker 側邊欄。
-    * 在容器列表中找到 `ntuos/mp2`。
+    * 在容器列表中找到 `ntuos/mp2`，確認其已經啟用 (綠色 ▶︎ 符號)。
     * 右鍵點擊 `ntuos/mp2`，選擇 Attach Visual Studio Code。
     * VS Code 將開啟新窗口，並自動連接到 `ntuos/mp2` 容器的開發環境。
 
