@@ -1,4 +1,4 @@
-# MP2 Memory Management: Kernel Memory Allocation (Slab)
+# MP2 Memory Management: Kernel Memory Allocation (slab)
 
 ## Basic Information
 
@@ -15,12 +15,12 @@
 
 ## Overview
 
-In the MP2 assignment, we will explore **memory allocation and deallocation mechanisms for small kernel objects** and require students to **design and implement a SLAB allocator** within the `xv6` operating system.
+In the MP2 assignment, we will explore **memory allocation and deallocation mechanisms for small kernel objects** and require students to **design and implement a slab allocator** within the `xv6` operating system.
 
 Key focuses of this assignment include:
-- **Design of the SLAB allocator’s data structures**
+- **Design of the slab allocator’s data structures**
 - **Optimization of time and space efficiency for small object allocation**
-- **Various optimization techniques related to SLAB**
+- **Various optimization techniques related to slab**
 
 Through this assignment, students will gain hands-on experience in **designing and implementing system memory management** and learn how to enhance the efficiency of kernel memory allocation.
 
@@ -59,7 +59,7 @@ The total score for this assignment is **125%**, comprising **basic requirements
 
 ### Basic Requirements
 
-- [SLAB Design](#struct-slab-design) (5%)
+- [slab Design](#struct-slab-design) (5%)
 - Functionality Tests (Public Tests) (75%)
   - Includes 25 test cases, each worth 3%.
 - Hidden Tests (Private Tests) (20%)
@@ -71,7 +71,7 @@ Bonus items do not conflict with the basic requirements and are independent of e
 
 - [`struct slab` Memory Optimization](#struct-slab-design) (+5%)
 - [`kmem_cache` Internal Fragmentation Optimization](#kmem_cache-internal-fragmentation-issue-bonus-item) (+10%)
-- [Managing SLAB with `kernel/list.h`](#struct-slab-design) (+10%)
+- [Managing slab with `kernel/list.h`](#struct-slab-design) (+10%)
 
 ## Submission and Grading Method
 
@@ -79,7 +79,7 @@ This assignment introduces a fully automated submission and grading process. Stu
 
 The grading consists of the following four tests, and students can view the execution results in the GitHub Actions section of their personal MP2 repository:
 
-- **Slab Structure Test** (5% + 5% bonus)
+- **slab Structure Test** (5% + 5% bonus)
 - **Functionality Test** (75%)
   - If the functionality test score exceeds 66 points, the following two bonus tests will be conducted; otherwise, the bonus item evaluation will be skipped:
     - **List API Test** (+10%)
@@ -102,15 +102,15 @@ By leveraging the fact that these system objects are of the same size, the kerne
 > <img src="./img/slab-alloc.png" style="zoom:30%;" />
 > Review the course slides.
 
-The Slab system, originating from SunOS source code, was used in early Linux kernels to manage memory allocation for small system objects. This assignment will guide students in **designing and implementing a new Slab memory allocation system** to improve memory management efficiency for small objects like `struct file` in xv6.
+The slab system, originating from SunOS source code, was used in early Linux kernels to manage memory allocation for small system objects. This assignment will guide students in **designing and implementing a new slab memory allocation system** to improve memory management efficiency for small objects like `struct file` in xv6.
 
-On a side note, the lab where the MP2 TAs work is called NEWSLAB, which can be playfully split as "New Slab"—fittingly, the goal of MP2! Hopefully, this isn’t too cheesy.
+On a side note, the lab where the MP2 TAs work is called NEWSLAB, which can be playfully split as "New slab"—fittingly, the goal of MP2! Hopefully, this isn’t too cheesy.
 
-# Preliminary Design and API of the Slab Allocator
+# Preliminary Design and API of the slab Allocator
 
-## Preliminary Design of the Slab Allocator
+## Preliminary Design of the slab Allocator
 
-The goals of the Slab allocator design are:
+The goals of the slab allocator design are:
 
 1. Allocate pages for kernel objects of the same size.
 2. Divide pages into fixed-size objects to improve memory utilization efficiency.
@@ -176,11 +176,11 @@ kmem_cache_free(file_cache, file2release);
 kmem_cache_destroy(file_cache);
 ```
 
-This is the interface design of the Slab allocator in the MP2 assignment and the core objective of this implementation. In the following sections, we will delve into its specific implementation details.
+This is the interface design of the slab allocator in the MP2 assignment and the core objective of this implementation. In the following sections, we will delve into its specific implementation details.
 
 ## API Interface
 
-This assignment requires providing the following Slab APIs for use in the `xv6` kernel:
+This assignment requires providing the following slab APIs for use in the `xv6` kernel:
 
 ### 1. `kmem_cache_create`
 
@@ -213,11 +213,11 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj);
   - `cache`: Pointer to the `kmem_cache` structure.
   - `obj`: Pointer to the object to be freed.
 
-# Considerations for Implementing the Slab Allocator
+# Considerations for Implementing the slab Allocator
 
 ## `freelist` Data Structure
 
-After reading the above, you may be eager to implement the SLAB memory allocation mechanism in `xv6`. However, a key challenge in this process is **how to design the `freelist` data structure**.
+After reading the above, you may be eager to implement the slab memory allocation mechanism in `xv6`. However, a key challenge in this process is **how to design the `freelist` data structure**.
 
 First, `freelist` is essentially a contiguous memory region, i.e., **an array**. For any array, the time complexity of retrieving or releasing an element is typically $O(n)$, where $n$ is the maximum number of objects that can be stored in `freelist`. However, in a performance-critical kernel like Linux kernel, such high complexity is unacceptable. Thus, we need a **more suitable data structure** to optimize allocation and deallocation times.
 
@@ -299,7 +299,7 @@ struct file *f = (struct file *) r;
 struct file *f_after_f = (struct file *) r_next;
 ```
 
-Students may also place two pointers within a kernel object’s space to implement a doubly linked list. Please design an appropriate data structure for `freelist` based on the [Slab allocator implementation requirements](#implementation-requirements).
+Students may also place two pointers within a kernel object’s space to implement a doubly linked list. Please design an appropriate data structure for `freelist` based on the [slab allocator implementation requirements](#implementation-requirements).
 
 ## Number of Elements in `freelist`
 
@@ -311,7 +311,7 @@ $$
 
 ## `kmem_cache` Data Structure
 
-`kmem_cache` is the core structure in the Slab allocator responsible for managing memory allocation for objects of the same type. Its initial form is:
+`kmem_cache` is the core structure in the slab allocator responsible for managing memory allocation for objects of the same type. Its initial form is:
 
 ```c
 struct slab {
@@ -330,19 +330,19 @@ struct kmem_cache {
 Key considerations in system design include:
 
 - The size of `struct kmem_cache` (and `struct slab`) is fixed at one page and cannot be dynamically adjusted.
-- To improve memory allocation efficiency, `struct kmem_cache` should point to a list of Slabs with available space. Common Slab list categories are:
+- To improve memory allocation efficiency, `struct kmem_cache` should point to a list of slabs with available space. Common slab list categories are:
   - **Full**: All objects are allocated.
   - **Partial**: Some objects remain available.
-  - **Free**: Unused Slabs.
-- **When all existing Slabs are full, a new page should be allocated to create an additional Slab**. Thus, while each `kmem_cache` corresponds to a single object type, the number of Slabs it manages may vary dynamically with memory demand.
+  - **Free**: Unused slabs.
+- **When all existing slabs are full, a new page should be allocated to create an additional slab**. Thus, while each `kmem_cache` corresponds to a single object type, the number of slabs it manages may vary dynamically with memory demand.
 
-Since `kmem_cache` may need to manage a large number of Slabs dynamically, designing `kmem_cache::slab` as an array is impractical. A **linked list** is more suitable. The design can be refined as:
+Since `kmem_cache` may need to manage a large number of slabs dynamically, designing `kmem_cache::slab` as an array is impractical. A **linked list** is more suitable. The design can be refined as:
 
 ```c
 struct slab {
     <ptr> freelist;
 
-    {   // Slab list linkage pointers
+    {   // slab list linkage pointers
         <ptr> <next>;
         <ptr> <prev>; // Optional, depending on situational needs
     }
@@ -353,19 +353,19 @@ struct kmem_cache {
     char name[MP2_CACHE_MAX_NAME];
     uint object_size;
 
-    <ptr> full;    // Points to the list of full Slabs
-    <ptr> partial; // Points to the list of partially used Slabs
-    <ptr> free;    // Points to the list of free Slabs
+    <ptr> full;    // Points to the list of full slabs
+    <ptr> partial; // Points to the list of partially used slabs
+    <ptr> free;    // Points to the list of free slabs
 
     ... // Other fields can be extended as needed
 };
 ```
 
-Here, `<ptr>` can be `struct slab *`, `void *`, or `struct list_head`, the latter being a Linux-style doubly linked list management approach provided in [`kernel/list.h`](../kernel/list.h). For usage details, refer to the documentation comments in that file. Students implementing Slab lists with `struct list_head` from this library will have a bonus opportunity.
+Here, `<ptr>` can be `struct slab *`, `void *`, or `struct list_head`, the latter being a Linux-style doubly linked list management approach provided in [`kernel/list.h`](../kernel/list.h). For usage details, refer to the documentation comments in that file. Students implementing slab lists with `struct list_head` from this library will have a bonus opportunity.
 
 ## Relationship Between Core Objects, `struct slab`, and `struct kmem_cache`
 
-In the SLAB allocator for MP2, there are three key components whose relationships should be clearly understood.
+In the slab allocator for MP2, there are three key components whose relationships should be clearly understood.
 
 ### Kernel Objects
 
@@ -374,7 +374,7 @@ Kernel objects refer to the data structures managed by the kernel, such as `stru
 ### `struct slab`
 
 - **Occupies a single page of memory**, where a portion of the space is allocated for **metadata**, while the remaining space is divided into equal-sized units, forming a **`freelist` (free object list)**. Each unit in the `freelist` can store one kernel object.  
-- **Different types of kernel objects are managed in separate Slabs**, ensuring independent management for different object types.  
+- **Different types of kernel objects are managed in separate slabs**, ensuring independent management for different object types.  
 - Based on the number of allocated objects, a `struct slab` can be categorized into three states:  
   - Full (`full`): All available objects have been allocated.  
   - Partially used (`partial`): Some objects have been allocated, but free space remains.  
@@ -408,13 +408,13 @@ Hint: [Pointer Arithmetic](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n322
 
 ## Synchronization and Race Conditions in `kmem_cache`
 
-In multi-core and multi-threaded environments, operations on `kmem_cache` involve modifying and managing Slab lists, potentially leading to race conditions. When multiple CPUs access `kmem_cache` simultaneously—especially during object allocation (`kmem_cache_alloc()`) or deallocation (`kmem_cache_free()`)—data inconsistency or memory corruption may occur without proper synchronization.
+In multi-core and multi-threaded environments, operations on `kmem_cache` involve modifying and managing slab lists, potentially leading to race conditions. When multiple CPUs access `kmem_cache` simultaneously—especially during object allocation (`kmem_cache_alloc()`) or deallocation (`kmem_cache_free()`)—data inconsistency or memory corruption may occur without proper synchronization.
 
 To ensure thread safety in `kmem_cache`, appropriate synchronization mechanisms should be employed to protect critical sections. Common solutions include:
 
 - **Spinlock**: Suitable for short-duration locking to avoid process-switching overhead.
 - **Mutex**: For longer operations, reducing busy-waiting impact.
-- **Per-CPU Cache**: Using a per-CPU `kmem_cache_cpu` to minimize cross-CPU lock contention, synchronizing globally only when necessary. This is a key optimization in the modern Linux kernel’s SLUB allocator, the successor to SLAB.
+- **Per-CPU Cache**: Using a per-CPU `kmem_cache_cpu` to minimize cross-CPU lock contention, synchronizing globally only when necessary. This is a key optimization in the modern Linux kernel’s SLUB allocator, the successor to slab.
 
 For this assignment, students need only use **spinlocks** to ensure `kmem_cache` thread safety. Below is an example of using `xv6`’s **spinlock** to ensure correctness in a multi-threaded environment:
 
@@ -459,7 +459,7 @@ void some_api(struct kmem_cache *cache, ...)
 
 ## `kmem_cache` Internal Fragmentation Issue (Bonus Item)
 
-`struct kmem_cache` itself is a **dynamically allocated system object**, typically occupying **a full page**, but its own size is much smaller, leading to memory waste. To address this, the remaining space can be used to store allocatable objects within the Slab.
+`struct kmem_cache` itself is a **dynamically allocated system object**, typically occupying **a full page**, but its own size is much smaller, leading to memory waste. To address this, the remaining space can be used to store allocatable objects within the slab.
 
 To comply with the [implementation requirements](#print_kmem_cache-printing-struct-kmem_cache-information), please:  
 
@@ -603,8 +603,8 @@ The `struct slab` design will be graded based on three criteria:
 
    Additionally, for the bonus section related to internal fragmentation, the number of objects allocated using the remaining space in `struct kmem_cache` does not affect the scoring of this part.
 
-3. Using `struct list_head` for Slab Management (Bonus +10%)
-   - Must use [`struct list_head`](../kernel/list.h) in `struct slab` to maintain inter-Slab linkage.
+3. Using `struct list_head` for slab Management (Bonus +10%)
+   - Must use [`struct list_head`](../kernel/list.h) in `struct slab` to maintain inter-slab linkage.
    - Over 66 score in functionality tests are required to earn this additional 10 points.
 
 ## `struct kmem_cache` Design
@@ -625,8 +625,8 @@ struct kmem_cache {
 
 Key considerations:
 
-1. **Free Slab Release Mechanism**
-   To reduce memory waste from excessive free Slabs, when the total number of available Slabs (`partial + free`) exceeds `MP2_MIN_AVAIL_SLAB` defined in [`param.h`](../kernel/param.h), and a new Slab becomes fully free (`free`), memory of some free slab should be actively released. This will be tested via `kmem_cache_free`.
+1. **Free slab Release Mechanism**
+   To reduce memory waste from excessive free slabs, when the total number of available slabs (`partial + free`) exceeds `MP2_MIN_AVAIL_SLAB` defined in [`param.h`](../kernel/param.h), and a new slab becomes fully free (`free`), memory of some free slab should be actively released. This will be tested via `kmem_cache_free`.
 
 2. **Internal Fragmentation Optimization**
    Due to [internal fragmentation issues](#kmem_cache-internal-fragmentation-issue-bonus-item), allocating and freeing objects using `kmem_cache`’s internal space (setting their `<slab_addr>` to `kmem_cache`’s address) earns an additional **10%**.
@@ -634,13 +634,13 @@ Key considerations:
 3. **Optionality of `full` and `free`**
    `full` and `free` in `kmem_cache` are optional. Students may refer to [Linux Kernel SLUB design](https://github.com/torvalds/linux/blob/0fed89a961ea851945d23cc35beb59d6e56c0964/mm/slub.c#L154) or adopt other suitable methods, provided they meet [implementation specifications](#print_kmem_cache-printing-struct-kmem_cache-information).
 
-## Slab Functionality
+## slab Functionality
 
 Implement the following functions in [`slab.c`](./kernel/slab.c):
 
 ```c
-// 1. Core Slab Memory Management Functions
-// 1-1. Initialize a Slab allocator, creating a kmem_cache for system objects named "name" with size "object_size"
+// 1. Core slab Memory Management Functions
+// 1-1. Initialize a slab allocator, creating a kmem_cache for system objects named "name" with size "object_size"
 struct kmem_cache *kmem_cache_create(char *name, uint object_size);
 // 1-2. Allocate a system object and return its memory address
 void *kmem_cache_alloc(struct kmem_cache *cache);
@@ -653,7 +653,7 @@ void kmem_cache_destroy(struct kmem_cache *cache);
 void print_kmem_cache(struct kmem_cache *, void (*)(void *));
 ```
 
-All Slab memory management functions should use `[SLAB] ` as a prefix for output messages, e.g.:
+All slab memory management functions should use `[SLAB] ` as a prefix for output messages, e.g.:
 
 ```log
 [SLAB] Alloc request on cache file
@@ -681,7 +681,7 @@ When allocating objects, follow the flowchart below and output corresponding inf
 ![](./img/mp2-slab-alloc.png)
 
 - **`<name>`**: Name of the `kmem_cache` (`kmem_cache::name`).
-- **`<slab_addr>`**: Memory address of the Slab containing the object.
+- **`<slab_addr>`**: Memory address of the slab containing the object.
 - **`<obj_addr>`**: Memory address of the allocated object.
 
 The printing details are as follows:
@@ -708,10 +708,10 @@ When freeing objects, follow the flowchart below and output corresponding inform
 ![](./img/mp2-slab-free.png)
 
 - **`<name>`**: Name of the `kmem_cache` (`kmem_cache::name`).
-- **`<slab_addr>`**: Memory address of the Slab containing the object.
+- **`<slab_addr>`**: Memory address of the slab containing the object.
 - **`<obj_addr>`**: Memory address of the object to be freed.
-- **`<before>`**: State of the object’s Slab before freeing (`full/partial/free/cache`).
-- **`<after>`**: State of the object’s Slab after freeing (`full/partial/free/cache`).
+- **`<before>`**: State of the object’s slab before freeing (`full/partial/free/cache`).
+- **`<after>`**: State of the object’s slab after freeing (`full/partial/free/cache`).
 
 The printing details are as follows:
 
@@ -721,16 +721,16 @@ The printing details are as follows:
     ```
 - When freeing an empty slab  
     ```log
-    [SLAB] Slab <slab_addr> (<name>) is freed due to save memory
+    [SLAB] slab <slab_addr> (<name>) is freed due to save memory
     ```
 - When the function ends  
     ```log
     [SLAB] End of free
     ```
 
-Additionally, if **the number of (`partial` + `free`) Slabs exceeds `MP2_MIN_AVAIL_SLAB`** and the object’s Slab becomes fully free (`free`), release the Slab to reclaim memory. Also, students can also print other customized debug messages, as long as they do not conflict with the print format in the flowchart. As suggestion, one can print custom debug messages with other prefixes (such as lowercase `[slab]`, etc.).
+Additionally, if **the number of (`partial` + `free`) slabs exceeds `MP2_MIN_AVAIL_SLAB`** and the object’s slab becomes fully free (`free`), release the slab to reclaim memory. Also, students can also print other customized debug messages, as long as they do not conflict with the print format in the flowchart. As suggestion, one can print custom debug messages with other prefixes (such as lowercase `[slab]`, etc.).
 
-## Applying the Slab Allocator to `struct file` Management
+## Applying the slab Allocator to `struct file` Management
 
 In xv6, `struct file` was originally managed by `ftable` in `file.c`. Replace it with `struct kmem_cache *file_cache` and adjust `file.c` accordingly.
 
@@ -778,7 +778,7 @@ The output is divided into five categories:
 - `<obj_size>`: The size of each object in the `kmem_cache` (corresponding to `kmem_cache::object_size`).
 - `<in_cache_obj>`: Whether the [internal fragmentation issue](#kmem_cache-internal-fragmentation-issue-bonus-item) is implemented; if yes, it is the maximum number of objects inside kmem_cache, otherwise it is `0`.
 
-### 2. `<slab_list_status>`: Slab List Status  
+### 2. `<slab_list_status>`: slab List Status  
 ```log
 [SLAB] <SPACE>[ <slab_type><SPACE>slabs ]
 ```
@@ -786,7 +786,7 @@ The output is divided into five categories:
 - `<slab_type>`: The type of the slab, which can be `full`, `partial`, `free`, or [`cache`](#kmem_cache-internal-fragmentation-issue-bonus-item).
 - **`full` and `free` slabs can be inferred and thus do not need to be printed.**  
 
-### 3. `<slab_status>`: Status of a Single Slab  
+### 3. `<slab_status>`: Status of a Single slab  
 ```log
 [SLAB] <SPACE>[ slab <slab_addr> ] { freelist: <freelist>, nxt: <next_slab_addr> }
 ```
@@ -928,7 +928,7 @@ Example:
 
 ## Implementing System Call `sys_printfslab`
 
-Implement `sys_printfslab` to print the Slab (`struct kmem_cache`) for `file` as a system call.
+Implement `sys_printfslab` to print the slab (`struct kmem_cache`) for `file` as a system call.
 
 Ensure the following user program runs correctly:
 
@@ -942,9 +942,7 @@ int main(int argc, char *argv[])
 }
 ```
 
-This code earns points if it compiles successfully, regardless of whether it prints the correct Slab information. By default, it cannot yet compile.
-
-# Appendix
+This code earns points if it compiles successfully, regardless of whether it prints the correct slab information. By default, it cannot yet compile.
 
 ## Code Structure Introduction
 
@@ -958,6 +956,38 @@ The template code for the MP2 assignment is based on [mit-pdos/xv6-riscv](https:
 - `.github/`: Code related to GitHub Actions.
 
 When testing, students can use the kernel’s command-line interface (`make qemu`) as in MP0 and MP1, or utilize the script tools provided by the teaching assistants. If you choose to use them, we recommend using [`./mp2.sh`](../mp2.sh) as the interface for invoking the testing system.
+
+## Testing and Grading Framework
+
+### Testing Framework
+
+`./mp2.sh` serves as the interface for the testing framework. It prepares the container environment as needed and passes compliant parameters to `run_mp2.py`. The latter depends on `gradelib.py`, which compiles and runs the xv6 kernel, captures the output for further processing, and records the test scores.
+
+After `run_mp2.py` retrieves the captured output, it calls the slab debug message interpreter `pseudo_fslab::interpreter` from `pseudo_fslab.cpython-39-x86_64-linux-gnu.so`. This interpreter continuously parses the output from `gradelib.py`, verifies whether each slab operation is logically sound, and throws an exception containing an error message back to `run_mp2.py` if an error occurs.
+
+### Existing Test Items
+
+#### slab Test
+
+Executes the `mp2` command in `xv6`, examining the output generated by `mp2_checker.h/check()` during system boot and the results of the `mp2` command execution. Scores are calculated based on the grading criteria defined in [Slab Structure Design](#struct-slab-design).
+
+#### Functionality (Func) Test
+
+Executes the public test cases located in `test/public/mp2-*.txt` within `xv6`. The interpreter tracks the slab's state to validate its correct operation.
+
+#### Cache Test
+
+Executes the `mp2` command in `xv6` to check whether `cache` type slab have been implemented.
+
+#### List Test
+
+Analyzes the implementation in `kernel/slab.[h,c]` to confirm whether the linkage between slabs is implemented using a Linux-style linked list approach.
+
+#### Private Test (GitHub Actions Only)
+
+Executes test files decrypted from `test/private_test.zip.env` within `xv6`. This test is exclusive to the GitHub Actions environment, as the decryption key is provided as a GitHub Secret. The testing methodology aligns with the "Functionality (Func) Test."
+
+# Appendix
 
 ## Development Inside Containers
 
