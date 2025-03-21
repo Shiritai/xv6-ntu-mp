@@ -15,12 +15,12 @@
 
 ## 概述
 
-在 MP2 作業中，我們將探討 **核心小型物件的記憶體配置與釋放機制**，並請學生在 `xv6` 作業系統上 **設計並實作 SLAB 分配器**。
+在 MP2 作業中，我們將探討 **核心小型物件的記憶體配置與釋放機制**，並請學生在 `xv6` 作業系統上 **設計並實作 slab 分配器**。
 
 本次作業的重點包括：
-- **SLAB 分配器的資料結構設計**
+- **slab 分配器的資料結構設計**
 - **小型物件分配的時間與空間效率優化**
-- **與 SLAB 相關的多種優化技術**
+- **與 slab 相關的多種優化技術**
 
 透過本作業，學生將能夠體驗 **系統記憶體管理的設計與實作過程**，並學習如何提升核心記憶體配置的效率。
 
@@ -30,7 +30,9 @@
 
 1. 確保已安裝 [Git](https://git-scm.com/)
 2. 確保擁有 [GitHub 帳號](https://github.com/)，若無，請先註冊
-3. 透過 MP2 專屬 [GitHub Classroom 連結]()，點擊 **Accept this assignment**，系統將為同學建立專屬的作業 Repository `mp2-<USERNAME>`
+3. 透過以下 MP2 專屬 GitHub Classroom 連結，點擊 **Accept this assignment**，系統將為同學建立專屬的作業 Repository `mp2-<USERNAME>`。由於本課程學生人數較多，故分成兩個 classroom，推薦使用第一個連結加入，請同學不要重複加入。
+   1. [連結一 (推薦)](https://classroom.github.com/a/8RRWnxeC)
+   2. [連結二](https://classroom.github.com/a/99lR2XaX)
 4. 存取同學的 MP2 Repository `https://github.com/ntuos2025/mp2-<USERNAME>`
 5. 在本地端複製 Repository：
     ```bash
@@ -59,7 +61,7 @@
 
 ### 基本要求
 
-- [SLAB 設計](#struct-slab-設計) (5%)
+- [slab 設計](#struct-slab-設計) (5%)
 - 功能測試 (Public Tests) (75%)
   - 包含 25 筆測資，每筆 3%
 - 隱藏測試 (Private Tests) (20%)
@@ -71,7 +73,7 @@
 
 - [`struct slab` 記憶體優化](#struct-slab-設計) (+5%)
 - [`kmem_cache` 內部碎裂優化](#kmem_cache-的內部碎裂問題-加分項目) (+10%)
-- [以 `kernel/list.h` 管理 SLAB](#struct-slab-設計) (+10%)
+- [以 `kernel/list.h` 管理 slab](#struct-slab-設計) (+10%)
 
 ## 提交與評分方式
 
@@ -81,7 +83,7 @@
 
 評分包含以下四項測試，學生可前往個人 MP2 儲存庫（Repository）中的 GitHub Actions 查看執行結果：
 
-- **Slab 結構測試** (5% + 5% 加分)
+- **slab 結構測試** (5% + 5% 加分)
 - **功能測試** (75%)
   - 若功能測試得分超過 66 分，將進一步執行以下兩項加分測試；否則將直接跳過加分項目計分：
     - **List API 測試** (+10%)
@@ -99,20 +101,20 @@
 
 想像今天 kernel 要分配 100 個大小為 `40B` 個系統物件，比如 xv6 中的 `struct file`。若每個物件都要以一個頁面儲存，不僅需要配置頁面時的開銷，還會遇到非常嚴重的內部碎裂問題，特別是面對小型系統物件的配置。
 
-若能利用這些系統物件大小相同的特性，核心預先分配一個乃至數個連續的頁面，並將其內部空間以 `40B` 為單位進行切割，便能盡可能地利用整個頁面的空間，減少內部碎裂，由於可能短時間內對相同頁面重複訪問，且大多數的配置可以重複利用舊的頁面而非配置新頁面，也能加速配置所需的時間。
+若能利用這些系統物件大小相同的特性，核心預先分配一個乃至數個連續的頁面，並將其內部空間以 `40B` 為單位進行切割，便能盡可能地利用整個頁面的空間，減少內部碎裂，由於可能短時間內對相同頁面重複存取，且大多數的配置可以重複利用舊的頁面而非配置新頁面，也能加速配置所需的時間。
 
 > <img src="./img/slab-alloc.png" style="zoom:30%;" />
 > 回顧課程投影片。
 
-Slab 便是這樣一個系統，源自 SunOS 原始碼，為過去 Linux kernel 實現小型系統物件記憶體配置的機制。本作業將引導學生 **設計並實作一個新的 Slab 記憶體配置系統**，以提升 xv6 中小型物件 `struct file` 的記憶體管理效能。
+slab 便是這樣一個系統，源自 SunOS 原始碼，為過去 Linux kernel 實現小型系統物件記憶體配置的機制。本作業將引導學生 **設計並實作一個新的 slab 記憶體配置系統**，以提升 xv6 中小型物件 `struct file` 的記憶體管理效能。
 
-題外話，MP2 的助教們所屬的實驗室簡稱為 NEWSLAB，可以斷句為 NewSlab，這便是我們 MP2 的目標！嗯...希望不要太冷。
+題外話，MP2 的助教們所屬的實驗室簡稱為 NEWSLAB，可以斷句為 Newslab，這便是我們 MP2 的目標！嗯...希望不要太冷。
 
-# Slab 配置器的初步設計與 API
+# slab 配置器的初步設計與 API
 
-## Slab 配置器的初步設計
+## slab 配置器的初步設計
 
-在 Slab 配置器的設計中，我們的目標是：
+在 slab 配置器的設計中，我們的目標是：
 
 1. 為具有相同大小的核心物件分配頁面。
 2. 將頁面切分為固定大小的物件，以提高記憶體使用效率。
@@ -128,7 +130,7 @@ struct slab {
 };
 ```
 
-在 C 語言中，`void *` 表示指向任意類型的指標，然而由於其型別不確定，無法直接解引用，因此需要將其轉型為特定類型的指標才能進行操作。`(void *) *freelist` 代表一個 `void *` 陣列，或是一個指向 `void *` 的指標。關於 `freelist` 的詳細結構，將在[後續章節](#freelist-的資料結構)進一步說明。
+在 C 語言中，`void *` 表示指向任意類型的指標，然而由於其型別不確定，無法直接取值，因此需要將其轉型為特定類型的指標才能進行操作。`(void *) *freelist` 代表一個 `void *` 陣列，或是一個指向 `void *` 的指標。關於 `freelist` 的詳細結構，將在[後續章節](#freelist-的資料結構)進一步說明。
 
 由於對於相同類型的系統物件而言，`name` 和 `object_size` 皆為相同屬性，因此可在 `struct slab` 之上設計一個額外的結構體 `struct kmem_cache`，用來統一管理相同類型物件的共用資訊，藉此減少 `struct slab` 的記憶體開銷。
 
@@ -178,7 +180,7 @@ kmem_cache_free(file_cache, file2release);
 kmem_cache_destroy(file_cache);
 ```
 
-這是 MP2 作業中 Slab 配置器的介面設計，也是本次實作的核心目標。在接下來的章節中，我們將深入探討其具體實作細節。
+這是 MP2 作業中 slab 配置器的介面設計，也是本次實作的核心目標。在接下來的章節中，我們將深入探討其具體實作細節。
 
 ## API 介面
 
@@ -215,11 +217,11 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj);
   - `cache`：指向 `kmem_cache` 結構的指標。
   - `obj`：指向待釋放物件的指標。
 
-# Slab 配置器的實作的考量點
+# slab 配置器的實作的考量點
 
 ## `freelist` 資料結構
 
-在閱讀前述內容後，同學或許已經迫不及待地想在 `xv6` 中實作 SLAB 記憶體分配機制。然而，在實作過程中，**如何設計 `freelist` 資料結構** 將是一個關鍵挑戰。
+在閱讀前述內容後，同學或許已經迫不及待地想在 `xv6` 中實作 slab 記憶體分配機制。然而，在實作過程中，**如何設計 `freelist` 資料結構** 將是一個關鍵挑戰。
 
 首先，`freelist` 本質上是一塊連續的記憶體區域，亦即 **一個陣列**。對於任何陣列來說，獲取可用元素或釋放元素的時間複雜度通常為 $O(n)$，其中 $n$ 為 `freelist` 中可放置的的最大總物件數。然而，在追求高效能的核心，比如 Linux kernel 中，如此高的複雜度顯然不可接受。因此，我們需要採用 **更適合的資料結構** 來優化分配與釋放的時間。
 
@@ -301,7 +303,7 @@ struct file *f = (struct file *) r;
 struct file *f_after_f = (struct file *) r_next;
 ```
 
-同學們也可以在一個核心物件的空間內放兩個指標，實現雙向鏈結串列。請根據 [Slab 配置器的實作要求](#實作要求)，為 freelist 設計合適資料結構。
+同學們也可以在一個核心物件的空間內放兩個指標，實現雙向鏈結串列。請根據 [slab 配置器的實作要求](#實作要求)，為 freelist 設計合適資料結構。
 
 ## `freelist` 的元素數量
 
@@ -315,7 +317,7 @@ $$
 
 ## `kmem_cache` 資料結構
 
-`kmem_cache` 是 Slab 配置器中負責管理同類型物件記憶體分配的核心結構，其雛形如下：
+`kmem_cache` 是 slab 配置器中負責管理同類型物件記憶體分配的核心結構，其雛形如下：
 
 ```c
 struct slab {
@@ -336,19 +338,19 @@ struct kmem_cache {
 在系統設計中，需注意以下幾點：
 
 - `struct kmem_cache` (以及 `struct slab`) 的大小為一個頁面，為固定值，無法動態調整。
-- 為了提高記憶體分配效率，`struct kmem_cache` 應指向尚有可用空間的 Slab 清單，常見 Slab 清單分類如下：
+- 為了提高記憶體分配效率，`struct kmem_cache` 應指向尚有可用空間的 slab 清單，常見 slab 清單分類如下：
   - **已滿 (`full`)**：所有物件皆已分配。
   - **部分使用 (`partial`)**：仍有可用物件。
-  - **空閒 (`free`)**：尚未使用的 Slab。
-- **當所有現有 Slab 皆已滿時，應配置新的頁面以產生額外的 Slab**。因此，儘管每個 `kmem_cache` 僅對應單一物件類型，其所管理的 Slab 數量可能會隨記憶體需求動態變化。
+  - **空閒 (`free`)**：尚未使用的 slab。
+- **當所有現有 slab 皆已滿時，應配置新的頁面以產生額外的 slab**。因此，儘管每個 `kmem_cache` 僅對應單一物件類型，其所管理的 slab 數量可能會隨記憶體需求動態變化。
 
-由於 `kmem_cache` 可能需動態管理大量 Slab，因此將 `kmem_cache::slab` 設計為陣列並不實際，改採 **鏈結串列** 會更符合需求。此設計可改進為：
+由於 `kmem_cache` 可能需動態管理大量 slab，因此將 `kmem_cache::slab` 設計為陣列並不實際，改採 **鏈結串列** 會更符合需求。此設計可改進為：
 
 ```c
 struct slab {
     <ptr> freelist;
 
-    {   // Slab 清單鏈結指標
+    {   // slab 清單鏈結指標
         <ptr> <next>;
         <ptr> <prev>; // 可選，視情境需求決定是否使用
     }
@@ -359,9 +361,9 @@ struct kmem_cache {
     char name[MP2_CACHE_MAX_NAME];
     uint object_size;
 
-    <ptr> full;    // 指向已滿的 Slab 清單
-    <ptr> partial; // 指向部分使用的 Slab 清單
-    <ptr> free;    // 指向空閒的 Slab 清單
+    <ptr> full;    // 指向已滿的 slab 清單
+    <ptr> partial; // 指向部分使用的 slab 清單
+    <ptr> free;    // 指向空閒的 slab 清單
 
     ... // 其他欄位可依需求擴充
 };
@@ -371,7 +373,7 @@ struct kmem_cache {
 
 ## 核心物件、`struct slab` 與 `struct kmem_cache` 的關係
 
-在 MP2 的 SLAB 配置器中，有三個關鍵角色，其關係應予以明確釐清。
+在 MP2 的 slab 配置器中，有三個關鍵角色，其關係應予以明確釐清。
 
 ### 核心物件
 
@@ -379,13 +381,13 @@ struct kmem_cache {
 
 ### `struct slab`
 
-- **佔用單個頁面的記憶體區塊**，其中部分空間存放 Slab 的 **元數據 (metadata)**，其餘空間則被切割為大小相同的記憶體單元，形成 **`freelist` (可用物件清單)**。`freelist` 內的每個單元可存放一個核心物件。  
-- **不同類型的核心物件會存放於對應類型的 Slab 中**，以確保管理的獨立性。  
+- **佔用單個頁面的記憶體區塊**，其中部分空間存放 slab 的 **元數據 (metadata)**，其餘空間則被切割為大小相同的記憶體單元，形成 **`freelist` (可用物件清單)**。`freelist` 內的每個單元可存放一個核心物件。  
+- **不同類型的核心物件會存放於對應類型的 slab 中**，以確保管理的獨立性。  
 - 根據已分配物件的數量，`struct slab` 可分為三種狀態：
   - 滿 (`full`)：所有可用物件均已分配。
   - 部分使用 (`partial`)：部分物件已被分配，仍有可用空間。
   - 閒置 (`free`)：目前無任何物件被分配，可完全釋放。  
-- **定義「可用的 Slab」為處於 `partial` 或 `free` 狀態的 Slab**，這些 Slab 仍可提供物件分配。  
+- **定義「可用的 slab」為處於 `partial` 或 `free` 狀態的 slab**，這些 slab 仍可提供物件分配。  
 - **`struct slab` 依需求動態分配，並透過鏈結串列進行管理**，確保可靈活擴展。
 
 ![](./img/mp2-slab.png)
@@ -396,8 +398,8 @@ struct kmem_cache {
 
 ### `struct kmem_cache`
 
-- **負責管理所有屬於同一類型核心物件的 Slab**，確保記憶體分配與釋放的高效運行。  
-- **例如，系統可能為 `struct file` 和 `struct proc` 各自建立一個 `kmem_cache`**，專門管理其對應的 Slab。(本次作業不涉及 `struct proc` 相關程式碼)
+- **負責管理所有屬於同一類型核心物件的 slab**，確保記憶體分配與釋放的高效運行。  
+- **例如，系統可能為 `struct file` 和 `struct proc` 各自建立一個 `kmem_cache`**，專門管理其對應的 slab。(本次作業不涉及 `struct proc` 相關程式碼)
 
 ![](./img/mp2-kmem_cache.png)
 
@@ -405,7 +407,7 @@ struct kmem_cache {
 
 ### `freelist` 與 `slab` 的關係 
 
-為了高效存取 `freelist` 管理的記憶體空間，需對結構體與頁面記憶體的佈局有清晰的理解。下圖展示了 Slab 的記憶體佈局示意圖：  
+為了高效存取 `freelist` 管理的記憶體空間，需對結構體與頁面記憶體的佈局有清晰的理解。下圖展示了 slab 的記憶體佈局示意圖：  
 
 ![](./img/mp2-slab-mem.png)  
 
@@ -414,13 +416,13 @@ struct kmem_cache {
 
 ## `kmem_cache` 的同步控制與競爭議題
 
-雖然本議題並非 MP2 重點，不過在多核心與多行程間環境中，`kmem_cache` 的操作涉及對 Slab 清單的修改與管理，因此可能會產生競爭情況，故有必要針對本主題做簡單的介紹。
+雖然本議題並非 MP2 重點，不過在多核心與多行程間環境中，`kmem_cache` 的操作涉及對 slab 清單的修改與管理，因此可能會產生競爭情況，故有必要針對本主題做簡單的介紹。
 
 當多個 CPU 同時存取 `kmem_cache`，特別是在執行物件分配 (`kmem_cache_alloc()`) 或釋放 (`kmem_cache_free()`) 操作時，若未採取適當的同步機制，可能導致資料不一致或記憶體損壞。
 
 為了確保 `kmem_cache` 的行程間安全性，應使用適當的同步機制來保護關鍵區域。常見的解決方案包括：
 
-- **自旋鎖 (`spinlock`)**：適用於短時間內的鎖定操作，避免進程切換開銷。
+- **自旋鎖 (`spinlock`)**：適用於短時間內的鎖定操作，避免行程切換開銷。
 - **互斥鎖 (`mutex`)**：若操作時間較長，可使用互斥鎖來降低 busy waiting 的影響。
 - **Per-CPU Cache**：透過每個 CPU 獨立的 `kmem_cache_cpu` 來減少跨 CPU 鎖競爭，僅在必要時進行全局同步。事實上這便是現今 Linux 核心采納之 slab 配置器的繼承者: slub 配置器的關鍵優化思路。
 
@@ -467,7 +469,7 @@ void some_api(struct kmem_cache *cache, ...)
 
 ## `kmem_cache` 的內部碎裂問題 (加分項目)
 
-`struct kmem_cache` 本身屬於 **動態配置的系統物件**，通常佔用 **一個完整的頁面**，但其自身大小遠小於頁面大小，導致記憶體浪費。為解決此問題，可以將剩餘空間用來存放 Slab 內的可配置物件。
+`struct kmem_cache` 本身屬於 **動態配置的系統物件**，通常佔用 **一個完整的頁面**，但其自身大小遠小於頁面大小，導致記憶體浪費。為解決此問題，可以將剩餘空間用來存放 slab 內的可配置物件。
 
 為了符合[實作規範](#print_kmem_cache-列印-struct-kmem_cache-的資訊)，請
 
@@ -483,7 +485,7 @@ void some_api(struct kmem_cache *cache, ...)
 - 受限制檔案 **禁止修改**：
   - **受限制的檔案**：
     - `mp2.h`
-    - `action_grader.h`
+    - `scripts/action_grader.h`
     - `scripts/pre-commit`
     - `kernel/main.c`
     - `kernel/mp2_checker.h`
@@ -611,8 +613,8 @@ struct slab {
 
    另外內部碎裂問題的加分部分，使用 `struct kmem_cache` 的剩餘空間配置物件數量不影響這部分的評分。
 
-3. 使用 `struct list_head` 進行 Slab 管理 (加 10%)
-   - 需在 `struct slab` 中 **使用 [`struct list_head`](../kernel/list.h) 維護 Slab 間的鏈結**。
+3. 使用 `struct list_head` 進行 slab 管理 (加 10%)
+   - 需在 `struct slab` 中 **使用 [`struct list_head`](../kernel/list.h) 維護 slab 間的鏈結**。
    - 同學的程式碼 **需在功能測試的部分取得 66 分以上** 才會獲得這部分額外 10 分的加分
 
 ## `struct kmem_cache` 的設計
@@ -633,9 +635,9 @@ struct kmem_cache {
 
 請同學留意以下幾點：
 
-1. 閒置 Slab 釋放機制
+1. 閒置 slab 釋放機制
 
-   為了減少過多閒置 Slab 的記憶體浪費，當可用 Slab（即 `partial + free`）的總數超過 [`param.h`](../kernel/param.h) 中定義的 `MP2_MIN_AVAIL_SLAB` 時，若有新的 Slab 變為完全閒置（`free`），則應主動釋放任意閒置狀態中的 slab 佔用的記憶體。該機制將透過 `kmem_cache_free` 進行測試。
+   為了減少過多閒置 slab 的記憶體浪費，當可用 slab（即 `partial + free`）的總數超過 [`param.h`](../kernel/param.h) 中定義的 `MP2_MIN_AVAIL_SLAB` 時，若有新的 slab 變為完全閒置（`free`），則應主動釋放任意閒置狀態中的 slab 佔用的記憶體。該機制將透過 `kmem_cache_free` 進行測試。
 2. 內部碎裂優化
 
    由於[內部碎裂問題](#kmem_cache-的內部碎裂問題)，若透過 `kmem_cache` 的內部空間進行物件的配置與釋放（即將這些物件的 `<slab_addr>` 設為 `kmem_cache` 的地址），可獲得額外 **10%** 的加分。
@@ -643,13 +645,13 @@ struct kmem_cache {
 3. `full` 和 `free` 的可選性
    `kmem_cache` 的 `full` 與 `free` 變數為可選項，學生可以參考 [Linux Kernel 中 SLUB 的設計方式](https://github.com/torvalds/linux/blob/0fed89a961ea851945d23cc35beb59d6e56c0964/mm/slub.c#L154)，或採用其他適合的實作方法，只要符合[實作規範](#print_kmem_cache-列印-struct-kmem_cache-的資訊)，即可獲得相應評分。
 
-## Slab 提供的功能
+## slab 提供的功能
 
 請在 [`slab.c`](./kernel/slab.c) 中實作以下函式：
 
 ```c
-// 1. Slab 記憶體管理核心函式
-// 1-1. 初始化 Slab 配置器，為類型名稱為 name 的系統物件 (大小為 object_size) 創建一個 kmem_cache
+// 1. slab 記憶體管理核心函式
+// 1-1. 初始化 slab 配置器，為類型名稱為 name 的系統物件 (大小為 object_size) 創建一個 kmem_cache
 struct kmem_cache *kmem_cache_create(char *name, uint object_size);
 // 1-2. 配置一個系統物件並返回其記憶體地址
 void *kmem_cache_alloc(struct kmem_cache *cache);
@@ -662,7 +664,7 @@ void kmem_cache_destroy(struct kmem_cache *cache);
 void print_kmem_cache(struct kmem_cache *, void (*)(void *));
 ```
 
-上述所有 Slab 記憶體管理功能，在輸出訊息時，皆應使用 `[SLAB] ` 作為前綴。例如：
+上述所有 slab 記憶體管理功能，在輸出訊息時，皆應使用 `[SLAB] ` 作為前綴。例如：
 
 ```log
 [SLAB] Alloc request on cache file
@@ -690,7 +692,7 @@ void print_kmem_cache(struct kmem_cache *, void (*)(void *));
 ![](./img/mp2-slab-alloc.png)
 
 - **`<name>`**：`kmem_cache` 的名稱 (`kmem_cache::name`)。
-- **`<slab_addr>`**：該物件所屬 Slab 的記憶體地址。
+- **`<slab_addr>`**：該物件所屬 slab 的記憶體地址。
 - **`<obj_addr>`**：配置的物件所在記憶體地址。
 
 列印細節如下
@@ -717,10 +719,10 @@ void print_kmem_cache(struct kmem_cache *, void (*)(void *));
 ![](./img/mp2-slab-free.png)
 
 - **`<name>`**：`kmem_cache` 的名稱 (`kmem_cache::name`)。
-- **`<slab_addr>`**：該物件所屬 Slab 的記憶體地址。
+- **`<slab_addr>`**：該物件所屬 slab 的記憶體地址。
 - **`<obj_addr>`**：待釋放的物件所在記憶體地址。
-- **`<before>`**：物件所屬 Slab 在釋放前的狀態 (`full/partial/free/cache`)。
-- **`<after>`**：物件所屬 Slab 在釋放後的狀態 (`full/partial/free/cache`)。
+- **`<before>`**：物件所屬 slab 在釋放前的狀態 (`full/partial/free/cache`)。
+- **`<after>`**：物件所屬 slab 在釋放後的狀態 (`full/partial/free/cache`)。
 
 列印細節如下
 
@@ -730,14 +732,14 @@ void print_kmem_cache(struct kmem_cache *, void (*)(void *));
     ```
 * 釋放空的 slab 時
     ```log
-    [SLAB] Slab <slab_addr> (<name>) is freed due to save memory
+    [SLAB] slab <slab_addr> (<name>) is freed due to save memory
     ```
 * 結束函式時
     ```log
     [SLAB] End of free
     ```
 
-此外，若 **(`partial` + `free` Slab 數量) 超過 `MP2_MIN_AVAIL_SLAB`**，且該物件所在 Slab 變為完全閒置 (`free`)，則應釋放一個 free slab 以回收記憶體。同學們也可以列印其他自訂的除錯訊息，只要不和流程圖中出現的列印格式相衝突即可。建議以其他前綴 (比如小寫的 `[slab]` 等) 列印自定義的除錯訊息。
+此外，若 **(`partial` + `free` slab 數量) 超過 `MP2_MIN_AVAIL_SLAB`**，且該物件所在 slab 變為完全閒置 (`free`)，則應釋放一個 free slab 以回收記憶體。同學們也可以列印其他自訂的除錯訊息，只要不和流程圖中出現的列印格式相衝突即可。建議以其他前綴 (比如小寫的 `[slab]` 等) 列印自定義的除錯訊息。
 
 ## 將 slab 配置器應用於 `struct file` 的管理
 
@@ -788,25 +790,25 @@ struct kmem_cache *file_cache;
 - `<kmem_cache_addr>`：`kmem_cache` 的記憶體地址。
 - `<in_cache_obj>`：是否實作[內部碎裂問題](#kmem_cache-的內部碎裂問題-加分項目)，是則為 kmem_cache 內能放的最大物件數量，否則為 `0。
 
-### 2. `<slab_list_status>`：Slab 清單狀態
+### 2. `<slab_list_status>`：slab 清單狀態
 
 ```log
 [SLAB] <SPACE>[ <slab_type><SPACE>slabs ]
 ```
 - `<SPACE>`：至少一個空格 `" "` 或 `"\t"`。
-- `<slab_type>`：Slab 類型，可為 `full`、`partial`、`free` 或 [`cache`](#kmem_cache-的內部碎裂問題)。
-- **`full` 和 `free` 的 Slab 可透過推論確定，故無須輸出。**
+- `<slab_type>`：slab 類型，可為 `full`、`partial`、`free` 或 [`cache`](#kmem_cache-的內部碎裂問題)。
+- **`full` 和 `free` 的 slab 可透過推論確定，故無須輸出。**
 
-### 3. `<slab_status>`：單個 Slab 狀態
+### 3. `<slab_status>`：單個 slab 狀態
 
 ```log
 [SLAB] <SPACE>[ slab <slab_addr> ] { freelist: <freelist>, nxt: <next_slab_addr> }
 ```
 
 - `<SPACE>`：至少一個空格 `" "` 或 `"\t"`。
-- `<slab_addr>`：Slab 在記憶體中的地址。
-- `<freelist>`：該 Slab 內部 `freelist` 的起始地址。
-- `<nxt_slab_addr>`：該 Slab 在鏈結串列中的下一個 Slab 地址。
+- `<slab_addr>`：slab 在記憶體中的地址。
+- `<freelist>`：該 slab 內部 `freelist` 的起始地址。
+- `<nxt_slab_addr>`：該 slab 在鏈結串列中的下一個 slab 地址。
 
 ### 4. `<obj_status>`：單個核心物件的狀態 
 
@@ -814,7 +816,7 @@ struct kmem_cache *file_cache;
 [SLAB] <SPACE>[ idx <idx> ] { addr: <entry_addr>, as_ptr: <as_ptr>, as_obj: {<as_obj>} }
 ```
 - `<SPACE>`：至少一個空格 `" "` 或 `"\t"`。
-- `<idx>`：物件在其所屬 Slab 內的索引（按記憶體地址遞增順序）。
+- `<idx>`：物件在其所屬 slab 內的索引（按記憶體地址遞增順序）。
 - `<entry_addr>`：該物件的記憶體地址，應依 `slab::freelist` 內地址順序輸出。
 - `<as_ptr>`：將該物件解釋為指標後的值。
 - `<as_obj>`：將該物件作為系統物件解析並輸出（對應 `slab_obj_printer` 的輸出）。
@@ -959,11 +961,9 @@ int main(int argc, char *argv[])
 
 上述程式碼只要能被正常編譯，無論是否印出正確的 slab，都能得到這部分的分數。預設還無法編譯成功。
 
-# 附錄
-
 ## 程式碼架構介紹
 
-MP2 作業的模板程式碼基於 [mit-pdos/xv6-riscv](https://github.com/mit-pdos/xv6-riscv)，與 MP0、1 相同，皆有 `Makefile`、`kernel/`、`user/` 資料夾，分別放置核心與 user program，還有 `mkfs/` 建立檔案系統。在此之上，助教新增
+MP2 作業的模板程式碼基於 [mit-pdos/xv6-riscv](https://github.com/mit-pdos/xv6-riscv)，與 MP0、1 相同，皆有 `Makefile`、`kernel/`、`user/` 目錄，分別放置核心與 user program，還有 `mkfs/` 建立檔案系統。在此之上，助教新增
 
 *  `student_id.txt`: 協助評分的文件，請務必填上同學的學號
 *  `mp2.sh`: 管理 MP2 作業用的工具
@@ -972,7 +972,39 @@ MP2 作業的模板程式碼基於 [mit-pdos/xv6-riscv](https://github.com/mit-p
 *  `test/`: 基於原始碼下 `Makefile` 的測試系統
 *  `.github/`: 與 github action 相關的程式碼
 
-同學們在測試時可以和 MP0、1 一樣使用核心的命令行界面 (`make qemu`)，也可以使用助教提供的腳本工具。請若要使用，推薦使用 [`./mp2.sh`](../mp2.sh) 作為調用測試系統的接口。
+同學們在測試時可以和 MP0、1 一樣使用核心的命令行界面 (`make qemu`)，也可以使用助教提供的腳本工具。請若要使用，推薦使用 [`./mp2.sh`](../mp2.sh) 作為呼叫測試系統的介面。
+
+## 測試與評分框架
+
+### 測試框架
+
+`./mp2.sh` 為測試框架的介面，其會在需要時準備容器環境，並將合乎規則的參數傳遞給 `run_mp2.py`。後者依賴 `gradelib.py`，其能編譯並運行 xv6 核心，擷取輸出進行下一步作業，並記錄測試分數。
+
+`run_mp2.py` 得到擷取的輸出後，將呼叫 `pseudo_fslab.cpython-39-x86_64-linux-gnu.so` 的 slab 除錯訊息直譯器 `pseudo_fslab::interpreter`，其會持續解析 `gradelib.py` 的輸出，檢查每項 slab 的操作是否合乎邏輯，並在遇到錯誤時拋出包含錯誤訊息的例外回 `run_mp2.py`。
+
+### 現有的測試項目
+
+#### slab 測試  
+
+在 `xv6` 中執行 `mp2` 命令，檢查系統開機時由 `mp2_checker.h/check()` 產生的輸出以及 `mp2` 命令的執行結果。根據 [slab 結構體設計](#struct-slab-設計) 中定義的評分項目計算分數。
+
+#### 功能性 (Func) 測試  
+
+在 `xv6` 中執行位於 `test/public/mp2-*.txt` 的公開測試案例，透過直譯器追蹤 slab 的狀態，驗證其是否正確運作。
+
+#### Cache 測試  
+
+在 `xv6` 中執行 `mp2` 命令，檢查是否已實現不同種類的 `cache` 型 slab。
+
+#### List 測試  
+
+分析 `kernel/slab.[h,c]` 的實作，確認 slab 之間的鏈接是否採用 Linux 風格的鏈結串列方式實現。
+
+#### 私有 (Private) 測試（僅限於 Github Action）  
+
+在 `xv6` 中執行從 `test/private_test.zip.env` 解密後的測試檔案。此測試僅適用於 Github Action 環境，因解密金鑰以 Github Secret 形式提供。測試方法與「功能性 (Func) 測試」一致。
+
+# 附錄
 
 ## 容器內開發
 
@@ -989,7 +1021,7 @@ MP2 作業的模板程式碼基於 [mit-pdos/xv6-riscv](https://github.com/mit-p
     * [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)：啟用容器內開發環境。
 2. 連接到容器：
     * 啟動 VS Code，點擊左側活動欄的 Docker 圖標，進入 Docker 側邊欄。
-    * 在容器列表中找到 `ntuos/mp2`。
+    * 在容器列表中找到 `ntuos/mp2`，確認其已經啟用 (綠色 ▶︎ 符號)。
     * 右鍵點擊 `ntuos/mp2`，選擇 Attach Visual Studio Code。
     * VS Code 將開啟新窗口，並自動連接到 `ntuos/mp2` 容器的開發環境。
 
@@ -1021,21 +1053,21 @@ MP2 作業的模板程式碼基於 [mit-pdos/xv6-riscv](https://github.com/mit-p
 ```
 
 * 功能：停止並移除運行中的容器。
-* 說明：同時修正 MP2 資料夾的檔案權限，確保外部環境可正常存取。
+* 說明：同時修正 MP2 目錄的檔案權限，確保外部環境可正常存取。
 
 ### 權限問題
 
-容器內開發可能因預設使用者 ID（1000）與本機使用者 ID 不匹配，導致 MP2 資料夾中的檔案在容器外無法編輯。
+容器內開發可能因預設使用者 ID（1000）與本機使用者 ID 不匹配，導致 MP2 目錄中的檔案在容器外無法編輯。
 
 * 解決方法：
     1. 自動修正權限：
-        * 執行 `./mp2.sh container finish`，腳本會自動將資料夾權限調整為本機使用者。
+        * 執行 `./mp2.sh container finish`，腳本會自動將目錄權限調整為本機使用者。
     2. 手動修正權限：
         * 若問題仍存在，可執行以下命令：
         ```bash
         sudo chown -R $(id -u):$(id -g) <MP2_REPO>
         ```
-          * 將 `<MP2_REPO>` 替換為 MP2 資料夾路徑，例如 `./mp2`。
+          * 將 `<MP2_REPO>` 替換為 MP2 目錄路徑，例如 `./mp2`。
 
 建議：每次完成容器內開發後，建議執行 `./mp2.sh container finish`，以避免權限衝突。
 
@@ -1075,7 +1107,7 @@ MP2 作業的模板程式碼基於 [mit-pdos/xv6-riscv](https://github.com/mit-p
     - 若省略 `<to>`，僅執行 `<from>`。
     - 若 `<from>` 和 `<to>` 均省略，執行所有測試（編號 0-24）。
     - 測試編號：0 到 24（含）。
-  - `list`：檢測 Linux 風格列表 API 使用得分（加分）。
+  - `list`：檢測 Linux 風格鏈結串列 API 使用得分（加分）。
   - `cache`：檢測內部碎裂是否得到解決（加分）。
   - `custom`：執行自定義測試（從 `test/custom/mytest.txt` 載入）。
 - **說明**：啟動臨時容器，執行指定測試後自動移除。
@@ -1114,7 +1146,7 @@ MP2 作業的模板程式碼基於 [mit-pdos/xv6-riscv](https://github.com/mit-p
     - 若 `<from>` 和 `<to>` 均省略，執行所有測試（編號 0-24）。
     - 測試編號：0 到 24（含）。
   - `list`：檢測 Linux 風格列表 API 使用得分（加分）。
-  - `cache`：檢測內部緩存碎片得分（加分）。
+  - `cache`：檢測內部碎裂問題解決方案得分（加分）。
   - `custom`：執行自定義測試（從 `test/custom/mytest.txt` 載入）。
 - **說明**：假設已在容器內運行，用法與 `./mp2.sh test` 相同，但直接使用現有環境。
 
@@ -1180,7 +1212,7 @@ Git 是開發者開發並管理程式碼最重要且基本的檔案歷史與分�
 git clone https://github.com/ntuos2025/mp2-<USERNAME>
 ```
 
-並進入作業資料夾。
+並進入作業目錄。
 
 ```bash
 cd mp2-<USERNAME>
