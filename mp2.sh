@@ -15,12 +15,6 @@ fi
 DOCKER_IT_FLAG="-it"
 if [ -n "$GITHUB_ACTIONS" ]; then
     DOCKER_IT_FLAG=""
-elif [ -n "$TRAVIS" ]; then
-    DOCKER_IT_FLAG=""
-elif [ -n "$GITLAB_CI" ]; then
-    DOCKER_IT_FLAG=""
-else
-    DOCKER_IT_FLAG=""
 fi
 
 # Function to check if container is running
@@ -114,7 +108,8 @@ case "$1" in
                     if $DOCKER_CMD run -d $DOCKER_IT_FLAG -v "$(realpath "$SCRIPT_DIR"):/home/student/mp2" \
                         -w /home/student/mp2 -u 1000:1000 --name "$CONTAINER_NAME" "$IMAGE_NAME" bash; then
                         echo "Container '$CONTAINER_NAME' started."
-                        $DOCKER_CMD exec "$CONTAINER_NAME" sudo chown -R 1000:1000 .
+                        $DOCKER_CMD exec "$CONTAINER_NAME" sudo chown -R 1000:1000 . 2>/dev/null || \
+                            echo "Cannot chown, may not need to chown"
                     else
                         echo "Error: Failed to start container." >&2
                         exit 1
@@ -134,7 +129,8 @@ case "$1" in
                     echo "Stopping container '$CONTAINER_NAME'..."
                     $DOCKER_CMD rm -f "$CONTAINER_NAME"
                     echo "Container '$CONTAINER_NAME' stopped."
-                    maysudo chown -R "$(id -u):$(id -g)" "$SCRIPT_DIR"
+                    maysudo chown -R "$(id -u):$(id -g)" "$SCRIPT_DIR" 2>/dev/null || \
+                        echo "Cannot chown, may not need to chown"
                 else
                     echo "Container '$CONTAINER_NAME' is not running."
                 fi
