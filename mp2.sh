@@ -29,6 +29,10 @@ maysudo() {
     fi
 }
 
+START_IMAGE="$DOCKER_CMD run $DOCKER_IT_FLAG -v $(realpath $SCRIPT_DIR):/home/student/mp2 -w /home/student/mp2 -u 1000:1000"
+START_VOLATILE_IMAGE="$START_IMAGE --rm $IMAGE_NAME"
+START_PERSISTENT_IMAGE="$START_IMAGE -d --name $CONTAINER_NAME $IMAGE_NAME"
+
 # Function to display usage
 usage() {
     cat <<EOF
@@ -38,6 +42,9 @@ Usage:
   ./mp2.sh setup                  Setup the development environment for this repository.
 
   ./mp2.sh pull                   Pull the '$IMAGE_NAME' Docker image.
+
+  ./mp2.sh qemu                   Compile and run xv6 in a volatile container.
+  ./mp2.sh clean                  Cleanup compiled objectives produced by mp2.sh/make qemu.
 
   ./mp2.sh test [case]            Run specific public test cases in a volatile container:
     all                           - Run all specification and functionality tests.
@@ -90,12 +97,21 @@ case "$1" in
 
         for hook in "${HOOKS[@]}"; do
             ln -sf "$SCRIPT_DIR/scripts/${hook}" "$HOOKS_DIR/$hook" || exit 1
-            maysudo chmod +x "$HOOKS_DIR/$hook"
+            maysudo chown -R "$(id -u):$(id -g)" .
         done
         ;;
+    "qemu")
+        $START_VOLATILE_IMAGE sudo chown -R 1000:1000 .
+        $START_VOLATILE_IMAGE make qemu
+        maysudo chown -R $USER .
+        ;;
+    "clean")
+        maysudo chown -R "$(id -u):$(id -g)" "$SCRIPT_DIR" 2>/dev/null || \
+            echo "Cannot chown, may not need to chown"
+        make clean
+        ;;
     "test")
-        $DOCKER_CMD run --rm $DOCKER_IT_FLAG -v "$(realpath "$SCRIPT_DIR"):/home/student/mp2" \
-            -w /home/student/mp2 -u 1000:1000 "$IMAGE_NAME" ./mp2.sh testcase "$2" "$3" "$4" "$5"
+        $START_VOLATILE_IMAGE ./mp2.sh testcase "$2" "$3" "$4" "$5"
         ([[ -d $SCRIPT_DIR/out ]] && maysudo chown -R "$(id -u):$(id -g)" "$SCRIPT_DIR/out") || true
         ;;
     "container")
@@ -105,8 +121,7 @@ case "$1" in
                     echo "Container '$CONTAINER_NAME' is already running."
                 else
                     echo "Starting '$CONTAINER_NAME'..."
-                    if $DOCKER_CMD run -d $DOCKER_IT_FLAG -v "$(realpath "$SCRIPT_DIR"):/home/student/mp2" \
-                        -w /home/student/mp2 -u 1000:1000 --name "$CONTAINER_NAME" "$IMAGE_NAME" bash; then
+                    if $START_PERSISTENT_IMAGE bash; then
                         echo "Container '$CONTAINER_NAME' started."
                         $DOCKER_CMD exec "$CONTAINER_NAME" sudo chown -R 1000:1000 . 2>/dev/null || \
                             echo "Cannot chown, may not need to chown"
