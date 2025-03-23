@@ -1019,7 +1019,8 @@ MP2 作業的模板程式碼基於 [mit-pdos/xv6-riscv](https://github.com/mit-p
 1. 安裝必要擴充功能：
     * [Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker)：支援 Docker 容器管理。
     * [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)：啟用容器內開發環境。
-2. 連接到容器：
+2. [確認使用者屬於 `docker` 群組](https://blog.csdn.net/weixin_42688573/article/details/127159093)
+3. 連接到容器：
     * 啟動 VS Code，點擊左側活動欄的 Docker 圖標，進入 Docker 側邊欄。
     * 在容器列表中找到 `ntuos/mp2`，確認其已經啟用 (綠色 ▶︎ 符號)。
     * 右鍵點擊 `ntuos/mp2`，選擇 Attach Visual Studio Code。
