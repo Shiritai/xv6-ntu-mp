@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
   }
 
   printf("%d", getpid());
+  sleep(1);
 
   char buf[512];
   int n;
