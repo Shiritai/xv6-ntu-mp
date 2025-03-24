@@ -674,11 +674,11 @@ void print_kmem_cache(struct kmem_cache *, void (*)(void *));
 
 在成功創建並返回 `kmem_cache` 之前，請輸出以下資訊：
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 6px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] New kmem_cache (name: &lt;name&gt;, object size: &lt;obj_size&gt; bytes, at: &lt;kmem_cache_addr&gt;, max objects per slab: &lt;max_objs&gt;, support in cache obj: &lt;in_cache_obj&gt;) is created
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 6px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] New kmem_cache (name: &lt;name&gt;, object size: &lt;object_size&gt; bytes, at: &lt;kmem_cache_addr&gt;, max objects per slab: &lt;max_objs&gt;, support in cache obj: &lt;in_cache_obj&gt;) is created
 </code></pre>
 
 - **`<name>`**：新建的 `kmem_cache` 之名稱 (`kmem_cache::name`)。
-- **`<obj_size>`**：該 `kmem_cache` 內部物件的大小 (`kmem_cache::object_size`，單位為 Bytes)。
+- **`<object_size>`**：該 `kmem_cache` 內部物件的大小 (`kmem_cache::object_size`，單位為 Bytes)。
 - **`<kmem_cache_addr>`**：`kmem_cache` 的記憶體地址。
 - **`<max_objs>`**：一個 `slab` 中能容納物件的最大數量。
 - **`<in_cache_obj>`**：是否支援 kmem_cache 內部配置物件，即是否實作[內部碎裂問題](#kmem_cache-的內部碎裂問題-加分項目)的解決方案。有實作則為 kmem_cache 內能放的最大物件數量，否則為 `0`。
@@ -782,11 +782,11 @@ struct kmem_cache *file_cache;
 
 ### 1. `<kmem_cache_status>`：`kmem_cache` 的基本資訊
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 8px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: &lt;name&gt;, obj_size: &lt;object_size&gt;, at: &lt;kmem_cache_addr&gt;, in_cache_obj: &lt;in_cache_obj&gt; }
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 8px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: &lt;name&gt;, object_size: &lt;object_size&gt;, at: &lt;kmem_cache_addr&gt;, in_cache_obj: &lt;in_cache_obj&gt; }
 </code></pre>
 
 - `<name>`：`kmem_cache` 的名稱（對應 `kmem_cache::name`）。
-- `<obj_size>`：`kmem_cache` 內單個物件的大小（對應 `kmem_cache::object_size`）。
+- `<object_size>`：`kmem_cache` 內單個物件的大小（對應 `kmem_cache::object_size`）。
 - `<kmem_cache_addr>`：`kmem_cache` 的記憶體地址。
 - `<in_cache_obj>`：是否實作[內部碎裂問題](#kmem_cache-的內部碎裂問題-加分項目)，是則為 kmem_cache 內能放的最大物件數量，否則為 `0。
 

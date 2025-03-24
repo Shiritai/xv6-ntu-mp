@@ -665,11 +665,11 @@ All slab memory management functions should use `[SLAB] ` as a prefix for output
 
 Before successfully creating and returning `kmem_cache`, output the following:
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 6px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] New kmem_cache (name: &lt;name&gt;, object size: &lt;obj_size&gt; bytes, at: &lt;kmem_cache_addr&gt;, max objects per slab: &lt;max_objs&gt;, support in cache obj: &lt;in_cache_obj&gt;) is created
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 6px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] New kmem_cache (name: &lt;name&gt;, object size: &lt;object_size&gt; bytes, at: &lt;kmem_cache_addr&gt;, max objects per slab: &lt;max_objs&gt;, support in cache obj: &lt;in_cache_obj&gt;) is created
 </code></pre>
 
 - **`<name>`**: Name of the new `kmem_cache` (`kmem_cache::name`).
-- **`<obj_size>`**: Size of objects within the `kmem_cache` (`kmem_cache::object_size`, in bytes).
+- **`<object_size>`**: Size of objects within the `kmem_cache` (`kmem_cache::object_size`, in bytes).
 - **`<kmem_cache_addr>`**: Memory address of `kmem_cache`.
 - **`<max_objs>`**: Maximum number of objects within a `slab`.
 - **`<in_cache_obj>`**: Whether it supports the internal allocation of objects in kmem_cache, i.e., whether a solution to the [internal fragmentation issue](#kmem_cache-internal-fragmentation-issue-bonus-item) is implemented. If implemented, it is the maximum number of objects inside kmem_cache; otherwise, it is `0`.
@@ -773,11 +773,11 @@ The output is divided into five categories:
 
 ### 1. `<kmem_cache_status>`: Basic Information of `kmem_cache`  
 
-<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 8px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: &lt;name&gt;, obj_size: &lt;object_size&gt;, at: &lt;kmem_cache_addr&gt;, in_cache_obj: &lt;in_cache_obj&gt; }
+<pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 8px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: &lt;name&gt;, object_size: &lt;object_size&gt;, at: &lt;kmem_cache_addr&gt;, in_cache_obj: &lt;in_cache_obj&gt; }
 </code></pre>
 
 - `<name>`: The name of the `kmem_cache` (corresponding to `kmem_cache::name`).
-- `<obj_size>`: The size of each object in the `kmem_cache` (corresponding to `kmem_cache::object_size`).
+- `<object_size>`: The size of each object in the `kmem_cache` (corresponding to `kmem_cache::object_size`).
 - `<in_cache_obj>`: Whether the [internal fragmentation issue](#kmem_cache-internal-fragmentation-issue-bonus-item) is implemented; if yes, it is the maximum number of objects inside kmem_cache, otherwise it is `0`.
 
 ### 2. `<slab_list_status>`: slab List Status  
