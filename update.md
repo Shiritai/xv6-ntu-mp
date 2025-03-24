@@ -22,3 +22,4 @@ Please note that students must not submit the updated files.
 | 3/23  | [Add better mp0,1 compatible commands](https://github.com/Shiritai/xv6-ntu-mp2/commit/238354551f3a1762ea9e23925ce90aa7ae8c228c)          | https://cool.ntu.edu.tw/courses/46296/discussion_topics/382503 |
 | 3/24  | [[user] Fix gah/oak timeout issue](https://github.com/Shiritai/xv6-ntu-mp2/commit/54a78c1d5b8a5c281d24075397bc1b46a06d9380)              | https://cool.ntu.edu.tw/courses/46296/discussion_topics/382615 |
 | 3/24  | [[doc] Update of dev using vscode in container](https://github.com/Shiritai/xv6-ntu-mp2/commit/382f9873b30319903459a4e85384f1f1cf5946d6) | https://cool.ntu.edu.tw/courses/46296/discussion_topics/382476 |
+| 3/24  | [[doc] Fix typo of obj_size](https://github.com/Shiritai/xv6-ntu-mp2/commit/e2dba993538ac25c765a8b117d0c06ae3d07094e) | https://cool.ntu.edu.tw/courses/46296/discussion_topics/382881 |
