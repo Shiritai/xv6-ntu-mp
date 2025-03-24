@@ -52,6 +52,7 @@ int main(int argc, char *argv[])
 
   work(argv[1], atoi(argv[2]));
 
+  sleep(1);
   printf("Ok");
 
   while (1)

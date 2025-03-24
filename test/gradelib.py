@@ -120,12 +120,13 @@ def run_tests():
 
     # Run tests
     try:
+        no_error = True
         for test in TESTS:
-            test()
+            no_error = test() and no_error
         print("Score: %d/%d" % (TOTAL, POSSIBLE))
     except KeyboardInterrupt:
         pass
-    return TOTAL
+    return (TOTAL, POSSIBLE, no_error)
 
 def get_current_test():
     if not CURRENT_TEST:
@@ -199,7 +200,9 @@ def post_make():
 
 def make(*target):
     pre_make()
-    if Popen(("make",) + target).wait():
+    p = Popen(("make",) + target, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    if p.wait():
+        print(f"xv6 kernel compilation error: {p.stderr.read().decode()}")
         sys.exit(1)
     post_make()
 
@@ -268,8 +271,7 @@ class QEMU(object):
         else:
             print("""\
 GDB stub found on port %d.
-QEMU appears to already be running.  Please exit it if possible or use
-'killall qemu' or 'killall qemu.real'.""" % self.get_gdb_port(), file=sys.stderr)
+QEMU appears to already be running.  Please exit it if possible.""" % self.get_gdb_port(), file=sys.stderr)
             sys.exit(1)
 
         if options.verbose:
@@ -471,9 +473,7 @@ Failed to shutdown QEMU.  You might need to 'killall qemu' or
             while True:
                 timeleft = deadline - time.time()
                 if timeleft < 0:
-                    sys.stdout.write("Timeout! ")
-                    sys.stdout.flush()
-                    return
+                    raise AssertionError("Timeout!")
 
                 rset = [r for r in reactors if r.fileno() is not None]
                 if not rset:
@@ -522,7 +522,7 @@ def save(path):
 
     def save_on_finish(fail):
         f.flush()
-        save_path = path + "." + get_current_test().__name__[5:]
+        save_path = path + ".failed"
         if fail:
             shutil.copyfile(path, save_path)
             print("    QEMU output saved to %s" % save_path)

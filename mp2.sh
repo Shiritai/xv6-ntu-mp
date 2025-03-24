@@ -201,7 +201,7 @@ case "$1" in
 
         if [ -d "$TEST_DIR/out" ]; then
             maysudo cp -r "$TEST_DIR/out" "$cur_wd" || echo "Warning: Failed to copy output to $cur_wd"
-            maysudo chown -R "$(id -u):$(id -g)" "$cur_wd/out" || echo "Warning: Failed to chown $cur_wd/out"
+            maysudo chown -R "$(id -u):$(id -g)" "$cur_wd/out" 1>/dev/null 2>&1 || echo "Warning: Failed to chown $cur_wd/out"
         fi
         ;;
     *)

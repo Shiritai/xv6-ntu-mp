@@ -10,7 +10,7 @@ from check_list import analyze_slab_files
 from check_slab import check_slab
 from check_cache import check_cache
 
-def run_mp2_test(test_name: str, script_file: str, points: int) -> None:
+def run_mp2_test(test_name: str, script_file: str, points: int, timeout = 8) -> None:
     """
     Run an MP2 test case with the given script file and evaluate the output.
 
@@ -31,15 +31,13 @@ def run_mp2_test(test_name: str, script_file: str, points: int) -> None:
         except IOError as e:
             raise AssertionError(f"Failed to read {script_file}: {e}")
 
-        # Clean previous build artifacts silently
-        os.system("make clean > /dev/null 2>&1")
 
         # Run QEMU with the script
         output_file = f"out/{test_name}.out"
         os.makedirs("/".join(output_file.split("/")[:-1]), exist_ok=True)
         r = Runner(save(output_file), stop_on_line(r".*panic:.*"),
                    stop_on_line(r".*[MP2] <FAILED>.*"))
-        r.run_qemu(shell_script(script), tg_base='qemu', timeout=20)
+        r.run_qemu(shell_script(script), tg_base='qemu', timeout=timeout)
 
         # Interpret the QEMU output
         interpreter(r.qemu.output.splitlines())
@@ -58,13 +56,11 @@ def run_list_check():
 def run_slab_check():
     @test(10, "Slab check (Max [3(+5): slab structure (with bonus)] + [2: max objects])")
     def test_case():
-        # Clean previous build artifacts silently
-        os.system("make clean > /dev/null 2>&1")
         output_file = "out/slab_check.out"
         os.makedirs("/".join(output_file.split("/")[:-1]), exist_ok=True)
         r = Runner(save(output_file), stop_on_line(r".*panic:.*"),
                    stop_on_line(r".*[MP2] <FAILED>.*"))
-        r.run_qemu(shell_script(["mp2"]), tg_base='qemu', timeout=20)
+        r.run_qemu(shell_script([""]), tg_base='qemu', timeout=8)
         res = check_slab(r.qemu.output)
         return res
     return test_case
@@ -72,13 +68,11 @@ def run_slab_check():
 def run_cache_check():
     @test(10, "In-cache fragmentation (bonus)")
     def test_case():
-        # Clean previous build artifacts silently
-        os.system("make clean > /dev/null 2>&1")
         output_file = "out/cache_check.out"
         os.makedirs("/".join(output_file.split("/")[:-1]), exist_ok=True)
         r = Runner(save(output_file), stop_on_line(r".*panic:.*"),
                    stop_on_line(r".*[MP2] <FAILED>.*"))
-        r.run_qemu(shell_script(["mp2"]), tg_base='qemu', timeout=20)
+        r.run_qemu(shell_script(["mp2"]), tg_base='qemu', timeout=8)
         res = check_cache(r.qemu.output)
         return res
     return test_case
@@ -86,13 +80,13 @@ def run_cache_check():
 def public_testcases(rng: range):
     """Define and run MP2 test cases."""
     tests = list(rng)
-    tests = [run_mp2_test(f"public/mp2-{t}", f"test/public/mp2-{t}.txt", 3) for t in tests]
+    tests = [run_mp2_test(f"public/mp2-{t}", f"test/public/mp2-{t}.txt", 3, 15 if t < 20 else 30) for t in tests]
     return tests
 
 def private_testcases(rng: range):
     """Define and run MP2 test cases."""
     tests = list(rng)
-    tests = [run_mp2_test(f"private/mp2-{t}", f"test/private/mp2-{t}.txt", 5) for t in tests]
+    tests = [run_mp2_test(f"private/mp2-{t}", f"test/private/mp2-{t}.txt", 5, 30) for t in tests]
     return tests
 
 def run_custom_test():
@@ -130,4 +124,6 @@ if __name__ == "__main__":
         if len(sys.argv) >= 3:
             _to = int(sys.argv[2])
         public_testcases(range(_from, _to))
+    # run tests
+    os.system("make clean > /dev/null 2>&1")
     run_tests()
