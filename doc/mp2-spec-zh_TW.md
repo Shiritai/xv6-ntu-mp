@@ -15,11 +15,11 @@
 
 ## 概述
 
-在 MP2 作業中，我們將探討 **核心小型物件的記憶體配置與釋放機制**，並請學生在 `xv6` 作業系統上 **設計並實作 slab 分配器**。
+在 MP2 作業中，我們將探討 **核心小型物件的記憶體配置與釋放機制**，並請學生在 `xv6` 作業系統上 **設計並實作 slab 配置器**。
 
 本次作業的重點包括：
-- **slab 分配器的資料結構設計**
-- **小型物件分配的時間與空間效率優化**
+- **slab 配置器的資料結構設計**
+- **小型物件配置的時間與空間效率優化**
 - **與 slab 相關的多種優化技術**
 
 透過本作業，學生將能夠體驗 **系統記憶體管理的設計與實作過程**，並學習如何提升核心記憶體配置的效率。
@@ -99,16 +99,16 @@
 
 # 問題背景：核心記憶體管理的挑戰
 
-想像今天 kernel 要分配 100 個大小為 `40B` 個系統物件，比如 xv6 中的 `struct file`。若每個物件都要以一個頁面儲存，不僅需要配置頁面時的開銷，還會遇到非常嚴重的內部碎裂問題，特別是面對小型系統物件的配置。
+想像今天 kernel 要配置 100 個大小為 `40B` 個系統物件，比如 xv6 中的 `struct file`。若每個物件都要以一個頁面儲存，不僅需要配置頁面時的開銷，還會遇到非常嚴重的內部碎裂問題，特別是面對小型系統物件的配置。
 
-若能利用這些系統物件大小相同的特性，核心預先分配一個乃至數個連續的頁面，並將其內部空間以 `40B` 為單位進行切割，便能盡可能地利用整個頁面的空間，減少內部碎裂，由於可能短時間內對相同頁面重複存取，且大多數的配置可以重複利用舊的頁面而非配置新頁面，也能加速配置所需的時間。
+若能利用這些系統物件大小相同的特性，核心預先配置一個乃至數個連續的頁面，並將其內部空間以 `40B` 為單位進行切割，便能盡可能地利用整個頁面的空間，減少內部碎裂，由於可能短時間內對相同頁面重複存取，且大多數的配置可以重複利用舊的頁面而非配置新頁面，也能加速配置所需的時間。
 
 > <img src="./img/slab-alloc.png" style="zoom:30%;" />
 > 回顧課程投影片。
 
 slab 便是這樣一個系統，源自 SunOS 原始碼，為過去 Linux kernel 實現小型系統物件記憶體配置的機制。本作業將引導學生 **設計並實作一個新的 slab 記憶體配置系統**，以提升 xv6 中小型物件 `struct file` 的記憶體管理效能。
 
-題外話，MP2 的助教們所屬的實驗室簡稱為 NEWSLAB，可以斷句為 Newslab，這便是我們 MP2 的目標！嗯...希望不要太冷。
+題外話，MP2 的助教們所屬的實驗室簡稱為 NEWSLAB，可以斷句為 NewSlab，這便是我們 MP2 的目標！嗯...希望不要太冷。
 
 # slab 配置器的初步設計與 API
 
@@ -116,10 +116,10 @@ slab 便是這樣一個系統，源自 SunOS 原始碼，為過去 Linux kernel 
 
 在 slab 配置器的設計中，我們的目標是：
 
-1. 為具有相同大小的核心物件分配頁面。
+1. 為具有相同大小的核心物件配置頁面。
 2. 將頁面切分為固定大小的物件，以提高記憶體使用效率。
 
-為簡化設計，**假設核心一次僅能分配單一頁面**，而無法一次配置多個連續頁面。基於此假設，我們定義 `struct slab`，其大小等同於單個頁面，並包含物件的類別名稱 `name`、每個物件的大小 `object_size`，以及管理可用物件的 `freelist`。
+為簡化設計，**假設核心一次僅能配置單一頁面**，而無法一次配置多個連續頁面。基於此假設，我們定義 `struct slab`，其大小等同於單個頁面，並包含物件的類別名稱 `name`、每個物件的大小 `object_size`，以及管理可用物件的 `freelist`。
 
 ```c
 struct slab {
@@ -154,10 +154,10 @@ struct kmem_cache {
 // 初始化一個 slab 配置器，管理名稱為 name、大小為 object_size 的系統物件
 struct kmem_cache *kmem_cache_create(char *name, uint object_size);
 
-// 分配一個系統物件並回傳
+// 配置一個系統物件並回傳
 void *kmem_cache_alloc(struct kmem_cache *cache);
 
-// 釋放一個先前分配的系統物件 obj
+// 釋放一個先前配置的系統物件 obj
 void kmem_cache_free(struct kmem_cache *cache, void *obj);
 
 // 銷毀 kmem_cache（不列入評分範圍）
@@ -170,7 +170,7 @@ void kmem_cache_destroy(struct kmem_cache *cache);
 // 初始化 struct file 的 slab 配置器
 struct kmem_cache *file_cache = kmem_cache_create("file", sizeof(struct file));
 
-// 分配一個 struct file 物件
+// 配置一個 struct file 物件
 struct file *file_allocated = (struct file *) kmem_cache_alloc(file_cache);
 
 // 釋放一個 struct file 物件
@@ -189,12 +189,12 @@ kmem_cache_destroy(file_cache);
 ### 1. `kmem_cache_create`
 
 ```c
-struct kmem_cache *kmem_cache_create(const char *name, size_t size);
+struct kmem_cache *kmem_cache_create(const char *name, size_t object_size);
 ```
 - **功能**: 初始化一個 `kmem_cache`，用於管理特定大小的物件。
 - **參數**:
   - `name`：快取名稱 (供除錯與管理使用)。
-  - `size`：物件大小 (單一物件的記憶體需求)。
+  - `object_size`：物件大小 (單一物件的記憶體需求)。
 - **回傳值**: 指向新建立的 `kmem_cache` 的指標。
 
 ### 2. `kmem_cache_alloc`
@@ -205,14 +205,14 @@ void *kmem_cache_alloc(struct kmem_cache *cache);
 - **功能**: 從 `kmem_cache` 取得可用物件。
 - **參數**:
   - `cache`：指向 `kmem_cache` 結構的指標。
-- **回傳值**: 成功時回傳指向已分配物件的指標，失敗時回傳 `NULL`。
+- **回傳值**: 成功時回傳指向已配置物件的指標，失敗時回傳 `NULL`。
 
 ### 3. `kmem_cache_free`
 
 ```c
 void kmem_cache_free(struct kmem_cache *cache, void *obj);
 ```
-- **功能**: 將物件歸還至 `kmem_cache`，使其可供後續分配。
+- **功能**: 將物件歸還至 `kmem_cache`，使其可供後續配置。
 - **參數**:
   - `cache`：指向 `kmem_cache` 結構的指標。
   - `obj`：指向待釋放物件的指標。
@@ -221,18 +221,18 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj);
 
 ## `freelist` 資料結構
 
-在閱讀前述內容後，同學或許已經迫不及待地想在 `xv6` 中實作 slab 記憶體分配機制。然而，在實作過程中，**如何設計 `freelist` 資料結構** 將是一個關鍵挑戰。
+在閱讀前述內容後，同學或許已經迫不及待地想在 `xv6` 中實作 slab 記憶體配置機制。然而，在實作過程中，**如何設計 `freelist` 資料結構** 將是一個關鍵挑戰。
 
-首先，`freelist` 本質上是一塊連續的記憶體區域，亦即 **一個陣列**。對於任何陣列來說，獲取可用元素或釋放元素的時間複雜度通常為 $O(n)$，其中 $n$ 為 `freelist` 中可放置的的最大總物件數。然而，在追求高效能的核心，比如 Linux kernel 中，如此高的複雜度顯然不可接受。因此，我們需要採用 **更適合的資料結構** 來優化分配與釋放的時間。
+首先，`freelist` 本質上是一塊連續的記憶體區域，亦即 **一個陣列**。對於任何陣列來說，獲取可用元素或釋放元素的時間複雜度通常為 $O(n)$，其中 $n$ 為 `freelist` 中可放置的的最大總物件數。然而，在追求高效能的核心，比如 Linux kernel 中，如此高的複雜度顯然不可接受。因此，我們需要採用 **更適合的資料結構** 來優化配置與釋放的時間。
 
 ## 鏈結串列的應用
 
-學習過資料結構的讀者應該熟悉，**鏈結串列** 允許在 $O(1)$ 的時間內進行元素的移除和插入，可以分別用來實作物件的分配與釋放，這正是 `freelist` 的命名由來。我們可以將 `freelist` 視為一個尚未分配物件的鏈結串列，並透過以下方式進行操作：
+學習過資料結構的讀者應該熟悉，**鏈結串列** 允許在 $O(1)$ 的時間內進行元素的移除和插入，可以分別用來實作物件的配置與釋放，這正是 `freelist` 的命名由來。我們可以將 `freelist` 視為一個尚未配置物件的鏈結串列，並透過以下方式進行操作：
 
-- **分配物件**：從 `freelist` 取出第一個可用物件，並更新 `freelist` 指標。
+- **配置物件**：從 `freelist` 取出第一個可用物件，並更新 `freelist` 指標。
 - **釋放物件**：將釋放的物件插入 `freelist`。
 
-如此一來，**物件分配與釋放的時間複雜度均為 $O(1)$**，大幅提升效能。
+如此一來，**物件配置與釋放的時間複雜度均為 $O(1)$**，大幅提升效能。
 
 ## 如何為連續記憶體建立鏈結串列？
 
@@ -250,9 +250,9 @@ struct slab {
 1. 需要額外的記憶體來存放 `freelist` 的鏈結節點。
 2. `freelist` 本身的記憶體配置與管理問題依然尚未解決。
 
-對這類問題，Linux 核心開發者常利用 C 語言 **一塊記憶體各自表述** 的技巧，直接將尚未分配的記憶體用於存儲鏈結串列的指標，最大限度地利用已經分配的記憶體。具體而言，**每個未使用的物件可以直接存放指向下一個可用物件的指標**，從而形成鏈結串列。概念上與前述設計相同，但能一次解決前述設計所遇到的問題。
+對這類問題，Linux 核心開發者常利用 C 語言 **一塊記憶體各自表述** 的技巧，直接將尚未配置的記憶體用於存儲鏈結串列的指標，最大限度地利用已經配置的記憶體。具體而言，**每個未使用的物件可以直接存放指向下一個可用物件的指標**，從而形成鏈結串列。概念上與前述設計相同，但能一次解決前述設計所遇到的問題。
 
-假設系統物件的大小皆 **不小於一個指標的大小**，則我們可以安全地將 **尚未被分配的物件視為鏈結串列節點**。以下是 `freelist` 的運作示例：
+假設系統物件的大小皆 **不小於一個指標的大小**，則我們可以安全地將 **尚未被配置的物件視為鏈結串列節點**。以下是 `freelist` 的運作示例：
 
 ```c
 struct slab {
@@ -317,7 +317,7 @@ $$
 
 ## `kmem_cache` 資料結構
 
-`kmem_cache` 是 slab 配置器中負責管理同類型物件記憶體分配的核心結構，其雛形如下：
+`kmem_cache` 是 slab 配置器中負責管理同類型物件記憶體配置的核心結構，其雛形如下：
 
 ```c
 struct slab {
@@ -338,8 +338,8 @@ struct kmem_cache {
 在系統設計中，需注意以下幾點：
 
 - `struct kmem_cache` (以及 `struct slab`) 的大小為一個頁面，為固定值，無法動態調整。
-- 為了提高記憶體分配效率，`struct kmem_cache` 應指向尚有可用空間的 slab 清單，常見 slab 清單分類如下：
-  - **已滿 (`full`)**：所有物件皆已分配。
+- 為了提高記憶體配置效率，`struct kmem_cache` 應指向尚有可用空間的 slab 清單，常見 slab 清單分類如下：
+  - **已滿 (`full`)**：所有物件皆已配置。
   - **部分使用 (`partial`)**：仍有可用物件。
   - **空閒 (`free`)**：尚未使用的 slab。
 - **當所有現有 slab 皆已滿時，應配置新的頁面以產生額外的 slab**。因此，儘管每個 `kmem_cache` 僅對應單一物件類型，其所管理的 slab 數量可能會隨記憶體需求動態變化。
@@ -383,12 +383,12 @@ struct kmem_cache {
 
 - **佔用單個頁面的記憶體區塊**，其中部分空間存放 slab 的 **元數據 (metadata)**，其餘空間則被切割為大小相同的記憶體單元，形成 **`freelist` (可用物件清單)**。`freelist` 內的每個單元可存放一個核心物件。  
 - **不同類型的核心物件會存放於對應類型的 slab 中**，以確保管理的獨立性。  
-- 根據已分配物件的數量，`struct slab` 可分為三種狀態：
-  - 滿 (`full`)：所有可用物件均已分配。
-  - 部分使用 (`partial`)：部分物件已被分配，仍有可用空間。
-  - 閒置 (`free`)：目前無任何物件被分配，可完全釋放。  
-- **定義「可用的 slab」為處於 `partial` 或 `free` 狀態的 slab**，這些 slab 仍可提供物件分配。  
-- **`struct slab` 依需求動態分配，並透過鏈結串列進行管理**，確保可靈活擴展。
+- 根據已配置物件的數量，`struct slab` 可分為三種狀態：
+  - 滿 (`full`)：所有可用物件均已配置。
+  - 部分使用 (`partial`)：部分物件已被配置，仍有可用空間。
+  - 閒置 (`free`)：目前無任何物件被配置，可完全釋放。  
+- **定義「可用的 slab」為處於 `partial` 或 `free` 狀態的 slab**，這些 slab 仍可提供物件配置。  
+- **`struct slab` 依需求動態配置，並透過鏈結串列進行管理**，確保可靈活擴展。
 
 ![](./img/mp2-slab.png)
 
@@ -398,7 +398,7 @@ struct kmem_cache {
 
 ### `struct kmem_cache`
 
-- **負責管理所有屬於同一類型核心物件的 slab**，確保記憶體分配與釋放的高效運行。  
+- **負責管理所有屬於同一類型核心物件的 slab**，確保記憶體配置與釋放的高效運行。  
 - **例如，系統可能為 `struct file` 和 `struct proc` 各自建立一個 `kmem_cache`**，專門管理其對應的 slab。(本次作業不涉及 `struct proc` 相關程式碼)
 
 ![](./img/mp2-kmem_cache.png)
@@ -418,7 +418,7 @@ struct kmem_cache {
 
 雖然本議題並非 MP2 重點，不過在多核心與多行程間環境中，`kmem_cache` 的操作涉及對 slab 清單的修改與管理，因此可能會產生競爭情況，故有必要針對本主題做簡單的介紹。
 
-當多個 CPU 同時存取 `kmem_cache`，特別是在執行物件分配 (`kmem_cache_alloc()`) 或釋放 (`kmem_cache_free()`) 操作時，若未採取適當的同步機制，可能導致資料不一致或記憶體損壞。
+當多個 CPU 同時存取 `kmem_cache`，特別是在執行物件配置 (`kmem_cache_alloc()`) 或釋放 (`kmem_cache_free()`) 操作時，若未採取適當的同步機制，可能導致資料不一致或記憶體損壞。
 
 為了確保 `kmem_cache` 的行程間安全性，應使用適當的同步機制來保護關鍵區域。常見的解決方案包括：
 
@@ -448,7 +448,7 @@ void some_func() {
 }
 ```
 
-在實作 slab 功能並將其應用於 `file.c` 時，請務必謹慎處理同步與競爭問題。由於 `file.c` 中我們要取代的對象：`ftable` 物件中存在 `ftable::lock` 負責確保 `filealloc`、`fileup` 以及 `fileclose` 的正確運作，故同學們可以透過在 `file.c` 中加入新的 lock，或重複利用 `file_cache::lock` 進行實作。
+在實作 slab 功能並將其應用於 `file.c` 時，請務必謹慎處理同步與競爭問題。由於 `file.c` 中我們要取代的對象：`ftable` 物件中存在 `ftable::lock` 負責確保 `filealloc`、`fileup` 以及 `fileclose` 的正確運作，故同學們可以透過在 `file.c` 中利用 `file_cache::lock` 進行實作。
 
 在 MP2 中，要求同學在實作 slab API 相關函式的進入點與結束點也分別加入 `acquire` 和 `release`，以最保守的方式確保執行安全，範例如下所示。
 
@@ -645,6 +645,7 @@ struct kmem_cache {
    由於[內部碎裂問題](#kmem_cache-的內部碎裂問題)，若透過 `kmem_cache` 的內部空間進行物件的配置與釋放（即將這些物件的 `<slab_addr>` 設為 `kmem_cache` 的地址），可獲得額外 **10%** 的加分。
 
 3. `full` 和 `free` 的可選性
+
    `kmem_cache` 的 `full` 與 `free` 變數為可選項，學生可以參考 [Linux Kernel 中 SLUB 的設計方式](https://github.com/torvalds/linux/blob/0fed89a961ea851945d23cc35beb59d6e56c0964/mm/slub.c#L154)，或採用其他適合的實作方法，只要符合[實作規範](#print_kmem_cache-列印-struct-kmem_cache-的資訊)，即可獲得相應評分。
 
 ## slab 提供的功能
@@ -778,7 +779,7 @@ struct kmem_cache *file_cache;
 
 ## `print_kmem_cache` 列印 `struct kmem_cache` 的資訊
 
-在列印 `struct kmem_cache` 時，應根據 `struct slab` 內剩餘可分配物件的數量，將 `struct slab` 分類為 `<slab_type>`（例如 `full`、`partial` 等）。
+在列印 `struct kmem_cache` 時，應根據 `struct slab` 內剩餘可配置物件的數量，將 `struct slab` 分類為 `<slab_type>`（例如 `full`、`partial` 等）。
 
 輸出的資訊分為五類：
 
@@ -792,7 +793,7 @@ struct kmem_cache *file_cache;
 - `<kmem_cache_addr>`：`kmem_cache` 的記憶體地址。
 - `<in_cache_obj>`：是否實作[內部碎裂問題](#kmem_cache-的內部碎裂問題-加分項目)，是則為 kmem_cache 內能放的最大物件數量，否則為 `0。
 
-### 2. `<slab_list_status>`：slab 清單狀態
+### 2. `<slab_list_status>`：slab 鏈結序列狀態
 
 ```log
 [SLAB] <SPACE>[ <slab_type><SPACE>slabs ]
@@ -865,7 +866,7 @@ struct kmem_cache *file_cache;
 
 <pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, at: 0x0000000087f59000, in_cache_obj: 0 }
 [SLAB]    [ partial slabs ]
-[SLAB]        [ slab 0x0000000087f4e000 ] { freelist: 0x0000000087f4e218, in_use: 1, nxt: 0x0000000087f59040 }
+[SLAB]        [ slab 0x0000000087f4e000 ] { freelist: 0x0000000087f4e218, nxt: 0x0000000087f59040 }
 [SLAB]           [ idx 0 ] { addr: 0x0000000087f4e020, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800354c8, off: 0, major: 1 } }
 [SLAB]           [ idx 1 ] { addr: 0x0000000087f4e218, as_ptr: 0x0000000087f4e410, as_obj: { tp: -2013993968, ref: 0, readable: 1, writable: 0, pipe: 0x0000000000000000, ip: 0x0000000080035440, off: 1024, major: 0 } }
 [SLAB]           [ idx 2 ] { addr: 0x0000000087f4e410, as_ptr: 0x0000000087f4e608, as_obj: { tp: -2013993464, ref: 0, readable: 1, writable: 0, pipe: 0x0000000000000000, ip: 0x00000000800354c8, off: 0, major: 1 } }
@@ -879,7 +880,7 @@ struct kmem_cache *file_cache;
 
 <pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 5.2px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] kmem_cache { name: file, object_size: 504, at: 0x0000000087f59000, in_cache_obj: 0 }
 [SLAB]    [ partial slabs ]
-[SLAB]        [ slab 0x0000000087e5d000 ] { freelist: 0x0000000087e5d020, in_use: 0, nxt: 0x0000000087f4e008 }
+[SLAB]        [ slab 0x0000000087e5d000 ] { freelist: 0x0000000087e5d020, nxt: 0x0000000087f4e008 }
 [SLAB]           [ idx 0 ] { addr: 0x0000000087e5d020, as_ptr: 0x0000000087e5d410, as_obj: { tp: -2014981104, ref: 0, readable: 1, writable: 0, pipe: 0x0000000000000000, ip: 0x0000000080035440, off: 1024, major: 0 } }
 [SLAB]           [ idx 1 ] { addr: 0x0000000087e5d218, as_ptr: 0x0000000000000000, as_obj: { tp: 0, ref: 0, readable: 0, writable: 1, pipe: 0x0000000087e5c000, ip: 0x0000000000000000, off: 0, major: 0 } }
 [SLAB]           [ idx 2 ] { addr: 0x0000000087e5d410, as_ptr: 0x0000000087e5d800, as_obj: { tp: -2014980096, ref: 0, readable: 1, writable: 0, pipe: 0x0000000000000000, ip: 0x0000000080035550, off: 0, major: 0 } }
@@ -888,7 +889,7 @@ struct kmem_cache *file_cache;
 [SLAB]           [ idx 5 ] { addr: 0x0000000087e5d9f8, as_ptr: 0x0000000087e5d608, as_obj: { tp: -2014980600, ref: 0, readable: 0, writable: 1, pipe: 0x0000000087de5000, ip: 0x0000000000000000, off: 0, major: 0 } }
 [SLAB]           [ idx 6 ] { addr: 0x0000000087e5dbf0, as_ptr: 0x0000000087e5dde8, as_obj: { tp: -2014978584, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087daa000, ip: 0x0000000000000000, off: 0, major: 0 } }
 [SLAB]           [ idx 7 ] { addr: 0x0000000087e5dde8, as_ptr: 0x0000000087e5d9f8, as_obj: { tp: -2014979592, ref: 0, readable: 0, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800355d8, off: 5, major: 0 } }
-[SLAB]        [ slab 0x0000000087f4e000 ] { freelist: 0x0000000087f4e218, in_use: 1, nxt: 0x0000000087f59040 }
+[SLAB]        [ slab 0x0000000087f4e000 ] { freelist: 0x0000000087f4e218, nxt: 0x0000000087f59040 }
 [SLAB]           [ idx 0 ] { addr: 0x0000000087f4e020, as_ptr: 0x0000000900000003, as_obj: { tp: 3, ref: 9, readable: 1, writable: 1, pipe: 0x0000000000000000, ip: 0x00000000800354c8, off: 0, major: 1 } }
 [SLAB]           [ idx 1 ] { addr: 0x0000000087f4e218, as_ptr: 0x0000000087f4e608, as_obj: { tp: -2013993464, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087f42000, ip: 0x0000000000000000, off: 0, major: 0 } }
 [SLAB]           [ idx 2 ] { addr: 0x0000000087f4e410, as_ptr: 0x0000000087f4ebf0, as_obj: { tp: -2013991952, ref: 0, readable: 1, writable: 0, pipe: 0x0000000087eeb000, ip: 0x0000000000000000, off: 0, major: 0 } }
@@ -1022,7 +1023,8 @@ MP2 作業的模板程式碼基於 [mit-pdos/xv6-riscv](https://github.com/mit-p
     * [Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker)：支援 Docker 容器管理。
     * [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)：啟用容器內開發環境。
 2. [確認使用者屬於 `docker` 群組](https://blog.csdn.net/weixin_42688573/article/details/127159093)
-3. 連接到容器：
+3. 使用 `./mp2.sh container start` 啟動容器
+4. 連接到容器：
     * 啟動 VS Code，點擊左側活動欄的 Docker 圖標，進入 Docker 側邊欄。
     * 在容器列表中找到 `ntuos/mp2`，確認其已經啟用 (綠色 ▶︎ 符號)。
     * 右鍵點擊 `ntuos/mp2`，選擇 Attach Visual Studio Code。
