@@ -106,7 +106,7 @@ By leveraging the fact that these system objects are of the same size, the kerne
 
 The slab system, originating from SunOS source code, was used in early Linux kernels to manage memory allocation for small system objects. This assignment will guide students in **designing and implementing a new slab memory allocation system** to improve memory management efficiency for small objects like `struct file` in xv6.
 
-On a side note, the lab where the MP2 TAs work is called NEWSLAB, which can be playfully split as "New slab"—fittingly, the goal of MP2! Hopefully, this isn’t too cheesy.
+On a side note, the lab where the MP2 TAs work is called NEWSLAB, which can be playfully split as "New Slab"—fittingly, the goal of MP2! Hopefully, this isn’t too cheesy.
 
 # Preliminary Design and API of the slab Allocator
 
@@ -187,12 +187,12 @@ This assignment requires providing the following slab APIs for use in the `xv6` 
 ### 1. `kmem_cache_create`
 
 ```c
-struct kmem_cache *kmem_cache_create(const char *name, size_t size);
+struct kmem_cache *kmem_cache_create(const char *name, size_t object_size);
 ```
 - **Function**: Initialize a `kmem_cache` to manage objects of a specific size.
 - **Parameters**:
   - `name`: Cache name (for debugging and management).
-  - `size`: Object size (memory requirement of a single object).
+  - `object_size`: Object size (memory requirement of a single object).
 - **Return Value**: Pointer to the newly created `kmem_cache`.
 
 ### 2. `kmem_cache_alloc`
@@ -440,7 +440,7 @@ void some_func() {
 }
 ```
 
-When implementing the slab functionality and applying it to `file.c`, please be cautious in handling synchronization and race condition issues. Since the object we are replacing in `file.c`, the `ftable` object, contains `ftable::lock` to ensure the correct operation of `filealloc`, `filedup`, and `fileclose`, students can either add a new lock in `file.c` or reuse `file_cache::lock` for the implementation.
+When implementing the slab functionality and applying it to `file.c`, please be cautious in handling synchronization and race condition issues. Since the object we are replacing in `file.c`, the `ftable` object, contains `ftable::lock` to ensure the correct operation of `filealloc`, `filedup`, and `fileclose`, students can use `file_cache::lock` for the implementation.
 
 In MP2, students are required to add `acquire` and `release` at the entry and exit points of the slab API-related functions, respectively, to ensure execution safety in the most conservative manner. An example is shown below.
 
@@ -636,6 +636,7 @@ Key considerations:
    Due to [internal fragmentation issues](#kmem_cache-internal-fragmentation-issue-bonus-item), allocating and freeing objects using `kmem_cache`’s internal space (setting their `<slab_addr>` to `kmem_cache`’s address) earns an additional **10%**.
 
 3. **Optionality of `full` and `free`**
+
    `full` and `free` in `kmem_cache` are optional. Students may refer to [Linux Kernel SLUB design](https://github.com/torvalds/linux/blob/0fed89a961ea851945d23cc35beb59d6e56c0964/mm/slub.c#L154) or adopt other suitable methods, provided they meet [implementation specifications](#print_kmem_cache-printing-struct-kmem_cache-information).
 
 ## slab Functionality
@@ -1003,11 +1004,11 @@ Developers may opt to continue using the traditional development methods from MP
 
 To use Visual Studio Code (VS Code) for development inside the container, follow these steps:
 
-1. **Install Required Extensions**:
+1. Install Required Extensions:
    - [Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker): Provides Docker container management capabilities.
    - [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers): Enables development within a container environment.
-
-2. **Connect to the Container**:
+2. Use `./mp2.sh container start` to launch the container
+3. Connect to the Container:
    - Launch VS Code, click the **Docker** icon in the left activity bar to access the Docker sidebar.
    - Locate `ntuos/mp2` in the container list, check if it's running (you can see a green ▶︎ mark).
    - Right-click `ntuos/mp2` and select **Attach Visual Studio Code**.

@@ -1,0 +1,121 @@
+#!/bin/bash
+#
+# An example hook script to verify what is about to be committed.
+# Called by "git commit" with no arguments.  The hook should
+# exit with non-zero status after issuing an appropriate message if
+# it wants to stop the commit.
+#
+# To enable this hook, rename this file to "pre-commit".
+
+PROTECTED_FILES=(
+    # basic
+    mp2.sh
+    scripts/action_grader.sh
+    # kernel part
+    kernel/main.c
+    kernel/mp2_checker.h
+    kernel/param.h
+    kernel/file.h
+    kernel/list.h
+    # test part
+    test/check_cache.cpython-39-x86_64-linux-gnu.so
+    test/check_list.cpython-39-x86_64-linux-gnu.so
+    test/check_slab.cpython-39-x86_64-linux-gnu.so
+    test/pseudo_fslab.cpython-39-x86_64-linux-gnu.so
+    test/congratulations.txt
+    test/gradelib.py
+    test/private_tests.zip.enc
+    test/setup.py
+    test/run_mp2.py
+    # user programs
+    user/cat.c
+    user/debugswitch.c
+    user/forktest.c
+    user/grind.c
+    user/initcode.S
+    user/ln.c
+    user/mkdir.c
+    user/mp2-private.c
+    user/oap.c
+    user/printf.c
+    user/sh.c
+    user/tee.c
+    user/umalloc.c
+    user/user.ld
+    user/usys.pl
+    user/zombie.c
+    user/checkstr.c
+    user/echo.c
+    user/gah.c
+    user/grep.c
+    user/init.c
+    user/kill.c
+    user/ls.c
+    user/mp2.c
+    user/oak.c
+    user/prepare.c
+    user/rm.c
+    user/stressfs.c
+    user/ulib.c
+    user/user.h
+    user/usertests.c
+    user/wc.c
+)
+
+PROTECTED_DIRS=(
+    test/public
+    .github/workflows/
+)
+
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+check_files_changes() {
+    # 從標準輸入獲取推送的參數
+    # 格式: <local_ref> <local_sha> <remote_ref> <remote_sha>
+    while read -r _ local_sha _ remote_sha; do
+        # 如果 remote_sha 是零哈希，表示新分支
+        if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+            range="$local_sha"
+        else
+            range="$remote_sha..$local_sha"
+        fi
+
+        # 獲取指定範圍內被刪除的檔案
+        modified_files=$(git log --name-only --pretty=format: --diff-filter=ACM "$range" 2>/dev/null)
+        deleted_files=$(git log --name-only --pretty=format: --diff-filter=D "$range" 2>/dev/null)
+
+        local has_error=0
+        for protected_file in "${PROTECTED_FILES[@]}"; do
+            if echo "$modified_files" | grep -q "^${protected_file}$"; then
+                echo -e "${RED}Error: Attempting to modify protected file: ${protected_file}${NC}"
+                has_error=1
+            elif echo "$deleted_files" | grep -q "^${protected_file}$"; then
+                echo -e "${RED}Error: Attempting to delete protected file: ${protected_file}${NC}"
+                has_error=1
+            fi
+
+        done
+        
+        for protected_dir in "${PROTECTED_DIRS[@]}"; do
+            if echo "$deleted_files" | grep -q "^${protected_dir}"; then
+                # echo -e "${RED}Error: Attempting to delete file in protected directory: ${deleted_file}${NC}"
+                # has_error=1
+                while IFS= read -r deleted_file; do
+                    if [[ "$deleted_file" =~ ^${protected_dir} ]]; then
+                        echo -e "${RED}Error: Attempting to delete file in protected directory: ${deleted_file}${NC}"
+                        has_error=1
+                        break
+                    fi
+                done <<< "$deleted_files"
+            fi
+        done
+
+        if [ $has_error -eq 1 ]; then
+            echo -e "${RED}Push rejected: Cannot push since there is deletion on protected files${NC}"
+            exit 1
+        fi
+    done
+}
+
+check_files_changes
