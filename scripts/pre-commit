@@ -11,7 +11,6 @@ PROTECTED_FILES=(
     # basic
     mp2.sh
     scripts/action_grader.sh
-    scripts/pre-commit
     # kernel part
     kernel/main.c
     kernel/mp2_checker.h
@@ -26,7 +25,6 @@ PROTECTED_FILES=(
     test/congratulations.txt
     test/gradelib.py
     test/private_tests.zip.enc
-    test/public
     test/setup.py
     test/run_mp2.py
     # user programs
@@ -62,16 +60,50 @@ PROTECTED_FILES=(
     user/user.h
     user/usertests.c
     user/wc.c
-    # action part
-    .github/workflows/autograde.yml
-    .github/workflows/autosubmit.yml
 )
 
-MODIFIED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+PROTECTED_DIRS=(
+    test/public
+    .github/workflows/
+)
 
-for FILE in "${PROTECTED_FILES[@]}"; do
-    if echo "$MODIFIED_FILES" | grep -q "^$FILE$"; then
-        echo "Error: cannot commit a protected file $FILE"
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+check_files_changes() {
+    modified_files=$(git diff --cached --name-only --diff-filter=ACM)
+    deleted_files=$(git diff --cached --name-only --diff-filter=D)
+
+    local has_error=0
+    for protected_file in "${PROTECTED_FILES[@]}"; do
+        if echo "$modified_files" | grep -q "^${protected_file}$"; then
+            echo -e "${RED}Error: Attempting to modify protected file: ${protected_file}${NC}"
+            has_error=1
+        elif echo "$deleted_files" | grep -q "^${protected_file}$"; then
+            echo -e "${RED}Error: Attempting to delete protected file: ${protected_file}${NC}"
+            has_error=1
+        fi
+
+    done
+
+    for protected_dir in "${PROTECTED_DIRS[@]}"; do
+        if echo "$deleted_files" | grep -q "^${protected_dir}"; then
+            # echo -e "${RED}Error: Attempting to delete file in protected directory: ${deleted_file}${NC}"
+            # has_error=1
+            while IFS= read -r deleted_file; do
+                if [[ "$deleted_file" =~ ^${protected_dir} ]]; then
+                    echo -e "${RED}Error: Attempting to delete file in protected directory: ${deleted_file}${NC}"
+                    has_error=1
+                    break
+                fi
+            done <<< "$deleted_files"
+        fi
+    done
+
+    if [ $has_error -eq 1 ]; then
+        echo -e "${RED}Commit rejected: Cannot delete protected files${NC}"
         exit 1
     fi
-done
+}
+
+check_files_changes

@@ -93,7 +93,7 @@ case "$1" in
         mkdir -p "$HOOKS_DIR" || exit 1
 
         # List of hook names.
-        HOOKS=(pre-commit)
+        HOOKS=(pre-commit pre-push)
 
         for hook in "${HOOKS[@]}"; do
             ln -sf "$SCRIPT_DIR/scripts/${hook}" "$HOOKS_DIR/$hook" || exit 1
