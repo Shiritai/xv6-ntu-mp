@@ -110,6 +110,15 @@ case "$1" in
             echo "Cannot chown, may not need to chown"
         make clean
         ;;
+    "update")
+        if ! command curl; then
+            echo "Please install curl or download and run ./update.sh from https://github.com/Shiritai/xv6-ntu-mp2/blob/ntuos/mp2-submit/update.sh by yourself."
+        fi
+        curl https://raw.githubusercontent.com/Shiritai/xv6-ntu-mp2/refs/heads/ntuos/mp2-submit/update.sh --output "$SCRIPT_DIR/update.sh"
+        maysudo chmod +x "$SCRIPT_DIR/update.sh"
+        "$SCRIPT_DIR/update.sh"     # update this repo
+        "$SCRIPT_DIR/mp2.sh" setup  # To prevent no-git-hook issue
+        ;;
     "test")
         $START_VOLATILE_IMAGE ./mp2.sh testcase "$2" "$3" "$4" "$5"
         ([[ -d $SCRIPT_DIR/out ]] && maysudo chown -R "$(id -u):$(id -g)" "$SCRIPT_DIR/out") || true
