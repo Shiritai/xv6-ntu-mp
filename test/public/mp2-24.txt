@@ -1,4 +1,7 @@
-ls > ok
-echo Ok | gah . 8 | oak end > ok
+echo NotOk > ok
+checkstr ok NotOk
+echo Ok | gah . 2 | oak end > ok
 checkstr ok Ok
-ls > ok
+echo NotOk | gah . 1 | oak end > ok
+checkstr ok Ok
+ls

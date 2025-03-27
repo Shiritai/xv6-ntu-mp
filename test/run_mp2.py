@@ -80,7 +80,7 @@ def run_cache_check():
 def public_testcases(rng: range):
     """Define and run MP2 test cases."""
     tests = list(rng)
-    tests = [run_mp2_test(f"public/mp2-{t}", f"test/public/mp2-{t}.txt", 3, 20 if t < 20 else 60) for t in tests]
+    tests = [run_mp2_test(f"public/mp2-{t}", f"test/public/mp2-{t}.txt", 3, 20) for t in tests]
     return tests
 
 def private_testcases(rng: range):

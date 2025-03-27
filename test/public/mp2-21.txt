@@ -1,1 +1,1 @@
-ls > ok
+ls | tee f1 > ok
