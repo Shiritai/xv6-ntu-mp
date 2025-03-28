@@ -8,6 +8,21 @@ SCRIPT_DIR=$(realpath "$(dirname "${BASH_SOURCE[0]}")") || {
     exit 1
 }
 
+# check if this repo need to be updated
+if command -v curl >/dev/null 2>&1; then
+    if [[ $(cat "$SCRIPT_DIR/version" 2>/dev/null) = \
+          $(curl https://raw.githubusercontent.com/Shiritai/xv6-ntu-mp2/refs/heads/ntuos/mp2-submit/version 2>/dev/null) ]]; then
+        # no need to update
+        echo "Your mp2 is the newest version!"
+        exit 0
+    else
+        echo "Your mp2 is not the newest version, updating..."
+    fi
+else
+    echo "Please install curl command to run the update script!"
+    exit 1
+fi
+
 declare -a FILES=(
     # basic
     "mp2.sh"
