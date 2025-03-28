@@ -43,7 +43,10 @@ Usage:
 
   ./mp2.sh pull                   Pull the '$IMAGE_NAME' Docker image.
 
-  ./mp2.sh qemu                   Compile and run xv6 in a volatile container.
+  ./mp2.sh update                 Update the repository according to Shiritai/xv6-ntu-mp2.
+
+  ./mp2.sh qemu                   Compile and run xv6 in a volatile container (MP0,1 style).
+  
   ./mp2.sh clean                  Cleanup compiled objectives produced by mp2.sh/make qemu.
 
   ./mp2.sh test [case]            Run specific public test cases in a volatile container:
@@ -111,13 +114,15 @@ case "$1" in
         make clean
         ;;
     "update")
-        if ! command curl; then
-            echo "Please install curl or download and run ./update.sh from https://github.com/Shiritai/xv6-ntu-mp2/blob/ntuos/mp2-submit/update.sh by yourself."
+        if ! command -v curl; then
+            echo "Please install curl or download and run <YOUR_REPO>/update.sh from https://github.com/Shiritai/xv6-ntu-mp2/blob/ntuos/mp2-submit/update.sh by yourself."
+        else
+            UPDATE_SCRIPT="$SCRIPT_DIR/update.sh"
+            curl https://raw.githubusercontent.com/Shiritai/xv6-ntu-mp2/refs/heads/ntuos/mp2-submit/update.sh --output "$UPDATE_SCRIPT"
+            maysudo chmod +x "$UPDATE_SCRIPT"
+            "$UPDATE_SCRIPT"            # update this repo
+            "$SCRIPT_DIR/mp2.sh" setup  # To prevent no-git-hook issue
         fi
-        curl https://raw.githubusercontent.com/Shiritai/xv6-ntu-mp2/refs/heads/ntuos/mp2-submit/update.sh --output "$SCRIPT_DIR/update.sh"
-        maysudo chmod +x "$SCRIPT_DIR/update.sh"
-        "$SCRIPT_DIR/update.sh"     # update this repo
-        "$SCRIPT_DIR/mp2.sh" setup  # To prevent no-git-hook issue
         ;;
     "test")
         $START_VOLATILE_IMAGE ./mp2.sh testcase "$2" "$3" "$4" "$5"
