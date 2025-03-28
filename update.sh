@@ -25,6 +25,7 @@ fi
 
 declare -a FILES=(
     # basic
+    "version"
     "mp2.sh"
     "scripts/action_grader.sh"
     "scripts/pre-commit"
