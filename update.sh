@@ -13,6 +13,7 @@ declare -a FILES=(
     "mp2.sh"
     "scripts/action_grader.sh"
     "scripts/pre-commit"
+    "scripts/pre-push"
     # kernel part
     "kernel/main.c"
     "kernel/mp2_checker.h"

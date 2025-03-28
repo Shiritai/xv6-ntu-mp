@@ -3,6 +3,7 @@
 #include "kernel/fs.h"
 #include "kernel/fcntl.h"
 #include "user/user.h"
+#include "user/ok.h"
 
 int gen_and_hold(char *filename)
 {
@@ -18,10 +19,9 @@ void work(const char *dir, int gen_cnt)
   uint len = strlen(filename);
   filename[len] = '/';
 
-  // printf("[GAH] Gen and hold files\n");
   for (int i = 0; i < gen_cnt; ++i)
   {
-    filename[len + 1] = '0' + i / 100;
+    filename[len + 1] = '0' + (i / 100) % 10;
     filename[len + 2] = '0' + (i / 10) % 10;
     filename[len + 3] = '0' + i % 10;
     gen_and_hold(filename);
@@ -37,22 +37,10 @@ int main(int argc, char *argv[])
   }
 
   printf("%d", getpid());
-  sleep(2);
 
   char buf[512];
-  int n;
-
-  while ((n = read(0, buf, sizeof(buf))) > 0)
-  {
-    if (!strcmp(buf, "Ok"))
-    {
-      break;
-    }
-  }
-
+  read_until_match("Ok", buf, sizeof(buf));
   work(argv[1], atoi(argv[2]));
-
-  sleep(2);
   printf("Ok");
 
   while (1)
