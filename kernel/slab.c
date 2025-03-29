@@ -9,10 +9,20 @@
 
 #define GET_SLAB_FROM(obj) ((struct slab *)((uint64)obj & ~(MP2_SLAB_SIZE - 1)))
 
+// #define GET_FREELIST_FROM(slab) ((slab)->freelist)
+// #define SET_FREELIST_INTO(slab, n_list) ((slab)->freelist = (n_list))
+// #define GET_IN_USE_FROM(slab) ((slab)->in_use)
+// #define SET_IN_USE_INTO(slab, n_in_use) ((slab)->in_use = n_in_use)
+
+#define GET_FREELIST_FROM(slab) ((void **) ((uint64) (slab)->freelist & 0x0000007FFFFFFFFFULL))
+#define SET_FREELIST_INTO(slab, n_list) ((slab)->freelist = ((void **) (((uint64) (slab)->freelist & ~0x0000007FFFFFFFFFULL) | (uint64) (n_list))))
+#define GET_IN_USE_FROM(slab) (((uint64) (slab)->freelist & ~0x0000007FFFFFFFFF) >> 39)
+#define SET_IN_USE_INTO(slab, n_in_use) ((slab)->freelist = ((void **) (((uint64) (slab)->freelist & 0x0000007FFFFFFFFFULL) | ((uint64) (n_in_use) << 39))))
+
 void print_slab(struct slab *s, uint size, void (*slab_obj_printer)(void *))
 {
-  debug("[SLAB]        [ slab %p ] { freelist: %p, in_use: %d, prev: %p, nxt: %p }\n",
-        s, s->freelist, s->in_use, s->list.prev, s->list.next);
+  debug("[SLAB]        [ slab %p ] { freelist: %p, in_use: %lu, prev: %p, nxt: %p }\n",
+        s, GET_FREELIST_FROM(s), GET_IN_USE_FROM(s), s->list.prev, s->list.next);
   // struct run *obj = (struct run *)(s + 1);
   void *obj = (void *)(s + 1);
   for (int i = 0; i < (MP2_SLAB_SIZE - sizeof(struct slab)) / size; i++)
@@ -194,18 +204,18 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
   if (!list_empty(&cache->partial))
   {
     s = list_first_entry(&cache->partial, struct slab, list);
-    if (!s->freelist)
+    if (!GET_FREELIST_FROM(s))
     {
       debug("[SLAB] Warning: Partial slab is empty!\n");
       release(&cache->lock);
       return 0;
     }
 
-    void *obj = s->freelist;
-    s->freelist = *(void **)obj;
-    s->in_use++;
+    void *obj = GET_FREELIST_FROM(s);
+    SET_FREELIST_INTO(s, *(void **)obj);
+    SET_IN_USE_INTO(s, GET_IN_USE_FROM(s) + 1);
 
-    if (!s->freelist)
+    if (!GET_FREELIST_FROM(s))
     {
       list_del(&s->list);
       --cache->avail_cnt;
@@ -244,7 +254,7 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
       return 0;
     }
 
-    s->in_use = 0;
+    SET_IN_USE_INTO(s, 0);
     ++cache->avail_cnt;
 
     // TODO: mention in spec
@@ -253,7 +263,7 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
 
   // 4. 初始化新的 slab
   list_add(&s->list, &cache->partial);
-  s->freelist = (void **)(s + 1); // 將物件可用空間裡最前面的空間設為 freelist 的開頭
+  SET_FREELIST_INTO(s, (void **)(s + 1)); // 將物件可用空間裡最前面的空間設為 freelist 的開頭
 
   // use struct run
   // struct run *obj = s->freelist;
@@ -265,7 +275,7 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
   // obj->next = 0; // mark as the last object
 
   // use void *
-  void *obj = s->freelist;
+  void *obj = GET_FREELIST_FROM(s);
   for (int i = 0; i < (MP2_SLAB_SIZE - sizeof(struct slab)) / cache->object_size - 1; i++)
   {
     *(void **)obj = (void *)((char *)obj + cache->object_size);
@@ -274,9 +284,9 @@ void *kmem_cache_alloc(struct kmem_cache *cache)
   *(void **)obj = 0; // mark as the last object
 
   // 5. 取得第一個可用物件
-  obj = s->freelist;
-  s->freelist = *(void **)obj;
-  s->in_use++;
+  obj = GET_FREELIST_FROM(s);
+  SET_FREELIST_INTO(s, *(void **)obj);
+  SET_IN_USE_INTO(s, GET_IN_USE_FROM(s) + 1);
 
   memset(obj, 0, cache->object_size);
   debug("[SLAB] Object %p in slab %p (%s) is allocated and initialized\n", obj, s, cache->name);
@@ -323,9 +333,9 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj)
   }
 #endif // MP2_IN_CACHE_FREELIST
 
-  *(void **)obj = s->freelist;
-  s->freelist = obj;
-  s->in_use--;
+  *(void **)obj = GET_FREELIST_FROM(s);
+  SET_FREELIST_INTO(s, obj);
+  SET_IN_USE_INTO(s, GET_IN_USE_FROM(s) - 1);
 
   if (!*(void **)obj) // 若 s->freelist 原本為空, 且 obj 非空 (必然，最前面的邊界條件)
   {
@@ -338,7 +348,7 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj)
     debug("[SLAB] Slab %p (%s) is moved from full to partial\n", s, cache->name);
   }
 
-  if (s->in_use == 0)
+  if (GET_IN_USE_FROM(s) == 0)
   {
     // if free list exists
 #ifdef MP2_USE_FREE

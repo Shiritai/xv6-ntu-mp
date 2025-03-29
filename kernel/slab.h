@@ -34,7 +34,7 @@ struct slab
 
   // TODO: you can add other members
   // ...
-  unsigned short in_use; // Number of allocated objects
+  // unsigned short in_use; // Number of allocated objects
 };
 
 /**
