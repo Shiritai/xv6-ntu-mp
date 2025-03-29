@@ -25,6 +25,7 @@ fi
 
 declare -a FILES=(
     # basic
+    "version"
     "mp2.sh"
     "scripts/action_grader.sh"
     "scripts/pre-commit"
@@ -51,11 +52,12 @@ declare -a FILES=(
     "test/setup.py"
     "test/run_mp2.py"
     # user programs
+    "user/initcode.S"
+    "user/ok.h"
     "user/cat.c"
     "user/debugswitch.c"
     "user/forktest.c"
     "user/grind.c"
-    "user/initcode.S"
     "user/ln.c"
     "user/mkdir.c"
     "user/oap.c"
@@ -63,8 +65,6 @@ declare -a FILES=(
     "user/sh.c"
     "user/tee.c"
     "user/umalloc.c"
-    "user/user.ld"
-    "user/usys.pl"
     "user/zombie.c"
     "user/checkstr.c"
     "user/echo.c"
@@ -82,6 +82,8 @@ declare -a FILES=(
     "user/user.h"
     "user/usertests.c"
     "user/wc.c"
+    "user/user.ld"
+    "user/usys.pl"
     # action part
     ".github/workflows/autograde.yml"
     ".github/workflows/autosubmit.yml"
