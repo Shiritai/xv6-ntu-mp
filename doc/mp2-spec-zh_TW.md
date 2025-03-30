@@ -486,7 +486,7 @@ void some_api(struct kmem_cache *cache, ...)
 - **請確保在 `student_id.txt` 檔案中填入同學的學號**。  
 - 受限制檔案 **禁止修改**：
   - **受限制的檔案**：
-    - `mp2.h`
+    - `mp2.sh`
     - `scripts/action_grader.h`
     - `scripts/pre-commit`
     - `kernel/main.c`

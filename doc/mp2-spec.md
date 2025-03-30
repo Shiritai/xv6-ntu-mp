@@ -478,7 +478,7 @@ To comply with the [implementation requirements](#print_kmem_cache-printing-stru
 - **Please ensure that you enter your student ID in the `student_id.txt` file.**  
 - Restricted files **must not be modified**:  
   - **Restricted files**:  
-    - `mp2.h`  
+    - `mp2.sh`  
     - `scripts/action_grader.h`  
     - `scripts/pre-commit`  
     - `kernel/main.c`  
