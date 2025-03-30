@@ -137,20 +137,13 @@ function download_and_replace() {
         curl "$src" --output "$tar" 2>/dev/null
     else
         # if file exists -> try update
-        dami_tar="${tar}_"
-        curl "$src" --output "$dami_tar" 2>/dev/null
-
-        diff -q "${dami_tar}" "${tar}" >/dev/null 2>&1 || (
-            echo "Updating file ${tar}..."
-            mv "${dami_tar}" "${tar}" 2>/dev/null || echo "Warning: Failed to copy ${file}"
-        )
+        echo "Updating file ${tar}..."
+        curl "$src" --output "${tar}" 2>/dev/null
     fi
 }
 
 trap 'echo "Script interrupted"; cleanup; exit 1' INT TERM
 
 for file in "${FILES[@]}"; do
-    download_and_replace "$file" &
+    download_and_replace "$file"
 done
-
-wait
