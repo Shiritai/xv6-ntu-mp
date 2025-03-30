@@ -145,7 +145,5 @@ function download_and_replace() {
 trap 'echo "Script interrupted"; cleanup; exit 1' INT TERM
 
 for file in "${FILES[@]}"; do
-    download_and_replace "$file" &
+    download_and_replace "$file"
 done
-
-wait
