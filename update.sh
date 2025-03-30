@@ -30,6 +30,19 @@ declare -a FILES=(
     "scripts/action_grader.sh"
     "scripts/pre-commit"
     "scripts/pre-push"
+    # doc part
+    "doc/mp2-spec.md"
+    "doc/mp2-spec.pdf"
+    "doc/mp2-spec-zh_TW.md"
+    "doc/mp2-spec-zh_TW.pdf"
+    "doc/img/mp2-git.png"
+    "doc/img/mp2-kmem_cache.png"
+    "doc/img/mp2-slab-alloc.png"
+    "doc/img/mp2-slab-free.png"
+    "doc/img/mp2-slab-mem.png"
+    "doc/img/mp2-slab.png"
+    "doc/img/slab-alloc.png"
+    "doc/img/vscode-git.png"
     # kernel part
     "kernel/main.c"
     "kernel/mp2_checker.h"
@@ -48,7 +61,31 @@ declare -a FILES=(
     "test/congratulations.txt"
     "test/gradelib.py"
     "test/private_tests.zip.enc"
-    "test/public"
+    "test/public/mp2-0.txt"
+    "test/public/mp2-1.txt"
+    "test/public/mp2-2.txt"
+    "test/public/mp2-3.txt"
+    "test/public/mp2-4.txt"
+    "test/public/mp2-5.txt"
+    "test/public/mp2-6.txt"
+    "test/public/mp2-7.txt"
+    "test/public/mp2-8.txt"
+    "test/public/mp2-9.txt"
+    "test/public/mp2-10.txt"
+    "test/public/mp2-11.txt"
+    "test/public/mp2-12.txt"
+    "test/public/mp2-13.txt"
+    "test/public/mp2-14.txt"
+    "test/public/mp2-15.txt"
+    "test/public/mp2-16.txt"
+    "test/public/mp2-17.txt"
+    "test/public/mp2-18.txt"
+    "test/public/mp2-19.txt"
+    "test/public/mp2-20.txt"
+    "test/public/mp2-21.txt"
+    "test/public/mp2-22.txt"
+    "test/public/mp2-23.txt"
+    "test/public/mp2-24.txt"
     "test/setup.py"
     "test/run_mp2.py"
     # user programs
@@ -89,78 +126,31 @@ declare -a FILES=(
     ".github/workflows/autosubmit.yml"
 )
 
-TEMP_REPO_DIR="${SCRIPT_DIR}/../_xv6-ntu-mp2"
-REPO_URL="https://github.com/Shiritai/xv6-ntu-mp2.git"
+function download_and_replace() {
+    tar="$SCRIPT_DIR/$1"
+    tar_dir=$(dirname "${tar}")
+    mkdir -p "$tar_dir"
+    src="https://raw.githubusercontent.com/Shiritai/xv6-ntu-mp2/refs/heads/ntuos/mp2-submit/$1"
+    if ! [[ -f $"$tar" ]]; then
+        # if file not exists -> add
+        echo "Adding file ${tar}..."
+        curl "$src" --output "$tar" 2>/dev/null
+    else
+        # if file exists -> try update
+        dami_tar="${tar}_"
+        curl "$src" --output "$dami_tar" 2>/dev/null
 
-cleanup() {
-    if [[ -d "${TEMP_REPO_DIR}" ]]; then
-        rm -rf "${TEMP_REPO_DIR}" || echo "Warning: Failed to remove temporary directory ${TEMP_REPO_DIR}"
+        diff -q "${dami_tar}" "${tar}" >/dev/null 2>&1 || (
+            echo "Updating file ${tar}..."
+            mv "${dami_tar}" "${tar}" 2>/dev/null || echo "Warning: Failed to copy ${file}"
+        )
     fi
 }
 
 trap 'echo "Script interrupted"; cleanup; exit 1' INT TERM
 
-main() {
-    if ! command -v git &> /dev/null; then
-        echo "Error: git is not installed or not in PATH"
-        exit 1
-    fi
+for file in "${FILES[@]}"; do
+    download_and_replace "$file" &
+done
 
-    if [[ -d "${TEMP_REPO_DIR}" ]]; then
-        echo "Error: ${TEMP_REPO_DIR} already exists"
-        echo "Please remove or rename it before running this script"
-        exit 1
-    fi
-
-    echo "Cloning repository from ${REPO_URL}..."
-    if ! git clone "${REPO_URL}" "${TEMP_REPO_DIR}"; then
-        echo "Error: Failed to clone repository"
-        exit 1
-    fi
-
-    if ! cd "${TEMP_REPO_DIR}"; then
-        echo "Error: Cannot change to directory ${TEMP_REPO_DIR}"
-        cleanup
-        exit 1
-    fi
-
-    echo "Current directory: $(pwd)"
-
-    for file in "${FILES[@]}"; do
-        if [[ -z "${file}" ]]; then
-            echo "Warning: Empty file entry in FILES array"
-            continue
-        fi
-
-        if [[ -d "${file}" ]]; then
-            echo "Updating directory ${file} if needed..."
-            mkdir -p "${SCRIPT_DIR}/${file}" || echo "Warning: Failed to create directory ${SCRIPT_DIR}/${file}"
-            cp -r "${file}"/* "${SCRIPT_DIR}/${file}" 2>/dev/null || echo "Warning: Failed to copy some files from ${file}"
-        elif [[ -f "${file}" ]]; then
-            diff -q "${file}" "${SCRIPT_DIR}/${file}" >/dev/null 2>&1 || (
-                echo "Updating file ${file}..."
-                mkdir -p "$(dirname "${SCRIPT_DIR}/${file}")" || echo "Warning: Failed to create directory for ${file}"
-                cp "${file}" "${SCRIPT_DIR}/${file}" 2>/dev/null || echo "Warning: Failed to copy ${file}"
-            )
-        else
-            echo "Warning: ${file} not found in repository"
-        fi
-    done
-
-    if [[ -d "doc" ]]; then
-        echo "Updating documentation if needed..."
-        mkdir -p "${SCRIPT_DIR}/doc" || echo "Warning: Failed to create doc directory"
-        cp -r doc/* "${SCRIPT_DIR}/doc" 2>/dev/null || echo "Warning: Failed to copy documentation"
-    fi
-
-    if ! cd "${SCRIPT_DIR}"; then
-        echo "Error: Cannot return to ${SCRIPT_DIR}"
-        cleanup
-        exit 1
-    fi
-
-    cleanup
-    echo "Script completed successfully"
-}
-
-main
+wait
