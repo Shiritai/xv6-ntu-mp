@@ -1,4 +1,6 @@
 #!/bin/bash
+# mp2.sh - A unified management script for NTUOS 2025 MP2 assignments.
+# Provides environment setup, container management, and testing utilities.
 
 # Constants
 SCRIPT_DIR=$(realpath "$(dirname "$0")")
@@ -25,7 +27,39 @@ is_container_running() {
 # Try with sudo if task failed
 maysudo() {
     if ! "$@" >/dev/null 2>&1; then
-        sudo "$@"
+        echo "Warning: '$*' failed, retrying with sudo..." >&2
+        sudo "$@" || { echo "Error: '$*' failed even with sudo." >&2; return 1; }
+    fi
+}
+
+# change owner of file/directory if needed
+chown_if_need() {
+    local target="$1"
+    local current_user_group
+    local desired_user_group="$(id -u):$(id -g)"
+
+    if [ ! -e "$target" ]; then
+        echo "Warning: '$target' does not exist, skipping chown." >&2
+        return 1
+    fi
+
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        current_user_group=$(stat -f "%u:%g" "$target" 2>/dev/null) || {
+            echo "Error: Failed to stat '$target' on macOS." >&2
+            return 1
+        }
+    else
+        current_user_group=$(stat -c "%u:%g" "$target" 2>/dev/null) || {
+            echo "Error: Failed to stat '$target' on Linux." >&2
+            return 1
+        }
+    fi
+
+    if [ "$current_user_group" != "$desired_user_group" ]; then
+        maysudo chown -R "$(id -u):$(id -g)" "$target" || {
+            echo "Warning: Failed to chown '$target'." >&2
+            return 1
+        }
     fi
 }
 
@@ -33,10 +67,19 @@ START_IMAGE="$DOCKER_CMD run $DOCKER_IT_FLAG -v $(realpath $SCRIPT_DIR):/home/st
 START_VOLATILE_IMAGE="$START_IMAGE --rm $IMAGE_NAME"
 START_PERSISTENT_IMAGE="$START_IMAGE -d --name $CONTAINER_NAME $IMAGE_NAME"
 
+# Run test with basic timeout and error handling
+run_test() {
+    if ! timeout 5m python3 "$TEST_DIR/test/run_mp2.py" "$@"; then
+        echo "Error: Test failed or timed out after 5 minutes." >&2
+        printf "Interpretation Error or Timeout!\nFailed to parse your slab.\nIf you think this is buggy, please console to the admin.\nScore: 0/0\n"
+        return 1
+    fi
+}
+
 # Function to display usage
 usage() {
     cat <<EOF
-mp2.sh - Command line tool for ntuos2025 MP2 (Last Updated: 2025/03/21)
+mp2.sh - Command line tool for ntuos2025 MP2
 
 Usage:
   ./mp2.sh setup                  Setup the development environment for this repository.
@@ -80,10 +123,10 @@ Usage:
 EOF
 }
 
-# Main logic
+# Main logic: Handle different commands based on the first argument
 case "$1" in
     "pull")
-        echo "Pulling '$IMAGE_NAME'..."
+        echo "Pulling '$IMAGE_NAME'... This may take a few minutes."
         if $DOCKER_CMD pull "$IMAGE_NAME"; then
             echo "Successfully pulled '$IMAGE_NAME'."
         else
@@ -100,17 +143,16 @@ case "$1" in
 
         for hook in "${HOOKS[@]}"; do
             ln -sf "$SCRIPT_DIR/scripts/${hook}" "$HOOKS_DIR/$hook" || exit 1
-            maysudo chown -R "$(id -u):$(id -g)" .
+            chown_if_need "$SCRIPT_DIR"
         done
         ;;
     "qemu")
         $START_VOLATILE_IMAGE sudo chown -R 1000:1000 .
         $START_VOLATILE_IMAGE make qemu
-        maysudo chown -R $USER .
+        chown_if_need "$SCRIPT_DIR"
         ;;
     "clean")
-        maysudo chown -R "$(id -u):$(id -g)" "$SCRIPT_DIR" 2>/dev/null || \
-            echo "Cannot chown, may not need to chown"
+        chown_if_need "$SCRIPT_DIR"
         make clean
         ;;
     "update")
@@ -126,7 +168,7 @@ case "$1" in
         ;;
     "test")
         $START_VOLATILE_IMAGE ./mp2.sh testcase "$2" "$3" "$4" "$5"
-        ([[ -d $SCRIPT_DIR/out ]] && maysudo chown -R "$(id -u):$(id -g)" "$SCRIPT_DIR/out") || true
+        ([[ -d $SCRIPT_DIR/out ]] && chown_if_need "$SCRIPT_DIR/out") || true
         ;;
     "container")
         case "$2" in
@@ -158,8 +200,7 @@ case "$1" in
                     echo "Stopping container '$CONTAINER_NAME'..."
                     $DOCKER_CMD rm -f "$CONTAINER_NAME"
                     echo "Container '$CONTAINER_NAME' stopped."
-                    maysudo chown -R "$(id -u):$(id -g)" "$SCRIPT_DIR" 2>/dev/null || \
-                        echo "Cannot chown, may not need to chown"
+                    chown_if_need "$SCRIPT_DIR"
                 else
                     echo "Container '$CONTAINER_NAME' is not running."
                 fi
@@ -184,17 +225,27 @@ case "$1" in
         case "$2" in
         func)
             if [ -n "$3" ]; then
+                if ! [[ "$3" =~ ^[0-9]+$ ]] || [ "$3" -lt 0 ] || [ "$3" -gt 24 ]; then
+                    echo "Error: '<from>' must be a number between 0 and 24." >&2
+                    exit 1
+                fi
                 from="$3"
                 to=$from
-                [ -n "$4" ] && to="$4"
+                if [ -n "$4" ]; then
+                    if ! [[ "$4" =~ ^[0-9]+$ ]] || [ "$4" -lt "$from" ] || [ "$4" -gt 24 ]; then
+                        echo "Error: '<to>' must be a number between $from and 24." >&2
+                        exit 1
+                    fi
+                    to="$4"
+                fi
                 to=$((to + 1))
-                python3 $TEST_DIR/test/run_mp2.py "$from" "$to"
+                run_test "$from" "$to"
             else
-                python3 $TEST_DIR/test/run_mp2.py
+                run_test
             fi
             ;;
         all|slab|list|cache|custom)
-            python3 $TEST_DIR/test/run_mp2.py "$2"
+            run_test "$2"
             ;;
         private)
             if [ -n "$3" ]; then
@@ -202,9 +253,9 @@ case "$1" in
                 to=$from
                 [ -n "$4" ] && to="$4"
                 to=$((to + 1))
-                python3 $TEST_DIR/test/run_mp2.py private "$from" "$to"
+                run_test private "$from" "$to"
             else
-                python3 $TEST_DIR/test/run_mp2.py private
+                run_test private
             fi
             ;;
         *)
@@ -215,7 +266,7 @@ case "$1" in
 
         if [ -d "$TEST_DIR/out" ]; then
             maysudo cp -r "$TEST_DIR/out" "$cur_wd" || echo "Warning: Failed to copy output to $cur_wd"
-            maysudo chown -R "$(id -u):$(id -g)" "$cur_wd/out" 1>/dev/null 2>&1 || echo "Warning: Failed to chown $cur_wd/out"
+            chown_if_need "$cur_wd/out"
         fi
         ;;
     *)
