@@ -144,6 +144,6 @@ function download_and_replace() {
 
 trap 'echo "Script interrupted"; cleanup; exit 1' INT TERM
 
-for file in "${FILES[@]}"; do
-    download_and_replace "$file"
-done
+export -f download_and_replace
+export SCRIPT_DIR=$(pwd)
+printf '%s\n' "${FILES[@]}" | xargs -n 1 -P "$(nproc)" -I {} bash -c 'download_and_replace "{}"'
