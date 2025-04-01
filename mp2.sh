@@ -21,14 +21,14 @@ fi
 
 # Function to check if container is running
 is_container_running() {
-    [ -n "$($DOCKER_CMD ps -q --filter name="$CONTAINER_NAME")" ]
+    [ -n "$($DOCKER_CMD ps -q --filter name="^$CONTAINER_NAME$")" ]
 }
 
 # Try with sudo if task failed
 maysudo() {
     if ! "$@" >/dev/null 2>&1; then
         echo "Warning: '$*' failed, retrying with sudo..." >&2
-        sudo "$@" || { echo "Error: '$*' failed even with sudo." >&2; return 1; }
+        sudo "$@" >/dev/null 2>&1 || { echo "Error: '$*' failed even with sudo." >&2; return 1; }
     fi
 }
 
@@ -56,8 +56,8 @@ chown_if_need() {
     fi
 
     if [ "$current_user_group" != "$desired_user_group" ]; then
-        maysudo chown -R "$(id -u):$(id -g)" "$target" || {
-            echo "Warning: Failed to chown '$target'." >&2
+        maysudo chown -R "$(id -u):$(id -g)" "$target" >/dev/null 2>&1 || {
+            echo "Warning: Failed to chown '$target', may not need to chown." >&2
             return 1
         }
     fi
@@ -147,7 +147,7 @@ case "$1" in
         done
         ;;
     "qemu")
-        $START_VOLATILE_IMAGE sudo chown -R 1000:1000 .
+        $START_VOLATILE_IMAGE ./mp2.sh chown_if_need .
         $START_VOLATILE_IMAGE make qemu
         chown_if_need "$SCRIPT_DIR"
         ;;
@@ -179,8 +179,7 @@ case "$1" in
                     echo "Starting '$CONTAINER_NAME'..."
                     if $START_PERSISTENT_IMAGE bash; then
                         echo "Container '$CONTAINER_NAME' started."
-                        $DOCKER_CMD exec "$CONTAINER_NAME" sudo chown -R 1000:1000 . 2>/dev/null || \
-                            echo "Cannot chown, may not need to chown"
+                        $DOCKER_CMD exec "$CONTAINER_NAME" ./mp2.sh chown_if_need .
                     else
                         echo "Error: Failed to start container." >&2
                         exit 1
@@ -268,6 +267,9 @@ case "$1" in
             maysudo cp -r "$TEST_DIR/out" "$cur_wd" || echo "Warning: Failed to copy output to $cur_wd"
             chown_if_need "$cur_wd/out"
         fi
+        ;;
+    chown_if_need)
+        chown_if_need "$2"
         ;;
     *)
         usage

@@ -146,4 +146,11 @@ trap 'echo "Script interrupted"; cleanup; exit 1' INT TERM
 
 export -f download_and_replace
 export SCRIPT_DIR=$(pwd)
-printf '%s\n' "${FILES[@]}" | xargs -n 1 -P "$(nproc)" -I {} bash -c 'download_and_replace "{}"'
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    cpus=$(sysctl -n hw.ncpu)
+else
+    cpus=$(nproc)
+fi
+
+printf '%s\n' "${FILES[@]}" | xargs -n 1 -P "$cpus" -I {} bash -c 'download_and_replace "{}"'
