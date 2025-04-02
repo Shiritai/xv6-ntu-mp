@@ -7,51 +7,156 @@
 #include "slab.h"
 #include "debug.h"
 
-#define GET_SLAB_FROM(obj) ((struct slab *)((uint64)obj & ~(MP2_SLAB_SIZE - 1)))
+// Mask to extract the lower 39 bits of a pointer, ensuring compatibility with the xv6 memory layout (SV39).
+#define SLAB_SLOT_MASK ((uint64)MP2_SLAB_SIZE - 1)
 
-void print_slab(struct slab *s, uint size, void (*slab_obj_printer)(void *))
-{
-  debug("[SLAB]        [ slab %p ] { freelist: %p, in_use: %d, prev: %p, nxt: %p }\n",
-        s, s->freelist, s->in_use, s->list.prev, s->list.next);
-  // struct run *obj = (struct run *)(s + 1);
-  void *obj = (void *)(s + 1);
-  for (int i = 0; i < (MP2_SLAB_SIZE - sizeof(struct slab)) / size; i++)
-  {
-    // read as pointer list
-    debug("[SLAB]           [ idx %d ] { addr: %p, as_ptr: %p, as_obj: { ", i, obj, *(void **)obj);
-    // read as file object
-    if (slab_obj_printer)
-      slab_obj_printer(obj);
-    debug(" } }\n");
-    obj = (void *)((char *)obj + size);
+// Bit-mask and shift constants for tracking object allocations in a kmem_cache/slab.
+#define IN_USE_SHIFT PGSHIFT
+#define IN_USE_MASK (SLAB_SLOT_MASK << IN_USE_SHIFT)
+#define ALLOC_LEN_SHIFT (IN_USE_SHIFT + PGSHIFT)
+#define ALLOC_LEN_MASK (SLAB_SLOT_MASK << ALLOC_LEN_SHIFT)
+
+// Retrieves the base page address of an object.
+#define __get_page_from(obj) ((uint64)(obj) & ~SLAB_SLOT_MASK)
+
+// Extracts the freelist pointer from kmem_cache/slab metadata.
+#define __get_freelist_from(ptr)                                               \
+  ((void **)(((ptr)->metadata & SLAB_SLOT_MASK)                                \
+                 ? (((ptr)->metadata & SLAB_SLOT_MASK) | __get_page_from(ptr)) \
+                 : 0))
+
+// Updates the freelist pointer in kmem_cache/slab metadata.
+#define __set_freelist_as(ptr, n_list)                      \
+  ((ptr)->metadata = (((ptr)->metadata & ~SLAB_SLOT_MASK) | \
+                      ((uint64)(n_list) & SLAB_SLOT_MASK)))
+
+// Retrieves the number of allocated objects in a kmem_cache/slab.
+#define __get_inuse_from(ptr) \
+  (((ptr)->metadata & IN_USE_MASK) >> IN_USE_SHIFT)
+
+// Updates the allocation count in a kmem_cache/slab.
+#define __set_inuse_as(ptr, n_inuse)                     \
+  ((ptr)->metadata = (((ptr)->metadata & ~IN_USE_MASK) | \
+                      (((uint64)(n_inuse) << IN_USE_SHIFT) & IN_USE_MASK)))
+
+// Increments the allocation count.
+#define __increment_inuse_of(ptr) \
+  __set_inuse_as(ptr, __get_inuse_from(ptr) + 1)
+
+// Decrements the allocation count.
+#define __decrement_inuse_of(ptr) \
+  __set_inuse_as(ptr, __get_inuse_from(ptr) - 1)
+
+// Retrieves the sequential allocation count.
+#define __get_seq_alloc_len_from(ptr) \
+  (((ptr)->metadata & ALLOC_LEN_MASK) >> ALLOC_LEN_SHIFT)
+
+// Updates the sequential allocation count.
+#define __set_seq_alloc_len_as(ptr, n_seq_alloc_len)        \
+  ((ptr)->metadata = (((ptr)->metadata & ~ALLOC_LEN_MASK) | \
+                      (((uint64)(n_seq_alloc_len) << ALLOC_LEN_SHIFT) & ALLOC_LEN_MASK)))
+
+// Increments the sequential allocation count.
+#define __increment_seq_alloc_len_of(ptr) \
+  __set_seq_alloc_len_as(ptr, __get_seq_alloc_len_from(ptr) + 1)
+
+// Computes the maximum number of objects that can be stored in a kmem_cache/slab.
+#define __get_max_objs_with(type, object_size) \
+  ((MP2_SLAB_SIZE - sizeof(type)) / object_size)
+
+// Checks if a given number is within the kmem_cache/slab's capacity.
+#define __less_than_max_objs(num, ptr, object_size) \
+  ((num) < __get_max_objs_with(typeof(*ptr), (object_size)))
+
+// Allocates memory for a kmem_cache/slab and initializes its metadata.
+#define __kalloc_and_init_metadata(ptr) \
+  do                                    \
+  {                                     \
+    ptr = (typeof(ptr))kalloc();        \
+    if (!ptr)                           \
+      panic("kalloc failed");           \
+    ptr->metadata = 0;                  \
+  } while (0)
+
+// Allocates an object from a kmem_cache/slab, preferring sequential allocation before using the freelist.
+#define __alloc_one_from(ptr, obj, object_size)                   \
+  do                                                              \
+  {                                                               \
+    uint alloc_to = __get_seq_alloc_len_from(ptr);                \
+    if (__less_than_max_objs(alloc_to, ptr, object_size))         \
+    {                                                             \
+      obj = (void *)((uint64)(ptr + 1) + alloc_to * object_size); \
+      __increment_seq_alloc_len_of(ptr);                          \
+    }                                                             \
+    else                                                          \
+    {                                                             \
+      obj = __get_freelist_from(ptr);                             \
+      __set_freelist_as(ptr, *(void **)obj);                      \
+    }                                                             \
+    __increment_inuse_of(ptr);                                    \
+  } while (0)
+
+// Frees an object, returning it to the freelist.
+#define __free_one_back(ptr, obj)             \
+  do                                          \
+  {                                           \
+    *(void **)obj = __get_freelist_from(ptr); \
+    __set_freelist_as(ptr, obj);              \
+    __decrement_inuse_of(ptr);                \
+  } while (0)
+
+// Determines if a kmem_cache/slab has available space for allocation.
+#define __can_alloc(ptr, object_size) \
+  __less_than_max_objs(__get_inuse_from(ptr), ptr, object_size)
+
+/**
+ * Generates a function to print slab/cache metadata and object details.
+ * The function is named `print_<CACHE_NAME>`.
+ *
+ * @param ptr Pointer to the `CACHE_TYPE` structure.
+ * @param object_size Size of objects stored in the cache/slab.
+ * @param nxt Pointer to the next slab (for linked list traversal).
+ * @param slab_obj_printer Function pointer for printing object details.
+ */
+#define gen_printer(CACHE_TYPE, CACHE_NAME)                                                               \
+  void print_##CACHE_NAME(CACHE_TYPE *ptr, uint object_size, void *nxt, void (*slab_obj_printer)(void *)) \
+  {                                                                                                       \
+    void *obj;                                                                                            \
+    while (__less_than_max_objs(__get_seq_alloc_len_from(ptr), ptr, object_size))                         \
+    { /* If sequential allocation is not finished, allocate and free immediately to finish it */          \
+      __alloc_one_from(ptr, obj, object_size);                                                            \
+      __free_one_back(ptr, obj);                                                                          \
+    }                                                                                                     \
+    debug("[SLAB]        [ slab %p ] { freelist: %p, nxt: %p, max_objs: %lu }\n",                         \
+          ptr, __get_freelist_from(ptr), nxt, __get_max_objs_with(typeof(*ptr), object_size));            \
+    obj = (void *)(ptr + 1);                                                                              \
+    for (int i = 0; __less_than_max_objs(i, ptr, object_size); i++)                                       \
+    {                                                                                                     \
+      debug("[SLAB]           [ idx %d ] { addr: %p, as_ptr: %p, as_obj: { ", i, obj, *(void **)obj);     \
+      if (slab_obj_printer)                                                                               \
+        slab_obj_printer(obj);                                                                            \
+      debug(" } }\n");                                                                                    \
+      obj = (void *)((uint64)obj + object_size);                                                          \
+    }                                                                                                     \
   }
-}
+
+gen_printer(struct slab, slab);
+#ifdef MP2_IN_CACHE_FREELIST
+gen_printer(struct kmem_cache, cache);
+#endif
 
 void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *))
 {
-  // TODO: template
-  // debug("[SLAB] TODO: print_kmem_cache \n");
   acquire(&cache->lock);
 
 #ifdef MP2_IN_CACHE_FREELIST
-  debug("[SLAB] kmem_cache { name: %s, object_size: %d, at: %p, in_cache_obj: %lu }\n", cache->name, cache->object_size, cache, (MP2_SLAB_SIZE - sizeof(struct kmem_cache)) / cache->object_size);
+  debug("[SLAB] kmem_cache { name: %s, object_size: %d, at: %p, in_cache_obj: %lu }\n",
+        cache->name, cache->object_size, cache, __get_max_objs_with(typeof(*cache), cache->object_size));
   debug("[SLAB]    [ cache    slabs ]\n");
-  debug("[SLAB]        [ slab %p ] { freelist: %p, nxt: %p }\n",
-        cache, cache->freelist, (void *)0);
-  // struct run *obj = (struct run *)(s + 1);
-  void *obj = (void *)(cache + 1);
-  for (int i = 0; i < (MP2_SLAB_SIZE - sizeof(struct kmem_cache)) / cache->object_size; i++)
-  {
-    // read as pointer list
-    debug("[SLAB]           [ idx %d ] { addr: %p, as_ptr: %p, as_obj: { ", i, obj, *(void **)obj);
-    // read as file object
-    if (slab_obj_printer)
-      slab_obj_printer(obj);
-    debug(" } }\n");
-    obj = (void *)((char *)obj + cache->object_size);
-  }
+  print_cache(cache, cache->object_size, (void *)0, slab_obj_printer);
 #else
-  debug("[SLAB] kmem_cache { name: %s, object_size: %d, at: %p, in_cache_obj: %d }\n", cache->name, cache->object_size, cache, 0);
+  debug("[SLAB] kmem_cache { name: %s, object_size: %d, at: %p, in_cache_obj: %d }\n",
+        cache->name, cache->object_size, cache, 0);
 #endif // MP2_IN_CACHE_FREELIST
 
   struct slab *s, *safe;
@@ -62,7 +167,7 @@ void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *)
     debug("[SLAB]    [ full    slabs ]\n");
     list_for_each_entry_safe(s, safe, &cache->full, list)
     {
-      print_slab(s, cache->object_size, slab_obj_printer);
+      print_slab(s, cache->object_size, s->list.next, slab_obj_printer);
     }
   }
 #endif // MP2_USE_FULL
@@ -72,7 +177,7 @@ void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *)
     debug("[SLAB]    [ partial slabs ]\n");
     list_for_each_entry_safe(s, safe, &cache->partial, list)
     {
-      print_slab(s, cache->object_size, slab_obj_printer);
+      print_slab(s, cache->object_size, s->list.next, slab_obj_printer);
     }
   }
 
@@ -82,45 +187,29 @@ void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *)
     debug("[SLAB]    [ free    slabs ]\n");
     list_for_each_entry_safe(s, safe, &cache->free, list)
     {
-      print_slab(s, cache->object_size, slab_obj_printer);
+      print_slab(s, cache->object_size, s->list.next, slab_obj_printer);
     }
   }
 #endif // MP2_USE_FREE
 
   debug("[SLAB] print_kmem_cache end\n");
-
   release(&cache->lock);
 }
 
 struct kmem_cache *kmem_cache_create(char *name, uint object_size)
 {
-  // TODO: kmem_cache_create: ...
+  struct kmem_cache *cache;
 
-  // NOTE: mention "allocating a page for cache" in spec
-  struct kmem_cache *cache = (struct kmem_cache *)kalloc();
-  if (!cache)
-  {
-    debug("[SLAB] Failed to create cache: %s\n", name);
-    return 0;
-  }
+#ifdef MP2_IN_CACHE_FREELIST
+  __kalloc_and_init_metadata(cache);
+#else
+  cache = (struct kmem_cache *)kalloc();
+#endif // MP2_IN_CACHE_FREELIST
 
   safestrcpy(cache->name, name, sizeof(cache->name));
   cache->object_size = object_size;
-  initlock(&cache->lock, name);
-
-#ifdef MP2_IN_CACHE_FREELIST
-  cache->freelist = (void **)(cache + 1);
-  void *obj = cache->freelist;
-  for (int i = 0; i < (MP2_SLAB_SIZE - sizeof(struct kmem_cache)) / cache->object_size - 1; i++)
-  {
-    *(void **)obj = (void *)((char *)obj + cache->object_size);
-    obj = *(void **)obj;
-  }
-  *(void **)obj = 0; // mark as the last object
-#endif               // MP2_IN_CACHE_FREELIST
-
   cache->avail_cnt = 0;
-
+  initlock(&cache->lock, name);
   INIT_LIST_HEAD(&cache->partial);
 
 #ifdef MP2_USE_FULL
@@ -131,10 +220,12 @@ struct kmem_cache *kmem_cache_create(char *name, uint object_size)
   INIT_LIST_HEAD(&cache->free);
 #endif // MP2_USE_FREE
 
-  debug("[SLAB] New kmem_cache (name: %s, object size: %d bytes, at: %p, max objects per slab: %lu, support in cache obj: %lu) is created\n",
-        cache->name, cache->object_size, cache, (MP2_SLAB_SIZE - sizeof(struct slab)) / cache->object_size,
+  debug("[SLAB] New kmem_cache (name: %s, "
+        "object size: %d bytes, at: %p, max objects per slab: %lu, "
+        "support in cache obj: %lu) is created\n",
+        cache->name, cache->object_size, cache, __get_max_objs_with(struct slab, cache->object_size),
 #ifdef MP2_IN_CACHE_FREELIST
-        (MP2_SLAB_SIZE - sizeof(struct kmem_cache)) / cache->object_size
+        __get_max_objs_with(struct kmem_cache, cache->object_size)
 #else
         0UL
 #endif
@@ -165,169 +256,102 @@ void kmem_cache_destroy(struct kmem_cache *cache)
   }
   kfree(cache);
 #endif // MP2_USE_FREE
+
+  kfree(cache);
 }
 
 void *kmem_cache_alloc(struct kmem_cache *cache)
 {
-  // TODO: kmem_cache_alloc: ...
-
-  // TODO: mention in spec, and release before return
   acquire(&cache->lock);
-
   debug("[SLAB] Alloc request on cache %s\n", cache->name);
+  void *obj;
 
 #ifdef MP2_IN_CACHE_FREELIST
-  if (cache->freelist) // kmem_cache 的 freelist 還能用
+  if (__can_alloc(cache, cache->object_size))
   {
-    void *obj = cache->freelist;
-    cache->freelist = *(void **)obj;
-    debug("[SLAB] Allocated %p from cache slab (%s)\n", obj, cache->name);
+    __alloc_one_from(cache, obj, cache->object_size);
     debug("[SLAB] Object %p in slab %p (%s) is allocated and initialized\n", obj, cache, cache->name);
-
     release(&cache->lock);
     return obj;
   }
 #endif // MP2_IN_CACHE_FREELIST
 
   struct slab *s;
-  // 1. 檢查 partial slabs 是否有可用物件
   if (!list_empty(&cache->partial))
   {
     s = list_first_entry(&cache->partial, struct slab, list);
-    if (!s->freelist)
-    {
-      debug("[SLAB] Warning: Partial slab is empty!\n");
-      release(&cache->lock);
-      return 0;
-    }
-
-    void *obj = s->freelist;
-    s->freelist = *(void **)obj;
-    s->in_use++;
-
-    if (!s->freelist)
+    __alloc_one_from(s, obj, cache->object_size);
+    if (!__can_alloc(s, cache->object_size))
     {
       list_del(&s->list);
       --cache->avail_cnt;
 #ifdef MP2_USE_FULL
       list_add(&s->list, &cache->full);
-      debug("[SLAB] Move partial slab %p to full slabs (%s)\n", s, cache->name);
 #endif // MP2_USE_FULL
     }
     memset(obj, 0, cache->object_size);
-    debug("[SLAB] Allocated %p from partial slab (%s)\n", obj, cache->name);
     debug("[SLAB] Object %p in slab %p (%s) is allocated and initialized\n", obj, s, cache->name);
-
     release(&cache->lock);
     return obj;
   }
 
-  // 2. 檢查 free slabs 是否有可用 slab
 #ifdef MP2_USE_FREE
   if (!list_empty(&cache->free))
   {
     s = list_first_entry(&cache->free, struct slab, list);
     list_del(&s->list);
-
-    // TODO: mention in spec
-    debug("[SLAB] Reusing slab %p from free list (%s)\n", s, cache->name);
+    s->metadata = 0;
   }
   else
 #endif // MP2_USE_FREE
   {
-    // 3. 如果沒有可用 slab，則分配新的 slab
-    s = (struct slab *) kalloc();
-    if (!s)
-    {
-      debug("[SLAB] Error: Failed to allocate new slab for %s\n", cache->name);
-      release(&cache->lock);
-      return 0;
-    }
-
-    s->in_use = 0;
+    __kalloc_and_init_metadata(s);
     ++cache->avail_cnt;
-
-    // TODO: mention in spec
     debug("[SLAB] A new slab %p (%s) is allocated\n", s, cache->name);
   }
 
-  // 4. 初始化新的 slab
   list_add(&s->list, &cache->partial);
-  s->freelist = (void **)(s + 1); // 將物件可用空間裡最前面的空間設為 freelist 的開頭
 
-  // use struct run
-  // struct run *obj = s->freelist;
-  // for (int i = 0; i < (MP2_SLAB_SIZE - sizeof(struct slab)) / cache->object_size; i++)
-  // {
-  //   obj->next = (struct run *)((char *)obj + cache->object_size);
-  //   obj = obj->next;
-  // }
-  // obj->next = 0; // mark as the last object
-
-  // use void *
-  void *obj = s->freelist;
-  for (int i = 0; i < (MP2_SLAB_SIZE - sizeof(struct slab)) / cache->object_size - 1; i++)
-  {
-    *(void **)obj = (void *)((char *)obj + cache->object_size);
-    obj = *(void **)obj;
-  }
-  *(void **)obj = 0; // mark as the last object
-
-  // 5. 取得第一個可用物件
-  obj = s->freelist;
-  s->freelist = *(void **)obj;
-  s->in_use++;
-
+  __alloc_one_from(s, obj, cache->object_size);
   memset(obj, 0, cache->object_size);
   debug("[SLAB] Object %p in slab %p (%s) is allocated and initialized\n", obj, s, cache->name);
-
   release(&cache->lock);
   return obj;
 }
 
 void kmem_cache_free(struct kmem_cache *cache, void *obj)
 {
-  // TODO: kmem_cache_free: ...
-
   if (!obj)
   {
-    debug("[SLAB] Warning: Attempted to free NULL object (%s)\n", cache->name);
+    debug("[slab] Warning: Attempted to free NULL object (%s)\n", cache->name);
     return;
   }
 
-  // TODO: mention in spec, and release before return
   acquire(&cache->lock);
-  struct slab *s = GET_SLAB_FROM(obj);
+  struct slab *s = (struct slab *)__get_page_from(obj);
 
   if (!s)
   {
-    debug("[SLAB] Error: No available slabs in %s\n", cache->name);
+    debug("[slab] Error: No available slabs in %s\n", cache->name);
     release(&cache->lock);
     return;
   }
 
   debug("[SLAB] Free %p in slab %p (%s)\n", obj, s, cache->name);
 
-  // struct run *as_run = (struct run *) obj;
-  // as_run->next = s->freelist;
-  // s->freelist = as_run;
-
 #ifdef MP2_IN_CACHE_FREELIST
-  if ((void *)s == (void *)cache) // 如果是 kmem_cache 中的 object
+  if ((void *)s == (void *)cache)
   {
-    *(void **)obj = cache->freelist;
-    cache->freelist = obj;
+    __free_one_back(cache, obj);
     debug("[SLAB] End of free\n");
     release(&cache->lock);
     return;
   }
 #endif // MP2_IN_CACHE_FREELIST
 
-  *(void **)obj = s->freelist;
-  s->freelist = obj;
-  s->in_use--;
+  __free_one_back(s, obj);
 
-  if (!*(void **)obj) // 若 s->freelist 原本為空, 且 obj 非空 (必然，最前面的邊界條件)
+  if (__get_inuse_from(s) == __get_max_objs_with(typeof(*s), cache->object_size) - 1)
   {
 #ifdef MP2_USE_FULL
     list_del(&s->list);
@@ -335,19 +359,17 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj)
 
     list_add(&s->list, &cache->partial);
     ++cache->avail_cnt;
-    debug("[SLAB] Slab %p (%s) is moved from full to partial\n", s, cache->name);
+    debug("[slab] Slab %p (%s) is moved from full to partial\n", s, cache->name);
   }
 
-  if (s->in_use == 0)
+  if (__get_inuse_from(s) == 0)
   {
-    // if free list exists
 #ifdef MP2_USE_FREE
     list_del(&s->list);
     list_add(&s->list, &cache->free);
-    debug("[SLAB] Slab %p (%s) is moved from partial to free\n", s, cache->name);
+    debug("[slab] Slab %p (%s) is moved from partial to free\n", s, cache->name);
 #endif // MP2_USE_FREE
 
-    // if min available slabs satisfied
     if (cache->avail_cnt > MP2_MIN_AVAIL_SLAB)
     {
       --cache->avail_cnt;
