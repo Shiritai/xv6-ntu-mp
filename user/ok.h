@@ -1,48 +1,78 @@
 #include "kernel/types.h"
 #include "user/user.h"
 
+#define READ_CACHE_SIZE 512
+
 /**
  * Monitor stdin and return until received a `match` (case sensitive).
  * Store the string from stdin in `buf` before receiving a `match`.
- * @param buf: buffer to store received stdin excluding `match`
- * @param buf_sz: buffer size
+ * @param match: String to match
+ * @param buf: Buffer to store received stdin excluding `match`
+ * @param buf_sz: Buffer size
+ * @return: 0 on success (match found), -1 on error or EOF without match
  */
-void read_until_match(const char *match, char *buf, uint buf_sz)
+int read_until_match(const char *match, char *buf, uint buf_sz)
 {
-  uint bi = 0; // buffer index
-  const uint tar_len = strlen(match);
-  char cache[512];
-  uint n;
-  uint has_read = 0;
+  if (!match || buf_sz == 0)
+  {
+    if (buf && buf_sz > 0)
+      buf[0] = '\0';
+    return -1;
+  }
+
+  uint buf_idx = 0;
+  const uint match_len = strlen(match);
+  char cache[READ_CACHE_SIZE];
+  int bytes_read;
+  uint match_pos = 0;
+
+  if (buf_sz <= match_len)
+  {
+    buf[0] = '\0';
+    return -1; // Buffer too small
+  }
 
   buf[buf_sz - 1] = '\0';
 
-  while ((n = read(0, cache, sizeof(cache))) > 0)
+  while ((bytes_read = read(0, cache, sizeof(cache))) > 0)
   {
-    for (uint i = 0; i < n; ++i)
+    for (uint i = 0; i < (uint)bytes_read; ++i)
     {
-      if (bi < buf_sz)
-        buf[bi++] = cache[i];          // if the buffer is not full, store char into buf
-      if (cache[i] == match[has_read]) // matched
+      if (buf_idx < buf_sz - 1)
       {
-        ++has_read;
-        if (has_read == tar_len)
-          break; // fully matched
+        buf[buf_idx++] = cache[i];
+      }
+      if (cache[i] == match[match_pos])
+      {
+        ++match_pos;
+        if (match_pos == match_len)
+          break;
       }
       else
       {
-        has_read = 0;                    // found not matched, reset read index
-        if (cache[i] == match[has_read]) // check from start (for single word matching case)
+        match_pos = 0;
+        if (cache[i] == match[0])
         {
-          ++has_read;
-          if (has_read == tar_len)
-            break; // fully matched
+          match_pos = 1;
+          if (match_pos == match_len)
+            break;
         }
       }
     }
-    if (has_read == tar_len)
-      break; // fully matched
+    if (match_pos == match_len)
+      break;
   }
 
-  buf[bi - tar_len] = '\0';
+  if (bytes_read < 0)
+  {
+    buf[0] = '\0';
+    return -1; // Read error
+  }
+  if (match_pos < match_len)
+  {
+    buf[buf_idx] = '\0';
+    return -1; // EOF without match
+  }
+  buf[buf_idx - match_len] = '\0';
+  return 0; // Success
 }
