@@ -7,68 +7,82 @@
 #include "slab.h"
 #include "debug.h"
 
-// Mask to extract the lower 39 bits of a pointer, ensuring compatibility with the xv6 memory layout (SV39).
-#define SLAB_SLOT_MASK ((uint64)MP2_SLAB_SIZE - 1)
+// Mask to extract a single metadata slot using bitwise masking.
+// Each slot should be equivalent to the size of a `kmem_cache/slab` minus 1,
+// ensuring alignment with the allocation unit.
+#define META_SLOT_MASK ((uint64)MP2_SLAB_SIZE - 1)
 
-// Bit-mask and shift constants for tracking object allocations in a kmem_cache/slab.
-#define IN_USE_SHIFT PGSHIFT
-#define IN_USE_MASK (SLAB_SLOT_MASK << IN_USE_SHIFT)
-#define ALLOC_LEN_SHIFT (IN_USE_SHIFT + PGSHIFT)
-#define ALLOC_LEN_MASK (SLAB_SLOT_MASK << ALLOC_LEN_SHIFT)
+// Bit-mask and shift constants for tracking object allocations in `kmem_cache/slab`.
+#define IN_USE_SHIFT PGSHIFT                         // Shift amount indicating whether an object is in use.
+#define IN_USE_MASK (META_SLOT_MASK << IN_USE_SHIFT) // Mask for extracting the in-use status of an object.
+
+#define SEQ_ALLOC_LEN_SHIFT (IN_USE_SHIFT + PGSHIFT)               // Shift amount for tracking the allocated object size.
+#define SEQ_ALLOC_LEN_MASK (META_SLOT_MASK << SEQ_ALLOC_LEN_SHIFT) // Mask for extracting the allocated length of an object.
 
 // Retrieves the base page address of an object.
-#define __get_page_from(obj) ((uint64)(obj) & ~SLAB_SLOT_MASK)
+// This ensures proper page alignment by masking out `META_SLOT_MASK`.
+#define __get_page_from(obj) ((uint64)(obj) & ~META_SLOT_MASK)
 
-// Extracts the freelist pointer from kmem_cache/slab metadata.
+// Extracts the freelist pointer from `kmem_cache/slab` metadata.
+// If the `metadata` contains a valid slot value, compute the freelist address;
+// otherwise, return `NULL`.
 #define __get_freelist_from(ptr)                                               \
-  ((void **)(((ptr)->metadata & SLAB_SLOT_MASK)                                \
-                 ? (((ptr)->metadata & SLAB_SLOT_MASK) | __get_page_from(ptr)) \
+  ((void **)(((ptr)->metadata & META_SLOT_MASK)                                \
+                 ? (((ptr)->metadata & META_SLOT_MASK) | __get_page_from(ptr)) \
                  : 0))
 
-// Updates the freelist pointer in kmem_cache/slab metadata.
+// Updates the freelist pointer in `kmem_cache/slab` metadata.
+// Clears the existing `META_SLOT_MASK` bits before setting the new freelist address.
 #define __set_freelist_as(ptr, n_list)                      \
-  ((ptr)->metadata = (((ptr)->metadata & ~SLAB_SLOT_MASK) | \
-                      ((uint64)(n_list) & SLAB_SLOT_MASK)))
+  ((ptr)->metadata = (((ptr)->metadata & ~META_SLOT_MASK) | \
+                      ((uint64)(n_list) & META_SLOT_MASK)))
 
-// Retrieves the number of allocated objects in a kmem_cache/slab.
+// Retrieves the number of allocated objects in a `kmem_cache/slab`.
+// Extracts the in-use count by applying the `IN_USE_MASK` and shifting.
 #define __get_inuse_from(ptr) \
   (((ptr)->metadata & IN_USE_MASK) >> IN_USE_SHIFT)
 
-// Updates the allocation count in a kmem_cache/slab.
+// Updates the allocation count in a `kmem_cache/slab`.
+// Clears the previous in-use count bits and sets the new value.
 #define __set_inuse_as(ptr, n_inuse)                     \
   ((ptr)->metadata = (((ptr)->metadata & ~IN_USE_MASK) | \
                       (((uint64)(n_inuse) << IN_USE_SHIFT) & IN_USE_MASK)))
 
-// Increments the allocation count.
+// Increments the allocation count by one.
 #define __increment_inuse_of(ptr) \
   __set_inuse_as(ptr, __get_inuse_from(ptr) + 1)
 
-// Decrements the allocation count.
+// Decrements the allocation count by one.
 #define __decrement_inuse_of(ptr) \
   __set_inuse_as(ptr, __get_inuse_from(ptr) - 1)
 
-// Retrieves the sequential allocation count.
+// Retrieves the length of sequentially allocated objects in a `kmem_cache/slab`.
+// Extracts the sequential allocation count using `SEQ_ALLOC_LEN_MASK`.
 #define __get_seq_alloc_len_from(ptr) \
-  (((ptr)->metadata & ALLOC_LEN_MASK) >> ALLOC_LEN_SHIFT)
+  (((ptr)->metadata & SEQ_ALLOC_LEN_MASK) >> SEQ_ALLOC_LEN_SHIFT)
 
-// Updates the sequential allocation count.
-#define __set_seq_alloc_len_as(ptr, n_seq_alloc_len)        \
-  ((ptr)->metadata = (((ptr)->metadata & ~ALLOC_LEN_MASK) | \
-                      (((uint64)(n_seq_alloc_len) << ALLOC_LEN_SHIFT) & ALLOC_LEN_MASK)))
+// Updates the sequential allocation count in the `kmem_cache/slab` metadata.
+// Clears the previous allocation length bits and sets the new value.
+#define __set_seq_alloc_len_as(ptr, n_seq_alloc_len)            \
+  ((ptr)->metadata = (((ptr)->metadata & ~SEQ_ALLOC_LEN_MASK) | \
+                      (((uint64)(n_seq_alloc_len) << SEQ_ALLOC_LEN_SHIFT) & SEQ_ALLOC_LEN_MASK)))
 
-// Increments the sequential allocation count.
+// Increments the sequential allocation count by one.
 #define __increment_seq_alloc_len_of(ptr) \
   __set_seq_alloc_len_as(ptr, __get_seq_alloc_len_from(ptr) + 1)
 
-// Computes the maximum number of objects that can be stored in a kmem_cache/slab.
+// Computes the maximum number of objects that can fit in a `kmem_cache/slab`.
+// This is calculated by subtracting metadata size from the slab size
+// and dividing the remaining space by the object size.
 #define __get_max_objs_with(type, object_size) \
   ((MP2_SLAB_SIZE - sizeof(type)) / object_size)
 
-// Checks if a given number is within the kmem_cache/slab's capacity.
+// Checks whether the given number is within the maximum capacity of the `kmem_cache/slab`.
 #define __less_than_max_objs(num, ptr, object_size) \
   ((num) < __get_max_objs_with(typeof(*ptr), (object_size)))
 
-// Allocates memory for a kmem_cache/slab and initializes its metadata.
+// Allocates memory for a new `kmem_cache/slab` and initializes its metadata.
+// Calls `kalloc()` and sets metadata to zero. Panics if allocation fails.
 #define __kalloc_and_init_metadata(ptr) \
   do                                    \
   {                                     \
@@ -78,7 +92,8 @@
     ptr->metadata = 0;                  \
   } while (0)
 
-// Allocates an object from a kmem_cache/slab, preferring sequential allocation before using the freelist.
+// Allocates an object from a `kmem_cache/slab`.
+// Prefers sequential allocation before falling back to the freelist.
 #define __alloc_one_from(ptr, obj, object_size)                   \
   do                                                              \
   {                                                               \
@@ -96,7 +111,8 @@
     __increment_inuse_of(ptr);                                    \
   } while (0)
 
-// Frees an object, returning it to the freelist.
+// Frees an object by returning it to the freelist.
+// Updates the freelist pointer and decrements the allocation count.
 #define __free_one_back(ptr, obj)             \
   do                                          \
   {                                           \
@@ -105,7 +121,8 @@
     __decrement_inuse_of(ptr);                \
   } while (0)
 
-// Determines if a kmem_cache/slab has available space for allocation.
+// Determines if a `kmem_cache/slab` has available space for allocation.
+// Compares the current in-use count against the maximum capacity.
 #define __can_alloc(ptr, object_size) \
   __less_than_max_objs(__get_inuse_from(ptr), ptr, object_size)
 
