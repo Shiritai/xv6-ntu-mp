@@ -19,16 +19,16 @@
 #define SEQ_ALLOC_LEN_SHIFT (IN_USE_SHIFT + PGSHIFT)               // Shift amount for tracking the allocated object size.
 #define SEQ_ALLOC_LEN_MASK (META_SLOT_MASK << SEQ_ALLOC_LEN_SHIFT) // Mask for extracting the allocated length of an object.
 
-// Retrieves the base page address of an object.
-// This ensures proper page alignment by masking out `META_SLOT_MASK`.
-#define __get_page_from(obj) ((uint64)(obj) & ~META_SLOT_MASK)
+// Retrieves the base kmem_cache/slab address of an object.
+// This ensures proper slab alignment by masking out `META_SLOT_MASK`.
+#define __get_slab_from(obj) ((uint64)(obj) & ~META_SLOT_MASK)
 
 // Extracts the freelist pointer from `kmem_cache/slab` metadata.
 // If the `metadata` contains a valid slot value, compute the freelist address;
 // otherwise, return `NULL`.
 #define __get_freelist_from(ptr)                                               \
   ((void **)(((ptr)->metadata & META_SLOT_MASK)                                \
-                 ? (((ptr)->metadata & META_SLOT_MASK) | __get_page_from(ptr)) \
+                 ? (((ptr)->metadata & META_SLOT_MASK) | __get_slab_from(ptr)) \
                  : 0))
 
 // Updates the freelist pointer in `kmem_cache/slab` metadata.
@@ -88,7 +88,7 @@
   {                                     \
     ptr = (typeof(ptr))kalloc();        \
     if (!ptr)                           \
-      panic("kalloc failed");           \
+      panic("slab kalloc failed");      \
     ptr->metadata = 0;                  \
   } while (0)
 
@@ -345,7 +345,7 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj)
   }
 
   acquire(&cache->lock);
-  struct slab *s = (struct slab *)__get_page_from(obj);
+  struct slab *s = (struct slab *)__get_slab_from(obj);
 
   if (!s)
   {
