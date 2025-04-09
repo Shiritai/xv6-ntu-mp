@@ -16,6 +16,7 @@ get_delay_rate() {
             student*@github.com|"$exclude_email")
                 ;;
             *)
+                echo "hash: $commit_hash, author: $author_email, date: $commit_date"
                 commit_mon=$(echo "$commit_date" | awk '{print $2}')
                 commit_day=$(echo "$commit_date" | awk '{print $3}')
                 commit_year=$(echo "$commit_date" | awk '{print $5}')
