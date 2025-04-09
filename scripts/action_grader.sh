@@ -78,6 +78,7 @@ echo "Private test grade: $PRIVATE"
 echo
 
 LATE_SUBMISSIONT_RATE=$(get_delay_rate)
+echo "Late submission rate (in time: 1, decrease 0.2 per late submission day): $LATE_SUBMISSIONT_RATE"
 SCORE=$(awk "BEGIN {print ($SLAB + $FUNC + $LIST + $CACHE + $PRIVATE) * $LATE_SUBMISSIONT_RATE}")
 
 if [[ $SCORE -ge 100 ]]; then
