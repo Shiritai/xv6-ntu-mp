@@ -23,6 +23,7 @@ get_delay_rate() {
                     Apr) mon_num="04";;
                     *) mon_num="12";;
                 esac
+                echo "Date: $commit_date, mon: $commit_mon, day: $commit_day, yaer: $commit_year"
                 commit_date_num="${commit_year}${mon_num}$(printf "%02d" $commit_day)"
                 if [ "$commit_date_num" -le "20250403" ]; then
                     score="1"
