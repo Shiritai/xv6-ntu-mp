@@ -43,6 +43,8 @@ get_delay_rate() {
     done
 }
 
+get_delay_rate
+
 ./mp2.sh test slab | tee tmp.txt
 SLAB=$(get_from_score cat tmp.txt)
 echo "Slab structure grade: $SLAB"
