@@ -9,7 +9,6 @@ get_delay_rate() {
     exclude_email=shingekinocore@gmail.com
 
     score="0"
-    found=false
     git log --all --format="%H %ae %ad" | \
     while read commit_hash author_email commit_date; do
         case "$author_email" in
@@ -37,14 +36,10 @@ get_delay_rate() {
                     score="0.2"
                 fi
                 echo $score
-                found=true
                 break
                 ;;
         esac
     done
-    if [ "$found" = false ]; then
-        echo "0"
-    fi
 }
 
 LATE_SUBMISSIONT_RATE=$(get_delay_rate)
