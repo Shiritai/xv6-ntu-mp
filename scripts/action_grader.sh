@@ -9,6 +9,7 @@ get_delay_rate() {
     exclude_email=shingekinocore@gmail.com
 
     score="0"
+    found=false
     git log --all --format="%H %ae %ad" | \
     while read commit_hash author_email commit_date; do
         case "$author_email" in
@@ -23,9 +24,8 @@ get_delay_rate() {
                     Apr) mon_num="04";;
                     *) mon_num="12";;
                 esac
-                echo "Date: $commit_date, mon: $commit_mon, day: $commit_day, yaer: $commit_year"
                 commit_date_num="${commit_year}${mon_num}$(printf "%02d" $commit_day)"
-                if [ "$commit_date_num" -le "20250403" ]; then
+                if [ "$commitindx_date_num" -le "20250403" ]; then
                     score="1"
                 elif [ "$commit_date_num" -eq "20250404" ]; then
                     score="0.8"
@@ -37,10 +37,14 @@ get_delay_rate() {
                     score="0.2"
                 fi
                 echo $score
+                found=true
                 break
                 ;;
         esac
     done
+    if [ "$found" = false ]; then
+        echo "0"  # 默認輸出
+    fi
 }
 
 get_delay_rate
