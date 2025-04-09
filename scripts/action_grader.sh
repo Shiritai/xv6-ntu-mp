@@ -25,7 +25,7 @@ get_delay_rate() {
                     *) mon_num="12";;
                 esac
                 commit_date_num="${commit_year}${mon_num}$(printf "%02d" $commit_day)"
-                if [ "$commitindx_date_num" -le "20250403" ]; then
+                if [ "$commit_date_num" -le "20250403" ]; then
                     score="1"
                 elif [ "$commit_date_num" -eq "20250404" ]; then
                     score="0.8"
@@ -47,7 +47,8 @@ get_delay_rate() {
     fi
 }
 
-get_delay_rate
+LATE_SUBMISSIONT_RATE=$(get_delay_rate)
+echo "Late submission rate (in time: 1, decrease 0.2 per late submission day): $LATE_SUBMISSIONT_RATE"
 
 ./mp2.sh test slab | tee tmp.txt
 SLAB=$(get_from_score cat tmp.txt)
@@ -84,8 +85,6 @@ PRIVATE=$(get_from_score cat tmp.txt)
 echo "Private test grade: $PRIVATE"
 echo
 
-LATE_SUBMISSIONT_RATE=$(get_delay_rate)
-echo "Late submission rate (in time: 1, decrease 0.2 per late submission day): $LATE_SUBMISSIONT_RATE"
 SCORE=$(awk "BEGIN {print ($SLAB + $FUNC + $LIST + $CACHE + $PRIVATE) * $LATE_SUBMISSIONT_RATE}")
 
 if [[ $SCORE -ge 100 ]]; then
