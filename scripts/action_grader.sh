@@ -16,7 +16,6 @@ get_delay_rate() {
             student*@github.com|"$exclude_email")
                 ;;
             *)
-                echo "hash: $commit_hash, author: $author_email, date: $commit_date"
                 commit_mon=$(echo "$commit_date" | awk '{print $2}')
                 commit_day=$(echo "$commit_date" | awk '{print $3}')
                 commit_year=$(echo "$commit_date" | awk '{print $5}')
@@ -44,7 +43,7 @@ get_delay_rate() {
         esac
     done
     if [ "$found" = false ]; then
-        echo "0"  # 默認輸出
+        echo "0"
     fi
 }
 
