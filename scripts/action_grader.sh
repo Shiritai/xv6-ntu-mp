@@ -91,5 +91,5 @@ STUDENT_ID=$(cat ./student_id.txt)
 echo "Student $STUDENT_ID got score: $SCORE, record score as:"
 
 echo "student_id,slab,func,list,cache,private,late_submission_rate,score"
-echo "$STUDENT_ID,$SLAB,$FUNC,$LIST,$CACHE,$PRIVATE,$LATE_SUBMISSIONT_RATE,$SCORE" | tee "${STUDENT_ID}-report.txt"
+echo "$STUDENT_ID,$SLAB,$FUNC,$LIST,$CACHE,$PRIVATE,$LATE_SUBMISSIONT_RATE,$SCORE" | tee -a "${STUDENT_ID}-report.txt"
 
