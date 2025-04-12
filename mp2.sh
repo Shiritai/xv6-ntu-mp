@@ -17,6 +17,8 @@ fi
 DOCKER_IT_FLAG="-it"
 if [ -n "$GITHUB_ACTIONS" ]; then
     DOCKER_IT_FLAG=""
+elif [ -n "$FINAL_GRADE" ]; then
+    DOCKER_IT_FLAG=""
 fi
 
 # Function to check if container is running
@@ -27,7 +29,6 @@ is_container_running() {
 # Try with sudo if task failed
 maysudo() {
     if ! "$@" >/dev/null 2>&1; then
-        echo "Warning: '$*' failed, retrying with sudo..." >&2
         sudo "$@" >/dev/null 2>&1 || { echo "Error: '$*' failed even with sudo." >&2; return 1; }
     fi
 }
@@ -264,7 +265,7 @@ case "$1" in
         esac
 
         if [ -d "$TEST_DIR/out" ]; then
-            maysudo cp -r "$TEST_DIR/out" "$cur_wd" || echo "Warning: Failed to copy output to $cur_wd"
+            maysudo cp -r "$TEST_DIR/out" "$cur_wd"
             chown_if_need "$cur_wd/out"
         fi
         ;;
