@@ -64,6 +64,7 @@ get_delay_rate() {
 test_item(){
     item=$1
     save_file="$RESULT/$item.txt"
+    export FINAL_GRADE=1
     ./mp2.sh test "$item" > "$save_file"
     res=$(get_from_score cat "$save_file")
     echo "$res"
