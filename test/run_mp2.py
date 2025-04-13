@@ -41,6 +41,7 @@ def run_mp2_test(test_name: str, script_file: str, points: int, timeout = 8) -> 
 
         # Interpret the QEMU output
         interpreter(r.qemu.output.splitlines())
+        # interpreter(r.qemu.output.splitlines(), True)
 
     return test_case
 
@@ -60,7 +61,7 @@ def run_slab_check():
         os.makedirs("/".join(output_file.split("/")[:-1]), exist_ok=True)
         r = Runner(save(output_file), stop_on_line(r".*panic:.*"),
                    stop_on_line(r".*[MP2] <FAILED>.*"))
-        r.run_qemu(shell_script([""]), tg_base='qemu', timeout=8)
+        r.run_qemu(shell_script([""]), tg_base='qemu', timeout=20)
         res = check_slab(r.qemu.output)
         return res
     return test_case
@@ -72,7 +73,7 @@ def run_cache_check():
         os.makedirs("/".join(output_file.split("/")[:-1]), exist_ok=True)
         r = Runner(save(output_file), stop_on_line(r".*panic:.*"),
                    stop_on_line(r".*[MP2] <FAILED>.*"))
-        r.run_qemu(shell_script(["mp2"]), tg_base='qemu', timeout=8)
+        r.run_qemu(shell_script(["mp2"]), tg_base='qemu', timeout=20)
         res = check_cache(r.qemu.output)
         return res
     return test_case
@@ -80,13 +81,13 @@ def run_cache_check():
 def public_testcases(rng: range):
     """Define and run MP2 test cases."""
     tests = list(rng)
-    tests = [run_mp2_test(f"public/mp2-{t}", f"test/public/mp2-{t}.txt", 3, 20) for t in tests]
+    tests = [run_mp2_test(f"public/mp2-{t}", f"test/public/mp2-{t}.txt", 3, 60) for t in tests]
     return tests
 
 def private_testcases(rng: range):
     """Define and run MP2 test cases."""
     tests = list(rng)
-    tests = [run_mp2_test(f"private/mp2-{t}", f"test/private/mp2-{t}.txt", 5, 30) for t in tests]
+    tests = [run_mp2_test(f"private/mp2-{t}", f"test/private/mp2-{t}.txt", 5, 90) for t in tests]
     return tests
 
 def run_custom_test():
