@@ -65,7 +65,7 @@ chown_if_need() {
 }
 
 START_IMAGE="$DOCKER_CMD run $DOCKER_IT_FLAG -v $(realpath $SCRIPT_DIR):/home/student/mp2 -w /home/student/mp2 -u 1000:1000"
-START_VOLATILE_IMAGE="$START_IMAGE --rm $IMAGE_NAME"
+START_VOLATILE_IMAGE="$START_IMAGE --network none --rm $IMAGE_NAME"
 START_PERSISTENT_IMAGE="$START_IMAGE -d --name $CONTAINER_NAME $IMAGE_NAME"
 
 # Run test with basic timeout and error handling
