@@ -74,6 +74,7 @@ test_items(){
     item=$1
     from=$2
     to=$3
+    expected=$4
 
     save_dir="${RESULT}/${item}"
     mkdir -p "$save_dir"
@@ -96,6 +97,12 @@ test_items(){
         cur=$(awk "BEGIN {print ${cur} / ${test_cnt}}")
         echo "Score for $item (case $turn): $cur" > "$save_turn_dir/result.txt"
         res=$(awk "BEGIN {print $res + $cur}")
+
+        if awk "BEGIN {exit !($cur == 0)}"; then
+            echo "Case $turn is completely failed, score: $cur" >> "$save_dir/result.txt"
+        elif awk "BEGIN {exit !($cur < $expected)}"; then
+            echo "Case $turn is partially passed, score: $cur" >> "$save_dir/result.txt"
+        fi
     done
     echo "$res"
 }
@@ -106,7 +113,7 @@ echo "Late submission rate (in time: 1, decrease 0.2 per late submission day): $
 SLAB=$(test_item slab)
 echo "Slab structure grade: $SLAB"
 
-FUNC=$(test_items func 0 24)
+FUNC=$(test_items func 0 24 3)
 echo "Functionality test grade: $FUNC"
 
 thresh=66
@@ -126,7 +133,7 @@ else
 fi
 
 if [[ -d test/private ]]; then
-    PRIVATE=$(test_items private 0 3)
+    PRIVATE=$(test_items private 0 3 5)
     echo "Private test grade: $PRIVATE"
 else
     PRIVATE=0

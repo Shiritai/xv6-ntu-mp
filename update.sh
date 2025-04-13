@@ -154,4 +154,4 @@ else
     cpus=$(nproc)
 fi
 
-printf '%s\n' "${FILES[@]}" | xargs -n 1 -P "$cpus" -I {} bash -c 'download_and_replace "{}"'
+printf '%s\n' "${FILES[@]}" | xargs -P "$cpus" -I {} bash -c 'download_and_replace "{}"'
