@@ -139,7 +139,7 @@ if awk "BEGIN {exit !($SCORE >= 100)}"; then
     cat test/congratulations.txt
 fi
 
-STUDENT_ID=$(cat ./student_id.txt)
+STUDENT_ID=$(sanitize_newlines "$(cat ./student_id.txt)")
 
 echo "Student $STUDENT_ID got score: $SCORE, record score as:"
 
