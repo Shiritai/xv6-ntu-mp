@@ -27,6 +27,7 @@ declare -a FILES=(
     # basic
     "version"
     "mp2.sh"
+    "scripts/final_grader.sh"
     "scripts/action_grader.sh"
     "scripts/pre-commit"
     "scripts/pre-push"
@@ -153,4 +154,4 @@ else
     cpus=$(nproc)
 fi
 
-printf '%s\n' "${FILES[@]}" | xargs -n 1 -P "$cpus" -I {} bash -c 'download_and_replace "{}"'
+printf '%s\n' "${FILES[@]}" | xargs -P "$cpus" -I {} bash -c 'download_and_replace "{}"'

@@ -65,13 +65,13 @@ chown_if_need() {
 }
 
 START_IMAGE="$DOCKER_CMD run $DOCKER_IT_FLAG -v $(realpath $SCRIPT_DIR):/home/student/mp2 -w /home/student/mp2 -u 1000:1000"
-START_VOLATILE_IMAGE="$START_IMAGE --rm $IMAGE_NAME"
+START_VOLATILE_IMAGE="$START_IMAGE --network none --rm $IMAGE_NAME"
 START_PERSISTENT_IMAGE="$START_IMAGE -d --name $CONTAINER_NAME $IMAGE_NAME"
 
 # Run test with basic timeout and error handling
 run_test() {
-    if ! timeout 5m python3 "$TEST_DIR/test/run_mp2.py" "$@"; then
-        echo "Error: Test failed or timed out after 5 minutes." >&2
+    if ! timeout 20m python3 "$TEST_DIR/test/run_mp2.py" "$@"; then
+        echo "Error: Test failed or timed out after 20 minutes." >&2
         printf "Interpretation Error or Timeout!\nFailed to parse your slab.\nIf you think this is buggy, please console to the admin.\nScore: 0/0\n"
         return 1
     fi
