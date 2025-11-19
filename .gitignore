@@ -33,3 +33,9 @@ test/check_slab.pyx
 test/build
 test/private
 tmp
+
+# testing
+/xv6_venv
+/fslab
+.pytest_cache
+.coverage
