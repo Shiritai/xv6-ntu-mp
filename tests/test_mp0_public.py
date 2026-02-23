@@ -116,3 +116,39 @@ def test_mp0_5():
         '',
         '11 directories, 0 files',
     )
+
+@test(5, "mp0 command with public testcase 6")
+def test_mp0_6():
+    r.run_qemu(shell_script([
+        'mp0 does_not_exist z',
+    ]))
+    r.match(
+        'does_not_exist \[error opening dir\]',
+        '',
+        '0 directories, 0 files',
+    )
+
+
+@test(5, "mp0 command with public testcase 7")
+def test_mp0_7():
+    r.run_qemu(shell_script([
+        'mp0 README e',
+    ]))
+    r.match(
+        'README \[error opening dir\]',
+        '',
+        '0 directories, 0 files',
+    )
+
+
+@test(20, "mp0 command with public testcase 8")
+def test_mp0_8():
+    r.run_qemu(shell_script([
+        'mkdir empty_dir',
+        'mp0 empty_dir a',
+    ]))
+    r.match(
+        'empty_dir 0',
+        '',
+        '0 directories, 0 files',
+    )
