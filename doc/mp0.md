@@ -245,57 +245,8 @@ We will grade your submission by running `make grade` in an isolated environment
 
 ## 📦 Submission
 
-This semester, we use a GitHub Template repository for submission. You will **NOT** upload any zip files to NTU COOL. TAs will grade your code automatically by fetching from your private repository.
+The submission instructions are identical across all homework assignments. Please strictly follow the comprehensive steps documented in the **[Homework Submission Guide](submit-guide.md)**.
 
-### Setup Your Repository
-
-1. **Initialize from Template**: Go to the official MP repository link provided on NTU COOL and click **Use this template**.
-2. **Set Visibility to Private**: It is **CRITICAL** that you set your cloned repository to `Private`. Making your homework public is considered a violation of academic integrity and will result in disciplinary action.
-3. **Invite TAs (If required)**: If prompted by the TA team, add the official TA GitHub account as a collaborator.
-4. **Local Git Setup**: Clone your private repository and configure your Git identity.
-
-    ```bash
-    git clone <your-private-repo-url>
-    cd xv6-ntu-mp
-    git config user.name "Your Name"
-    git config user.email "your.email@ntu.edu.tw"
-    ```
-
-### Configure Identity Binding
-
-You **MUST** correctly configure your identity in the `student.conf` file located at the root of the repository. This is crucial for TAs to securely identify your submission.
-
-```ini
-# student.conf
-STUDENT_ID="b00000000"
-STUDENT_NAME="Your Name"
-GITHUB_USERNAME="your-github-id"
-```
-> **CRITICAL:** The `GITHUB_USERNAME` must exactly match the account you use to push your code. We will cross-reference this to verify submission authenticity.
-
-### Push to Submit
-
-Whenever you are ready to submit or check your current score:
-
-1. Commit your changes. Make sure you only modify allowed files.
-    ```bash
-    git add xv6/user/mp0.c xv6/Makefile
-    git commit -m "feat: complete mp0 implementation"
-    ```
-2. Push to GitHub:
-    ```bash
-    git push origin mp0
-    ```
-
-You can verify your logic locally using `./mp.sh grade`. When you push to GitHub before the deadline, you can check the **Actions** tab to see your public test results run by the CI/CD pipeline.
-
-After the deadline, the TA team will push the full grading script (including hidden private testcases) directly to your repository. This will trigger a final CI/CD run that produces a digitally signed `report.json` artifact. The TAs will download this artifact to determine your final score.
-
-### Grading Policy
-
-- **Compilation Failure**: You will get **0 points** if we cannot compile your submission.
-- **Identity Failure**: You may face penalties or grading delays if `student.conf` is missing or invalid, as TAs cannot easily identify your work.
-- **Late Submissions**: You can submit after the deadline, but late penalties will apply. If your submission is late for `n` days, the penalty policy defined by the syllabus (e.g. 10% deduction per day) will apply.
 
 ## 📚 References
 
