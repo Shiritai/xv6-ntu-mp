@@ -2,10 +2,11 @@
 
 This is the repository for the Operating Systems course (CSIE 3310) at National Taiwan University, Spring 2026. It contains the source code for the machine problems (MPs).
 
-## Template Repository
+## Machine Problem 0 (MP0)
 
-This is the universal template repository used as the foundation for all homework assignments.
+**Goal:** Setup the xv6 environment and implement a simple directory traversal command `mp0`.
 
+*   **Specification:** [doc/mp0.md](doc/mp0.md)
 *   **Environment & Architecture:** [doc/environment.md](doc/environment.md)
 *   **Homework Submission Guide:** [doc/submit-guide.md](doc/submit-guide.md)
 *   **Original xv6 README:** [README](https://github.com/mit-pdos/xv6-riscv/blob/riscv/README)
