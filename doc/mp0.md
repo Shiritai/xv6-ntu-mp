@@ -12,11 +12,11 @@
       <td><strong>Total Points:</strong></td>
       <td>100</td>
       <td><strong>Release Date:</strong></td>
-      <td>February 24</td>
+      <td>March 3</td>
     </tr>
     <tr>
       <td><strong>Due Date:</strong></td>
-      <td>March 9, 23:59:00</td>
+      <td>March 16, 23:59:59 (Taiwan Time)</td>
       <td><strong>TA Hours:</strong></td>
       <td>Thu. & Fri. 14:00-15:00 (CSIE R440)</td>
     </tr>
