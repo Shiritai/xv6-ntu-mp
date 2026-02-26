@@ -89,11 +89,10 @@ You should see a welcome message indicating your installation appears to be work
 
 ### Launching the Docker Image of MP0
 
-1. **Unzip and enter the MP0 directory:**
+1. **Enter the cloned MP0 directory:**
 
    ```bash
-   unzip MP0.zip
-   cd mp0 
+   cd ntuos-2026-mp0
    ```
 
 2. **Pull the Docker image:**
@@ -239,7 +238,15 @@ You can judge your code by running `make grade` (or `./mp.sh grade` from the hos
 
 ### Grading Procedure
 
-We will grade your submission by running `make grade` in an isolated environment against your tested public cases, alongside hidden private testcases worth an additional **30 points**, totaling 100 points.
+We will grade your submission by running an automated grading process in an isolated environment against your tested public cases, alongside hidden private testcases. 
+
+| Category                | Points / Penalty | Description                                                                                                                                |
+| :---------------------- | :--------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Public Testcases**    | 70 Points        | Evaluated exactly as the tests you run locally with `./mp.sh grade`.                                                                       |
+| **Private Testcases**   | 30 Points        | Hidden testcases evaluated after the deadline.                                                                                             |
+| **Late Penalty**        | -20% per day     | Late submissions will be penalized by **20% of the maximum score per day late**.                                                           |
+| **Public Repo Penalty** | **0 Points**     | If your GitHub repository is found to be `Public` at any time, your final grade will be strictly 0 to enforce academic integrity.          |
+| **Identity Binding**    | **0 Points**     | If you fail to configure `student.conf` correctly (or leave default values), we cannot identify your submission, and your grade will be 0. |
 
 ---
 
