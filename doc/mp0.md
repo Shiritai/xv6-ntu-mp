@@ -16,9 +16,9 @@
     </tr>
     <tr>
       <td><strong>Due Date:</strong></td>
-      <td>March 16, 23:59:59 (Taiwan Time)</td>
+      <td>March 16, 23:59:59 (UTC+8)</td>
       <td><strong>TA Hours:</strong></td>
-      <td>Thu. & Fri. 14:00-15:00 (CSIE R440)</td>
+      <td>TBD</td>
     </tr>
   </table>
 </div>
