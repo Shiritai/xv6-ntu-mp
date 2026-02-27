@@ -353,27 +353,37 @@ if __name__ == "__main__":
         }]
         no_error = False
 
+    # Calculate Penalties & Final Score
+    verdict = gather_verdict()
+    penalty_ratio = verdict["penalty_ratio"]
+    is_valid = verdict["is_identity_valid"]
+    late_days = verdict["late_days"]
+    
     total = gradelib.TOTAL
     possible = gradelib.POSSIBLE
+    final_score = total * (1.0 - penalty_ratio)
     
-    student_conf = parse_student_conf()
-    is_valid = validate_student_conf(student_conf)
+    # 1. Identity/Late Warnings
     if not is_valid:
         print("\n" + "="*50)
-        print("[WARN] Identity Configuration Missing!")
+        print(f"{color('red', '[WARN] Identity Configuration Missing!')}")
         print("Your student.conf contains default or missing values.")
         print("Please configure it before your final submission.")
         print("="*50 + "\n")
+    elif penalty_ratio > 0:
+        print("\n" + "="*50)
+        print(f"{color('yellow', '[WARN] Late Submission Penalty')}: {int(penalty_ratio * 100)}%")
+        print(f"Late Days: {late_days}")
+        print("="*50 + "\n")
     
-    print(f"Score: {total}/{possible}")
+    # 2. Final Score Output
+    print(f"Final Score: {color('green' if is_valid and penalty_ratio == 0 else 'yellow', str(final_score))}/{possible}")
     
-    if args.markdown or args.json:
-        verdict = gather_verdict()
+    # 3. Report Generation
+    if args.markdown:
+        generate_markdown(total, possible, details, args.markdown, verdict)
 
-        if args.markdown:
-            generate_markdown(total, possible, details, args.markdown, verdict)
-
-        if args.json:
-            generate_json(total, possible, details, args.json, verdict)
+    if args.json:
+        generate_json(total, possible, details, args.json, verdict)
 
     sys.exit(0 if no_error else 1)
