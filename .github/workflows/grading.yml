@@ -42,10 +42,17 @@ jobs:
       - name: Execute Tests (Grading)
         id: test
         run: |
-          ./mp.sh grade --json report.json
+          ./mp.sh grade --json report.json --markdown grade-report.md
         env:
           OFFICIAL_GRADING: "1"
           REPO_IS_PRIVATE: ${{ github.event.repository.private }}
+
+      - name: Add Visual Summary
+        if: always()
+        run: |
+          if [ -f grade-report.md ]; then
+            cat grade-report.md >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Upload Artifact
         if: always()

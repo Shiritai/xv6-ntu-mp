@@ -39,6 +39,12 @@ Our grading system uses a **Late-Release Plaintext Test** model:
 2.  **Grading Phase**: After the deadline and late submission period, the TA will release the **Private Tests** (as plaintext `.py` files) directly to your repository and trigger the official grading CI.
 3.  **Sanitization**: The CI will automatically sanitize your environment by re-downloading the trusted `mp.sh` and `Makefile` from this template repository to ensure fairness.
 
+### 5. File Protection System
+To prevent accidental changes to critical files (like `mp.sh`, `Makefile`, or grading scripts) that will be overwritten during official grading, we include a protection system:
+- **Protected List**: See `doc/protected_list.txt` for the list of files that you should NOT modify.
+- **Git Hooks**: We provide `pre-commit` and `pre-push` hooks to detect and block illegal modifications.
+- **Setup**: Run `./mp.sh init` once to install these hooks into your local repository.
+
 ---
 
 ## Original xv6-riscv Introduction

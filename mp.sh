@@ -146,9 +146,30 @@ check_docker() {
     fi
 }
 
+check_hooks() {
+    # Skip hook check in GITHUB_ACTIONS or if in Simulation Mode
+    if [ -n "$GITHUB_ACTIONS" ] || [ -n "$SIMULATION_MODE" ]; then
+        return
+    fi
+
+    local hooks_installed=true
+    for hook in pre-commit pre-push; do
+        if [ ! -f "$SCRIPT_DIR/.git/hooks/$hook" ]; then
+            hooks_installed=false
+            break
+        fi
+    done
+
+    if [ "$hooks_installed" = false ]; then
+        warn "Git Hooks are NOT installed. File protection is inactive."
+        hint "Run './mp.sh init' to install hooks and protect your work."
+    fi
+}
+
 check_environment() {
     check_os
     check_docker
+    check_hooks
 }
 
 # Run Checks early
@@ -252,18 +273,27 @@ sanitize() {
 # ------------------------------------------------------------------------------
 
 case "$1" in
-    "setup")
-        info "Setting up environment for $ASSIGNMENT..."
-        mkdir -p .git/hooks
-        # Link hooks if scripts directory exists
-        if [ -d "scripts" ]; then
+    "init"|"setup")
+        info "Initializing environment for $ASSIGNMENT..."
+        mkdir -p "$SCRIPT_DIR/.git/hooks"
+        
+        # Install hooks from scripts/
+        hook_count=0
+        if [ -d "$SCRIPT_DIR/scripts" ]; then
             for hook in pre-commit pre-push; do
-                if [ -f "scripts/$hook" ]; then
-                    ln -sf "../../scripts/$hook" ".git/hooks/$hook"
+                if [ -f "$SCRIPT_DIR/scripts/$hook" ]; then
+                    ln -sf "../../scripts/$hook" "$SCRIPT_DIR/.git/hooks/$hook"
+                    hook_count=$((hook_count + 1))
                 fi
             done
         fi
-        info "Setup complete."
+        
+        if [ $hook_count -eq 0 ]; then
+            warn "No hook templates found in grade/hooks/."
+        else
+            info "Successfully installed $hook_count Git hooks."
+        fi
+        info "Initialization complete."
         ;;
     "qemu")
         info "Starting QEMU in $IMAGE_NAME..."
@@ -287,7 +317,7 @@ case "$1" in
         chown_if_need "."
         ;;
     *)
-        echo "Usage: $0 {setup|qemu|test|grade|sanitize|clean}"
+        echo "Usage: $0 {init|qemu|test|grade|sanitize|clean}"
         exit 1
         ;;
 esac

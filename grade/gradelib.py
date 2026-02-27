@@ -78,6 +78,7 @@ def test(points, title=None, parent=None):
             CURRENT_TEST = None
 
             run_test.ok = not fail
+            run_test.score = real_point if not fail else 0
             return run_test.ok
 
         # Record test metadata on the test wrapper function
@@ -85,6 +86,8 @@ def test(points, title=None, parent=None):
         run_test.title = title
         run_test.complete = False
         run_test.ok = False
+        run_test.points = points
+        run_test.score = 0
         run_test.on_finish = []
         TESTS.append(run_test)
         return run_test

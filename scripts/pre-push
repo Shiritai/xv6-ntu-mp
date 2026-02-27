@@ -1,0 +1,54 @@
+#!/bin/bash
+# Pre-push hook to protect critical files
+
+PROTECTED_LIST="doc/protected_list.txt"
+
+if [ ! -f "$PROTECTED_LIST" ]; then
+    exit 0
+fi
+
+# pre-push receives: <local ref> <local sha1> <remote ref> <remote sha1> on stdin
+while read local_ref local_sha remote_ref remote_sha; do
+    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+        # Handle deletion
+        continue
+    fi
+
+    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+        # New branch: compare with main if possible, but let's just use HEAD diff for simplicity
+        # or compare with origin/main if it exists.
+        # To be safe, we check all files in the current checkout.
+        RANGE="$local_sha"
+    else
+        RANGE="$remote_sha..$local_sha"
+    fi
+
+    # Get list of changed files in this push range
+    CHANGED_FILES=$(git diff --name-only $RANGE 2>/dev/null)
+    
+    VIOLATIONS=()
+    while IFS= read -r pattern || [[ -n "$pattern" ]]; do
+        [[ "$pattern" =~ ^#.* ]] && continue 
+        [[ -z "$pattern" ]] && continue      
+        
+        for file in $CHANGED_FILES; do
+            # DO NOT quote $pattern here, as we WANT glob matching.
+            if [[ "$file" == $pattern ]]; then
+                VIOLATIONS+=("$file")
+            fi
+        done
+    done < "$PROTECTED_LIST"
+
+    if [ ${#VIOLATIONS[@]} -ne 0 ]; then
+        echo -e "\033[0;31m[ERROR] Push rejected! Protected files have been modified:\033[0m"
+        for v in "${VIOLATIONS[@]}"; do
+            echo -e "  - $v"
+        done
+        echo ""
+        echo -e "\033[1;33m[HINT] These files are overwritten during official grading. DO NOT push modifications.\033[0m"
+        echo -e "\033[1;33m      If you must push these, use 'git push --no-verify'.\033[0m"
+        exit 1
+    fi
+done
+
+exit 0

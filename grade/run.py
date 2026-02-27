@@ -113,28 +113,90 @@ def calculate_lateness(deadline_iso, commit_timestamp):
         print(f"Warning: Date parsing error: {e}", file=sys.stderr)
         return 0
 
-def generate_report(total_score, max_score, details, json_path):
+def gather_verdict():
     conf = parse_mp_conf()
     target_commit = load_target_commit()
-    
-    # Grading Logic
-    deadline = conf.get("DEADLINE", "")
     commit_ts = target_commit.get("timestamp") if target_commit else 0
+    deadline = conf.get("DEADLINE", "")
     late_days = calculate_lateness(deadline, commit_ts)
-    
-    # Penalty Policy: 20% per day? Spec says "Penalty Policy: 20% per day" example.
-    # Let's verify spec. Spec V2 5.2 Example: "penalty_ratio": 0.0
-    # Let's implement 10% per day cap at 50% for now or 0 for simulation.
-    # We'll use 0 for simulation to keep it simple unless specified.
-    # Spec V2 doesn't explicitly define policy in text, just example.
-    penalty_ratio = min(1.0, late_days * 0.1) # 10% per day
+    # Penalty Policy: 20% per day.
+    penalty_ratio = min(1.0, late_days * 0.2)
+    student_conf = parse_student_conf()
+    return {
+        "conf": conf,
+        "target_commit": target_commit,
+        "commit_ts": commit_ts,
+        "deadline": deadline,
+        "late_days": late_days,
+        "penalty_ratio": penalty_ratio,
+        "student_conf": student_conf,
+        "is_identity_valid": validate_student_conf(student_conf),
+    }
+
+def generate_markdown(total_score, max_score, details, md_path, verdict):
+    penalty_ratio = verdict["penalty_ratio"]
+    student_conf = verdict["student_conf"]
+    is_identity_valid = verdict["is_identity_valid"]
+
+    lines = []
+
+    # Part 1: Information
+    lines.append("## Information")
+    lines.append("")
+    if not is_identity_valid:
+        lines.append("# ⚠️ Identity Configuration Missing!")
+        lines.append("Your `student.conf` contains default or missing values.")
+        lines.append("Please configure it before your final submission.")
+    else:
+        lines.append(f"- **Student ID**: {student_conf.get('STUDENT_ID')}")
+        lines.append(f"- **Name**: {student_conf.get('STUDENT_NAME')}")
+        lines.append(f"- **GitHub Username**: {student_conf.get('GITHUB_USERNAME')}")
+    lines.append("")
+
+    # Part 2: Grades (mermaid xychart)
+    lines.append("## Grades")
+    lines.append("")
+
+    test_details = [d for d in details if d.get("max_score", 0) > 0]
+
+    if test_details:
+        test_names = [d["test_case"] for d in test_details]
+        multiplier = 1.0 - penalty_ratio
+        max_scores_list = [d["max_score"] * multiplier for d in test_details]
+        actual_scores_list = [d["score"] * multiplier for d in test_details]
+        y_max = max(max_scores_list)
+
+        x_labels = ", ".join(f'"{name}"' for name in test_names)
+        bar_max = ", ".join(str(s) for s in max_scores_list)
+        bar_actual = ", ".join(str(s) for s in actual_scores_list)
+
+        lines.append("```mermaid")
+        lines.append("xychart-beta horizontal")
+        lines.append(f'    x-axis [{x_labels}]')
+        lines.append(f'    y-axis "Score" 0 --> {y_max}')
+        lines.append(f'    bar [{bar_max}]')
+        lines.append(f'    bar [{bar_actual}]')
+        lines.append("```")
+    lines.append("")
+
+    with open(md_path, "w") as f:
+        f.write("\n".join(lines))
+    print(f"Markdown report generated at {md_path}")
+
+def generate_json(total_score, max_score, details, json_path, verdict):
+    conf = verdict["conf"]
+    target_commit = verdict["target_commit"]
+    commit_ts = verdict["commit_ts"]
+    deadline = verdict["deadline"]
+    late_days = verdict["late_days"]
+    penalty_ratio = verdict["penalty_ratio"]
+    student_conf = verdict["student_conf"]
+    is_identity_valid = verdict["is_identity_valid"]
+
     final_score = total_score * (1.0 - penalty_ratio)
-    
+
     is_private_str = os.environ.get("REPO_IS_PRIVATE", "true").lower()
     is_private = is_private_str == "true"
-
-    student_conf = parse_student_conf()
-    is_identity_valid = validate_student_conf(student_conf)
     
     if not is_identity_valid:
         details.insert(0, {
@@ -176,7 +238,7 @@ def generate_report(total_score, max_score, details, json_path):
             "deadline": deadline,
             "is_late": late_days > 0,
             "late_days": late_days,
-            "penalty_policy": "10% per day",
+            "penalty_policy": "20% per day",
             "penalty_ratio": penalty_ratio,
             "is_private": is_private
         },
@@ -195,6 +257,7 @@ def generate_report(total_score, max_score, details, json_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--json", help="Path to output report.json")
+    parser.add_argument("--markdown", help="Path to output report.md")
     args, unknown = parser.parse_known_args()
 
     # Ensure test directory exists
@@ -236,8 +299,8 @@ if __name__ == "__main__":
             details.append({
                 "test_case": getattr(test_func, "title", test_func.__name__),
                 "status": "PASS" if ok else "FAIL",
-                "score": 10 if ok else 0, # Placeholder points
-                "max_score": 10
+                "score": getattr(test_func, "score", 0),
+                "max_score": getattr(test_func, "points", 0),
             })
 
     except BaseException as e:
@@ -267,7 +330,13 @@ if __name__ == "__main__":
     
     print(f"Score: {total}/{possible}")
     
-    if args.json:
-        generate_report(total, possible, details, args.json)
-    
+    if args.markdown or args.json:
+        verdict = gather_verdict()
+
+        if args.markdown:
+            generate_markdown(total, possible, details, args.markdown, verdict)
+
+        if args.json:
+            generate_json(total, possible, details, args.json, verdict)
+
     sys.exit(0 if no_error else 1)
