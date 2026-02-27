@@ -10,6 +10,22 @@ fi
 # Get list of staged files
 STAGED_FILES=$(git diff --cached --name-only)
 
+check_student_identity() {
+    local conf="student.conf"
+    if [ ! -f "$conf" ]; then
+        return 0
+    fi
+    
+    if grep -q "b00000000" "$conf" || grep -q "Your Name" "$conf" || grep -q "your-github-id" "$conf"; then
+        echo -e "\033[0;31m[ERROR] Default identity detected in student.conf!\033[0m"
+        echo -e "Please fill out your real info (Student ID, Name, GitHub ID) before committing."
+        echo ""
+        exit 1
+    fi
+}
+
+check_student_identity
+
 # Read protected patterns and check against staged files
 VIOLATIONS=()
 while IFS= read -r pattern || [[ -n "$pattern" ]]; do

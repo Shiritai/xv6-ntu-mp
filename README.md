@@ -38,6 +38,7 @@ Our grading system uses a **Late-Release Plaintext Test** model:
 1.  **Development Phase**: Running `./mp.sh grade` or pushing to your repository will only execute the **Public Tests**.
 2.  **Grading Phase**: After the deadline and late submission period, the TA will release the **Private Tests** (as plaintext `.py` files) directly to your repository and trigger the official grading CI.
 3.  **Sanitization**: The official grading environment is automatically managed to ensure a clean and fair evaluation.
+4.  **Identity Binding**: You **must** configure `student.conf` correctly. Submissions with default or invalid identity will be **blocked** from committing/pushing, or graded as **0 points** by the official system.
 
 ### 5. File Protection System
 To prevent accidental changes to critical files (like `mp.sh`, `Makefile`, or grading scripts) that will be overwritten during official grading, we include a protection system:
