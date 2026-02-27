@@ -3,6 +3,9 @@ name: Public Visibility Alert
 on:
   public:
 
+permissions:
+  issues: write
+
 jobs:
   notify:
     runs-on: ubuntu-latest
@@ -13,7 +16,7 @@ jobs:
       - name: Load mp.conf
         run: |
           while IFS= read -r line || [ -n "$line" ]; do
-            [[ -z "$line" ]] && continue
+            [[ -z "$line" || "$line" == \#* ]] && continue
             echo "$line" >> $GITHUB_ENV
             [[ "$line" == DEADLINE=* ]] && break
           done < mp.conf
@@ -40,12 +43,16 @@ jobs:
               emoji = '🚨';
             }
 
-            const { data: collaborators } = await github.rest.repos.listCollaborators({
-              owner,
-              repo
-            });
-
-            const assignees = collaborators.map(c => c.login);
+            let assignees = [];
+            try {
+              const { data: collaborators } = await github.rest.repos.listCollaborators({
+                owner,
+                repo
+              });
+              assignees = collaborators.map(c => c.login);
+            } catch (e) {
+              core.warning(`Could not list collaborators: ${e.message}`);
+            }
             const mentions = assignees.map(u => `@${u}`).join(' ');
 
             await github.rest.issues.create({
