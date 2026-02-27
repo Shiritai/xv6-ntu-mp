@@ -17,7 +17,7 @@ jobs:
         run: |
           while IFS= read -r line || [ -n "$line" ]; do
             [[ -z "$line" || "$line" == \#* ]] && continue
-            echo "$line" >> $GITHUB_ENV
+            echo "${line//\"/}" >> $GITHUB_ENV
             [[ "$line" == DEADLINE=* ]] && break
           done < mp.conf
 
@@ -32,7 +32,7 @@ jobs:
 
             const now = new Date();
             const deadlineDate = new Date(deadline);
-            const publishDate = new Date(deadlineDate + 5 * 24 * 60 * 60 * 1000);
+            const publishDate = new Date(deadlineDate.getTime() + 5 * 24 * 60 * 60 * 1000);
 
             let emoji;
             if (now >= publishDate) {
