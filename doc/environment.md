@@ -60,6 +60,7 @@ We provide a script `mp.sh` to manage the interaction between Docker, QEMU, and 
 
 | Action          | Command         | Description                                       |
 | :-------------- | :-------------- | :------------------------------------------------ |
+| **Setup Hooks** | `./mp.sh init`  | Installs Git hooks to protect critical files.     |
 | **Launch QEMU** | `./mp.sh qemu`  | Builds and boots xv6 into the QEMU emulator.      |
 | **Run Tests**   | `./mp.sh grade` | Compiles code and runs automated grading scripts. |
 | **Clean Build** | `./mp.sh clean` | Removes generated object files and artifacts.     |
