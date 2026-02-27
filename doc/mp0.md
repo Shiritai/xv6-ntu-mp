@@ -16,9 +16,9 @@
     </tr>
     <tr>
       <td><strong>Due Date:</strong></td>
-      <td>March 16, 23:59:59 (UTC+8)</td>
+      <td>March 9, 23:59:59 (UTC+8)</td>
       <td><strong>TA Hours:</strong></td>
-      <td>TBD</td>
+      <td>Wed. 13:00-14:00, Thr. 12:30-1:30</td>
     </tr>
   </table>
 </div>
