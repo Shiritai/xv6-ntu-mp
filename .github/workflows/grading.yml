@@ -24,10 +24,7 @@ jobs:
       - name: Trust Git Directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Sanitize Environment (Download Trusted Scripts)
-        run: |
-          chmod +x mp.sh
-          ./mp.sh sanitize
+
 
       - name: Verify Student Identity
         id: verify

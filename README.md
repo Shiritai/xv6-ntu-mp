@@ -37,7 +37,7 @@ We provide a script `mp.sh` to help you build and run xv6 using Docker. This ens
 Our grading system uses a **Late-Release Plaintext Test** model:
 1.  **Development Phase**: Running `./mp.sh grade` or pushing to your repository will only execute the **Public Tests**.
 2.  **Grading Phase**: After the deadline and late submission period, the TA will release the **Private Tests** (as plaintext `.py` files) directly to your repository and trigger the official grading CI.
-3.  **Sanitization**: The CI will automatically sanitize your environment by re-downloading the trusted `mp.sh` and `Makefile` from this template repository to ensure fairness.
+3.  **Sanitization**: The official grading environment is automatically managed to ensure a clean and fair evaluation.
 
 ### 5. File Protection System
 To prevent accidental changes to critical files (like `mp.sh`, `Makefile`, or grading scripts) that will be overwritten during official grading, we include a protection system:

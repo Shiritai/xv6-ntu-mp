@@ -246,27 +246,7 @@ check_ta_commit() {
     done
 }
 
-sanitize() {
-    info "Starting sanitization..."
-    if [ -z "$TRUSTED_REPO" ]; then
-        error "TRUSTED_REPO not defined in mp.conf"
-        exit 1
-    fi
 
-    local temp_dir=$(mktemp -d)
-    info "Cloning trusted repo from $TRUSTED_REPO..."
-    git clone --depth 1 "$TRUSTED_REPO" "$temp_dir"
-
-    # Restore critical build files
-    info "Restoring Makefile and grade/ scripts..."
-    cp "$temp_dir/Makefile" "$SCRIPT_DIR/Makefile"
-    cp -r "$temp_dir/grade/"* "$SCRIPT_DIR/grade/"
-    
-    # Note: We do NOT overwrite mp.sh itself while it is running.
-    
-    rm -rf "$temp_dir"
-    info "Sanitization complete."
-}
 
 # ------------------------------------------------------------------------------
 # 5. Main Logic
@@ -308,16 +288,14 @@ case "$1" in
         $START_IMAGE python3 grade/run.py "$@"
         chown_if_need "."
         ;;
-    "sanitize")
-        sanitize
-        ;;
+
     "clean")
         info "Cleaning build artifacts..."
         $START_IMAGE make clean
         chown_if_need "."
         ;;
     *)
-        echo "Usage: $0 {init|qemu|test|grade|sanitize|clean}"
+        echo "Usage: $0 {init|qemu|test|grade|clean}"
         exit 1
         ;;
 esac
