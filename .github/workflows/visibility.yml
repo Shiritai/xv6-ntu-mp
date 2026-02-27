@@ -43,22 +43,20 @@ jobs:
               emoji = '🚨';
             }
 
-            let assignees = [];
+            let mentions = '';
             try {
               const { data: collaborators } = await github.rest.repos.listCollaborators({
                 owner,
                 repo
               });
-              assignees = collaborators.map(c => c.login);
+              mentions = collaborators.map(c => c.login).filter(u => u !== owner).map(u => `@${u}`).join(' ');
             } catch (e) {
               core.warning(`Could not list collaborators: ${e.message}`);
             }
-            const mentions = assignees.map(u => `@${u}`).join(' ');
 
             await github.rest.issues.create({
               owner,
               repo,
               title: `${emoji} Repository is now PUBLIC!`,
-              body: `This repository has been made public.\n\n- Time: ${now.toISOString()}\n\n${mentions}`,
-              assignees
+              body: `This repository has been made public.\n\n- Time: ${now.toISOString()}\n\n${mentions}`
             });
