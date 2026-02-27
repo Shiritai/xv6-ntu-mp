@@ -35,7 +35,7 @@ jobs:
             if (now >= publishDate) {
               emoji = '✅';
             } else if (now >= deadlineDate) {
-              emoji = '🟡';
+              emoji = '⚠️';
             } else {
               emoji = '🚨';
             }
