@@ -52,7 +52,7 @@ If you have any questions about this machine problem, please post them on the co
 
 ## 💻 MP0: xv6 Directory Traversal (`mp0`)
 
-The goal of this assignment is to understand the core concepts of xv6 process creation (`fork`), inter-process communication (`pipe`), and filesystem navigation. You will implement a directory traversal tool that mimics some behaviors of the Linux `tree` command but with custom counting logic.
+The goal of this assignment is to understand the core concepts of xv6 process creation (`fork`), inter-process communication (`pipe`), and filesystem navigation. You will implement a directory traversal tool that mimics the depth-first traversing behavior of the Linux `tree` command but with custom counting logic.
 
 ### 1. Task Description
 
@@ -66,14 +66,14 @@ Implement a user-space command `mp0 <root_directory> <key>` that traverses the f
     - The **parent process** must wait for the child to finish and then print the final summary.
 
 2.  **Inter-Process Communication (`pipe`)**:
-    - The child process must count the **total number of directories** and **total number of files** it successfully visited.
+    - The child process must count the **total number of directories** and **total number of files** it successfully visited *under* the root.
     - At the end of its traversal, the child must send these two integer counts back to the parent using a **Pipe**.
     - If the child fails to use a pipe for communication, the assignment will be graded as **0 points**.
 
 3.  **Recursive Traversal**:
     - You must visit every file and sub-directory reachable from the `<root_directory>`.
     - **Order**: Within any directory, the entries must be visited in the order they appear in the directory (matching the output of the xv6 `ls` command).
-    - **Self-inclusion**: The `<root_directory>` itself is the first entry to be printed.
+    - **Self-inclusion**: The `<root_directory>` itself is the first entry to be printed but **does not** count toward the final directory tally.
 
 ### 2. Output Specification
 
@@ -82,21 +82,28 @@ For every entry (directory or file), print a line for its traversal:
 ```text
 <path> <count>
 ```
-- `<path>`: The relative path from the current directory.
+- `<path>`: The relative path from the root.
 - `<count>`: The number of times the character `<key>` appears in the `<path>` string.
+
+> [!IMPORTANT]
+> **Path Concatenation Rule (Trailing Slashes)**:
+> You must separate the `<root_directory>` and its sub-entries with a `/`. 
+> - If `<root_directory>` **already ends** with one or more `/`, you must keep them **and** still append exactly one `/` before the sub-entry name. (e.g., `dir/` + `file` becomes `dir//file`).
 
 #### Summary (Parent Process)
 After the child exits, the parent reads the pipe and prints:
 ```text
 <dir_count> directories, <file_count> files
 ```
+> [!NOTE]
+> **Formatting Requirement**: You must separate the child's trace output and the parent's summary output with a **blank line** (printed by either process).
 
 #### Error Handling
-If a directory cannot be opened (e.g., `open()` fails or it's not a directory), the child should print:
+If the `<root_directory>` cannot be opened, does not exist, or is a file, the child should print:
 ```text
 <path> [error opening dir]
 ```
-Do not traverse into directories that failed to open.
+Do not traverse into directories that failed to open. The parent should still print the summary (0 directories, 0 files) after the error message and the required blank line.
 
 ### 3. Example Execution
 
@@ -116,13 +123,26 @@ d1 1
 d1/a.txt 1
 d1/d2 2
 d1/d2/b.txt 2
+
+2 directories, 2 files
+```
+
+Running `mp0 d1/ d`:
+```bash
+$ mp0 d1/ d
+d1/ 1
+d1//a.txt 1
+d1//d2 2
+d1//d2/b.txt 2
+
 2 directories, 2 files
 ```
 
 ### 4. Technical Constraints
 
-- **Single Character Key**: The second argument `<key>` is always a single character.
-- **Path Length**: You may assume paths will not exceed 128 characters for this MP.
+- **Single Character Key**: The second argument `<key>` is always a single character (a-z).
+- **Buffer & Path**: Path length will not exceed 128 characters. Filenames will not exceed 32 characters.
+- **Complexity**: Maximum traversal depth is 16. Total files/dirs in a testcase will not exceed 64.
 - **Pipe Protocol**: The child should write exactly two integers (or a struct) to the pipe. The parent must read them correspondingly.
 
 > [!CAUTION]
@@ -134,7 +154,7 @@ d1/d2/b.txt 2
 ### 5. Development Tips
 
 - **Starting Point**: Study `xv6/user/ls.c` to understand how to read a directory and use `fstat` to distinguish between files and directories.
-- **Recursion**: When you find a directory (that is not `.` or `..`), construct the new path and call your traversal function recursively.
+- **Recursion**: When you find a directory (that is not `.` or `..`), construct the new path and call your traversal function recursively. 
 - **Pipe Handling**: Remember to close the unused ends of the pipe in both the parent and child processes to avoid hangs or resource leaks.
 
 ### 6. Local Verification
