@@ -7,7 +7,6 @@
 
 # Colors for friendly output
 RED='\033[0;31m'
-GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[1;34m'
 BOLD='\033[1m'
@@ -48,8 +47,10 @@ IMAGE_NAME="${DOCKER_IMAGE:-ntuos/mp2}" # Default fallback
 # ------------------------------------------------------------------------------
 
 check_os() {
-    local os_name=$(uname -s)
-    local kernel_release=$(uname -r)
+    local os_name
+    os_name=$(uname -s)
+    local kernel_release
+    kernel_release=$(uname -r)
 
     case "$os_name" in
         Linux*)
@@ -172,8 +173,15 @@ check_environment() {
     check_hooks
 }
 
-# Run Checks early
-check_environment
+# Run Checks early (Skip for init)
+case "$1" in
+    "init"|"")
+        # For init or no command, skip blocking environment checks
+        ;;
+    *)
+        check_environment
+        ;;
+esac
 
 # ------------------------------------------------------------------------------
 # 3. Helper Functions
@@ -196,7 +204,8 @@ chown_if_need() {
         current_user_group=$(stat -c "%u:%g" "$target" 2>/dev/null)
     fi
     
-    local desired_user_group="$(id -u):$(id -g)"
+    local desired_user_group
+    desired_user_group="$(id -u):$(id -g)"
     
     if [ "$current_user_group" != "$desired_user_group" ]; then
         # Only warn/run if we are not using podman (which handles mapping)
@@ -253,7 +262,7 @@ check_ta_commit() {
 # ------------------------------------------------------------------------------
 
 case "$1" in
-    "init"|"setup")
+    "init")
         info "Initializing environment for $ASSIGNMENT..."
         mkdir -p "$SCRIPT_DIR/.git/hooks"
         
