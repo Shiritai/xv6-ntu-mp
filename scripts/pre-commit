@@ -1,8 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env -S LC_ALL=C bash
 # Pre-commit hook to protect critical files
-
-# Suppress locale warnings in non-standard environments (e.g., VS Code on WSL2)
-export LC_ALL=C
 
 # Only use colors when outputting to a terminal
 if [ -t 1 ]; then
