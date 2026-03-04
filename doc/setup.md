@@ -2,6 +2,17 @@
 
 Follow these steps to create your private workspace and initialize the development tools.
 
+## Prerequisites: Install Docker
+
+We use Docker to provide a standardized environment. Please follow the official instructions to install Docker on your operating system:
+
+- **Windows**: Install [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/). 
+  > **Important**: You must use **WSL 2** (Windows Subsystem for Linux) as the backend (a.k.a. run git/mp.sh inside WSL).
+- **macOS**: Install [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/). Choose the correct version for your chip (Intel or Apple Silicon).
+- **Linux**: Install Docker Engine using the official instructions for your distribution (e.g., [Ubuntu](https://docs.docker.com/engine/install/ubuntu/)). Follow the [Linux post-installation steps](https://docs.docker.com/engine/install/linux-postinstall/) to configure Docker to run without `sudo`.
+
+---
+
 ## Step 1: Create Your Private Repository
 
 The TAs provide a **Template Repository** as the starting point for every MP.
@@ -29,6 +40,9 @@ Since the new repository is `Private`, TAs cannot see your code without an invit
 
 Now, bring the code to your local machine.
 
+> [!NOTE]
+> **Windows Users**: Please clone the repository and run all commands **inside your WSL environment** (e.g., Ubuntu terminal), NOT in Windows PowerShell or Command Prompt.
+
 1. **Clone**:
 
    ```bash
@@ -46,6 +60,9 @@ Now, bring the code to your local machine.
 ## Step 4: System Initialization
 
 We use a unified script `./mp.sh` to manage all dependencies and configurations.
+
+> [!IMPORTANT]
+> **macOS & Windows Users**: Before running any `./mp.sh` commands, make sure the **Docker Desktop application is open and running** in the background.
 
 Run the one-time initialization:
 
