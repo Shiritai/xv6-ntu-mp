@@ -158,7 +158,7 @@ d1//d2/b.txt 2
 ### 4. Technical Constraints
 
 - **Single Character Key**: The second argument `<key>` is always a single character (a-z).
-- **Buffer & Path**: Path length will not exceed 128 characters. Filenames will not exceed 32 characters.
+- **Buffer & Path**: Path length will not exceed 128 characters. Filenames will not exceed 12 characters.
 - **Complexity**: Maximum traversal depth is 16. Total files/dirs in a testcase will not exceed 64.
 - **Pipe Protocol**: The child should write exactly two integers (or a struct) to the pipe. The parent must read them correspondingly.
 
