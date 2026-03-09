@@ -109,5 +109,68 @@ The most important thing to remember: **You cannot "break" the official grading 
 
 ### 🆔 Identity & Lateness
 
-- **Lateness**: This is calculated automatically based on your **last commit timestamp** on GitHub.
 - **Identity**: If `student.conf` is invalid, your grade will be forced to **0** even if tests pass.
+
+---
+
+## 🔄 6. Staying Up to Date (Hot-Sync)
+
+To ensure your development environment stays in sync with official specifications and test cases, we use a system called **Hot-Sync**. This system automatically alerts you whenever TAs release critical fixes or new requirements.
+
+### ❓ What happens if I see a sync prompt?
+
+When you run `./mp.sh` or use `git`, you might occasionally see a message asking you to sync.
+
+1. **Don't panic**: Your code is safe.
+2. **Press `y`**: This is usually the best choice. The system will handle the technical Git commands for you.
+3. **Continue working**: Once finished, your assignment will be updated with the latest TA fixes, and your own code will be right where you left it.
+
+### 🛡️ Why is it safe? (Snapshot Protection)
+
+We know that losing hours of coding work is every student's nightmare. That's why the system follows a **"Safety First"** protocol:
+
+- **Automatic Backups**: Before any sync begins, the system creates a **Snapshot**—a permanent backup of your current code in a separate branch (named `snapshot-YYYYMMDD-HHMMSS`).
+- **Smart Merging**: The system automatically merges your code with the TA's updates. In the event of a conflict, files provided by TAs (like official documents, test cases or core configuration) take priority to ensure a valid grading environment.
+- **Background Checks**: The system only checks for updates when you are actually using the tools, so it won't interrupt you while you're just typing code.
+
+### 🔍 How to browse and restore snapshots?
+
+If you need to check your previous work or if a sync resulted in unexpected behavior:
+
+1. **List all snapshots**:
+
+   ```bash
+   git branch --list "snapshot-*"
+   ```
+
+2. **View code in a snapshot**: You can switch your workspace temporarily to see what it looked like:
+
+   ```bash
+   git checkout <snapshot_branch_name>
+   ```
+
+3. **Return to your assignment**:
+
+   ```bash
+   git checkout <assignment_branch> # e.g., git checkout mp0
+   ```
+
+### 🛠️ Manual Controls
+
+While the system is mostly automatic, you can take control using these commands:
+
+- **Force an update check**:
+
+  ```bash
+  ./mp.sh sync
+  ```
+
+- **Create a manual backup**: If you're about to try something risky, create your own snapshot first:
+
+  ```bash
+  ./mp.sh snapshot
+  ```
+
+- **Restore a backup**: Use standard Git to go back to any snapshot if needed: `git checkout <snapshot_branch_name>`.
+
+> ***A Final Defense**: Hot-Sync is your safety net, but it doesn't replace regular commits. We strongly recommend using `git commit` often to save your progress incrementally.*
