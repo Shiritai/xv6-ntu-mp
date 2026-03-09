@@ -13,19 +13,19 @@ BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}[INFO]${NC} $1" >&2
 }
 
 warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    echo -e "${YELLOW}[WARN]${NC} $1" >&2
 }
 
 error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
 hint() {
-    echo -e "${BOLD}[HINT]${NC}  $1"
+    echo -e "${BOLD}[HINT]${NC}  $1" >&2
 }
 
 # Constants
@@ -168,9 +168,155 @@ check_hooks() {
 }
 
 check_environment() {
-    check_os
-    check_docker
-    check_hooks
+    check_os && \
+    check_docker && \
+    check_hooks && \
+    check_updates
+}
+
+snapshot() {
+    # Check update phase 3
+    # Create a backup branch with timestamp
+    local timestamp
+    timestamp=$(date +%Y%m%d-%H%M%S)
+    local branch_name="snapshot-$timestamp"
+    
+    info "Creating snapshot in branch '$branch_name'..."
+    
+    # Save current branch
+    local current_branch
+    current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    
+    # Create and switch to snapshot branch
+    if ! git checkout -b "$branch_name" 2>/dev/null; then
+        error "Failed to create snapshot branch."
+        return 1
+    fi
+    
+    # Commit all changes
+    git add -A
+    if ! git commit -m "Snapshot: manual/auto backup before TA update" --allow-empty --no-verify >/dev/null 2>&1; then
+        error "Failed to commit changes to snapshot branch."
+        git checkout "$current_branch" 2>/dev/null
+        return 1
+    fi
+    
+    info "Snapshot successfully created at branch '$branch_name'."
+    
+    # Switch back
+    git checkout "$current_branch" --quiet >/dev/null 2>&1
+    echo "$branch_name"
+    return 0
+}
+
+check_updates() {
+    # Check update phase 0
+    # Deadline Compliance Check
+    if [ -z "$DEADLINE" ]; then
+        return 0
+    fi
+    
+    # Skip if in grading mode or GitHub Actions
+    if [ -n "$OFFICIAL_GRADING" ] || [ -n "$GITHUB_ACTIONS" ]; then
+        return 0
+    fi
+
+    local current_ts
+    current_ts=$(date +%s)
+    local deadline_ts
+    deadline_ts=$(date -d "$DEADLINE" +%s 2>/dev/null)
+    
+    # If deadline passed, silent early exit
+    if [ -n "$deadline_ts" ] && [ "$current_ts" -gt "$deadline_ts" ]; then
+        return 0
+    fi
+
+    # Check update phase 1
+    # TA Update Detection
+    if ! command -v git >/dev/null 2>&1; then
+        return 0
+    fi
+
+    local current_branch
+    current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) || return 0
+    
+    # Fetch from origin (student's secondary remote usually, but here assumed same as TA upstream)
+    # We use a short timeout (3s)
+    if command -v timeout >/dev/null 2>&1; then
+        timeout 3s git fetch origin "$current_branch" --quiet 2>/dev/null || return 0
+    else
+        git fetch origin "$current_branch" --quiet 2>/dev/null || return 0
+    fi
+
+    if [ -z "$TA_EMAILS" ]; then
+        return 0
+    fi
+    
+    local author_regex
+    author_regex=$(echo "$TA_EMAILS" | sed 's/ /\\|/g' | tr -d '"')
+
+    local raw_updates
+    raw_updates=$(git log HEAD..origin/"$current_branch" --author="$author_regex" --oneline 2>/dev/null)
+    
+    # If no TA commits, silent early exit
+    if [ -z "$raw_updates" ]; then
+        return 0
+    fi
+
+    # Check update phase 2
+    # Interactive Prompt or GUI Block
+    if [ ! -t 1 ] && [ -z "$IGNORE_TTY_CHECK" ]; then
+        # Non-TTY environment (GUI/IDE)
+        # Using stderr for errors to avoid breaking capture if any
+        echo -e "${RED}[ERROR] Unsynced TA updates detected.${NC}" >&2
+        echo -e "${BOLD}[HINT]  Please run './mp.sh sync' in your terminal to safely apply updates with an automatic snapshot.${NC}" >&2
+        exit 1
+    fi
+
+    # Clean regex for display
+    local display_authors
+    display_authors=$(echo "$TA_EMAILS" | tr ' ' ', ')
+
+    # Interactive TTY Mode
+    echo -e "\n${YELLOW}[WARNING] New TA updates detected (Released by: $display_authors)!${NC}" >&2
+    echo -e "The following changes were released since your last sync:" >&2
+    git log HEAD..origin/"$current_branch" --author="$author_regex" --oneline --color=always | sed 's/^/  /' >&2
+    echo "" >&2
+    echo -e "Files to be updated:" >&2
+    git diff --name-status HEAD...origin/"$current_branch" --color=always | sed 's/^/  /' >&2
+    echo "" >&2
+
+    echo -ne "${BOLD}Would you like to create a SNAPSHOT and sync now? [y/N]: ${NC}" >&2
+    read -r choice
+    if [[ "$choice" =~ ^[Yy]$ ]]; then
+        local snap_branch
+        snap_branch=$(snapshot)
+        if [ $? -eq 0 ]; then
+            info "Merging TA updates..."
+            # Stage 1: Fast-forward or Merge TA changes (priority to TA)
+            if git merge origin/"$current_branch" -X theirs -m "chore: merge TA updates" --no-verify; then
+                info "Restoring your local work..."
+                # Stage 2: Merge student work back from snapshot (priority to TA)
+                if git merge "$snap_branch" -X ours -m "chore: restore local work after sync" --no-verify >/dev/null 2>&1; then
+                    info "🎉 Update applied and your work restored."
+                    info "Backup saved in branch '$snap_branch'."
+                else
+                    warn "Partial restoration: some of your local changes conflicted with TA updates."
+                    hint "TA changes were prioritized. Your full work is safe in '$snap_branch'."
+                fi
+            else
+                error "Merge failed. Please resolve conflicts manually."
+                exit 1
+            fi
+        else
+            error "Snapshot failed. Aborting update for safety."
+            exit 1
+        fi
+    else
+        warn "Update cancelled. Note that using outdated tests may result in scoring errors."
+        error "Sync required to proceed. Exiting."
+        exit 1
+    fi
 }
 
 # Run Checks early (Skip for init)
@@ -178,8 +324,16 @@ case "$1" in
     "init"|"")
         # For init or no command, skip blocking environment checks
         ;;
-    *)
-        check_environment
+    "snapshot")
+        snapshot
+        exit 0
+        ;;
+    "sync"|*)
+        check_environment || exit 1
+        if [ "$1" == "sync" ]; then
+            info "Your repository is up to date."
+            exit 0
+        fi
         ;;
 esac
 
@@ -278,7 +432,7 @@ case "$1" in
         fi
         
         if [ $hook_count -eq 0 ]; then
-            warn "No hook templates found in grade/hooks/."
+            warn "No hook templates found in scripts/."
         else
             info "Successfully installed $hook_count Git hooks."
         fi
@@ -303,8 +457,14 @@ case "$1" in
         $START_IMAGE make clean
         chown_if_need "."
         ;;
+    "snapshot")
+        # Already handled early
+        ;;
+    "sync")
+        # Already handled early
+        ;;
     *)
-        echo "Usage: $0 {init|qemu|test|grade|clean}"
+        echo "Usage: $0 {init|qemu|test|grade|clean|snapshot|sync}"
         exit 1
         ;;
 esac

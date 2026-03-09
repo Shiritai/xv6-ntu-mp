@@ -14,8 +14,13 @@ fi
 
 PROTECTED_LIST="doc/protected_list.txt"
 
+# Intercept TA updates before pushing
+if [ -f "./mp.sh" ]; then
+    ./mp.sh sync || exit 1
+fi
+
 if [ ! -f "$PROTECTED_LIST" ]; then
-    exit 0
+    exit 1
 fi
 
 # pre-push receives: <local ref> <local sha1> <remote ref> <remote sha1> on stdin

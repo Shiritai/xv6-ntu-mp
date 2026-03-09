@@ -14,8 +14,13 @@ fi
 
 PROTECTED_LIST="doc/protected_list.txt"
 
+# [DOUBLE DEFENSE] Intercept TA updates before committing
+if [ -f "./mp.sh" ]; then
+    ./mp.sh sync || exit 1
+fi
+
 if [ ! -f "$PROTECTED_LIST" ]; then
-    exit 0
+    exit 1
 fi
 
 # Get list of staged files
