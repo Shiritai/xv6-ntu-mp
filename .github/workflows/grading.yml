@@ -41,7 +41,6 @@ jobs:
         run: |
           ./mp.sh grade --json report.json --markdown grade-report.md
         env:
-          OFFICIAL_GRADING: "1"
           REPO_IS_PRIVATE: ${{ github.event.repository.private }}
 
       - name: Add Visual Summary
