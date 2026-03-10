@@ -365,7 +365,7 @@ chown_if_need() {
         # Only warn/run if we are not using podman (which handles mapping)
         # or if we are using docker
         if [[ "$DOCKER_CMD" != *"podman"* ]]; then
-             maysudo chown -R "$desired_user_group" "$target" >/dev/null 2>&1
+             maysudo find "$target" -name .git -prune -o -exec chown "$desired_user_group" {} + >/dev/null 2>&1
         fi
     fi
 }
