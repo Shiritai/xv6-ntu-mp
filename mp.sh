@@ -87,9 +87,9 @@ check_docker() {
 
     # 2.1 Check if Docker binary exists
     if command -v docker > /dev/null 2>&1; then
-        DOCKER_CMD="docker"
+        DOCKER_CMD=(docker)
     elif command -v podman > /dev/null 2>&1; then
-        DOCKER_CMD="podman"
+        DOCKER_CMD=(podman)
         info "Using Podman as container engine."
     else
         error "Container engine not found."
@@ -99,11 +99,11 @@ check_docker() {
 
     # 2.2 Check if Docker Daemon is running
     # We use 'docker info' which requires daemon connection
-    if ! $DOCKER_CMD info > /dev/null 2>&1; then
+    if ! "${DOCKER_CMD[@]}" info > /dev/null 2>&1; then
         # If standard check fails, try sudo (for Linux)
-        if sudo $DOCKER_CMD info > /dev/null 2>&1; then
+        if sudo "${DOCKER_CMD[@]}" info > /dev/null 2>&1; then
              warn "Docker daemon is running but requires sudo."
-             DOCKER_CMD="sudo $DOCKER_CMD"
+             DOCKER_CMD=(sudo "${DOCKER_CMD[@]}")
         else
              # Daemon is truly unreachable
              error "Docker Daemon is not running!"
@@ -121,28 +121,38 @@ check_docker() {
     fi
 
     # 2.3 Configure Daemon Options
-    DOCKER_CMD_OPTS=""
-    
+    DOCKER_CMD_OPTS=()
+
     # Check for TTY (interactive mode)
     # If GITHUB_ACTIONS is set, disable TTY to avoid 'the input device is not a TTY' errors
     if [ -t 1 ] && [ -z "$GITHUB_ACTIONS" ]; then
-        DOCKER_CMD_OPTS+=" -it"
+        DOCKER_CMD_OPTS+=(-it)
     fi
 
     # Architecture check for Apple Silicon / ARM64
-    if [[ "$(uname -m)" == "arm64" || "$(uname -m)" == "aarch64" ]]; then
-        # info "ARM64 architecture detected."
-        # No warning needed now as we support multi-arch
-        :
-    fi
+    local arch_name
+    arch_name=$(uname -m)
+    case "$arch_name" in
+        x86_64|amd64)
+            # x86_64 is supported
+            :
+            ;;
+        arm64|aarch64)
+            # ARM64 is supported (multi-arch)
+            :
+            ;;
+        *)
+            warn "Unknown architecture ($arch_name). Proceeding with caution..."
+            ;;
+    esac
 
     # Podman specific fix
-    if [[ "$DOCKER_CMD" == *"podman"* ]]; then
+    if [[ "${DOCKER_CMD[*]}" == *"podman"* ]]; then
         # Fix permission mapping for podman
-        DOCKER_CMD_OPTS+=" --security-opt label=disable"
+        DOCKER_CMD_OPTS+=(--security-opt label=disable)
         # If not root, keep id
-        if [[ "$DOCKER_CMD" != *"sudo"* ]]; then
-             DOCKER_CMD_OPTS+=" --userns=keep-id"
+        if [[ "${DOCKER_CMD[*]}" != *"sudo"* ]]; then
+             DOCKER_CMD_OPTS+=(--userns=keep-id)
         fi
     fi
 }
@@ -290,8 +300,7 @@ check_updates() {
     read -r choice
     if [[ "$choice" =~ ^[Yy]$ ]]; then
         local snap_branch
-        snap_branch=$(snapshot)
-        if [ $? -eq 0 ]; then
+        if snap_branch=$(snapshot); then
             info "Merging TA updates..."
             # Stage 1: Fast-forward or Merge TA changes (priority to TA)
             if git merge origin/"$current_branch" -X theirs -m "chore: merge TA updates" --no-verify; then
@@ -364,7 +373,7 @@ chown_if_need() {
     if [ "$current_user_group" != "$desired_user_group" ]; then
         # Only warn/run if we are not using podman (which handles mapping)
         # or if we are using docker
-        if [[ "$DOCKER_CMD" != *"podman"* ]]; then
+        if [[ "${DOCKER_CMD[*]}" != *"podman"* ]]; then
              maysudo chown -R "$desired_user_group" "$target" >/dev/null 2>&1
         fi
     fi
@@ -372,10 +381,10 @@ chown_if_need() {
 
 ensure_docker_start_cmd() {
     if [ -n "$SIMULATION_MODE" ]; then
-        START_IMAGE=""
+        START_IMAGE=()
         info "Simulation Mode: Docker bypassed."
     else
-        START_IMAGE="$DOCKER_CMD run $DOCKER_CMD_OPTS -v $(realpath "$SCRIPT_DIR"):/home/student/xv6 -w /home/student/xv6 -u $(id -u):$(id -g) --rm $IMAGE_NAME"
+        START_IMAGE=("${DOCKER_CMD[@]}" run "${DOCKER_CMD_OPTS[@]}" -v "$(realpath "$SCRIPT_DIR"):/home/student/xv6" -w /home/student/xv6 -u "$(id -u):$(id -g)" --rm "$IMAGE_NAME")
     fi
 }
 
@@ -440,7 +449,7 @@ case "$1" in
         ;;
     "qemu")
         info "Starting QEMU in $IMAGE_NAME..."
-        $START_IMAGE make qemu
+        "${START_IMAGE[@]}" make qemu
         chown_if_need "."
         ;;
     "test"|"grade")
@@ -448,13 +457,13 @@ case "$1" in
         info "Running tests for $ASSIGNMENT..."
         # Pass arguments to run.py
         shift
-        $START_IMAGE python3 grade/run.py "$@"
+        "${START_IMAGE[@]}" python3 grade/run.py "$@"
         chown_if_need "."
         ;;
 
     "clean")
         info "Cleaning build artifacts..."
-        $START_IMAGE make clean
+        "${START_IMAGE[@]}" make clean
         chown_if_need "."
         ;;
     "snapshot")
