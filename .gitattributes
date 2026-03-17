@@ -1,0 +1,6 @@
+.github/** text eol=lf
+tests/**   text eol=lf
+mp.conf    text eol=lf
+mp.sh      text eol=lf
+grade/**   text eol=lf
+scripts/** text eol=lf
