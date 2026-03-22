@@ -105,16 +105,23 @@ def test_cache_check():
     r.run_qemu(shell_script(["mp2"]), timeout=60)
     return check_cache_public(r.qemu.output)
 
+@test(0, "Bonus threshold check")
+def test_bonus_threshold():
+    if gradelib.TOTAL < 70:
+        global SKIP_BONUS
+        SKIP_BONUS = True
+    return 0
+
 @test(5, "Linux styled List API (Bonus)")
 def test_list_check():
-    if gradelib.TOTAL < 70:
+    if SKIP_BONUS:
         print("Skip bonus test since the public score < 70")
         return 0
     return 5 if analyze_slab_files() else 0
 
 @test(5, "In-cache objs (Bonus)")
 def test_cache_bonus_check():
-    if gradelib.TOTAL < 70:
+    if SKIP_BONUS:
         print("Skip bonus test since the public score < 70")
         return 0
     r = Runner(stop_on_line(r".*panic:.*"), stop_on_line(r".*[MP2] <FAILED>.*"))
@@ -144,7 +151,7 @@ def calculate_inversions(indices):
 
 @test(5, "Randomized Freelist (Non-linear) (Bonus)")
 def test_rand_nonlinear():
-    if gradelib.TOTAL < 70:
+    if SKIP_BONUS:
         print("Skip bonus test since the public score < 70")
         return 0
     # Trigger a run that prints the cache status
@@ -167,7 +174,7 @@ def test_rand_nonlinear():
 
 @test(5, "Randomized Freelist (Entropy) (Bonus)")
 def test_rand_entropy():
-    if gradelib.TOTAL < 70:
+    if SKIP_BONUS:
         print("Skip bonus test since the public score < 70")
         return 0
     r = Runner(stop_on_line(r".*panic:.*"), stop_on_line(r".*[MP2] <FAILED>.*"))
@@ -191,7 +198,7 @@ def test_rand_entropy():
 
 @test(10, "Spinlock Correctness Bonus (Bonus)")
 def test_spinlock_bonus():
-    if gradelib.TOTAL < 70:
+    if SKIP_BONUS:
         print("Skip bonus test since the public score < 70")
         return 0
     # Only award if Public test score >= 70 (approx 24 public tests * 3 = 72)
