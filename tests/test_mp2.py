@@ -9,9 +9,11 @@ if os.path.dirname(__file__):
 else:
     sys.path.append(os.path.abspath("tests"))
 
+import gradelib
 from gradelib import *
 from pseudo_fslab import interpreter
-from check_cache import check_cache
+from check_cache import check_cache_public
+from check_cache_bonus import check_cache_bonus
 from check_list import analyze_slab_files
 
 REPEAT_TIMES = 5
@@ -30,8 +32,9 @@ def natural_sort_key(s):
 
 # Global dictionary to store pass counts for bonus evaluation
 GRADES_HISTORY = {}
+SKIP_BONUS = False
 
-def create_mp2_test(test_name: str, script_file: str, points: int, sub_dir = "TestMeta", timeout=20):
+def create_mp2_test(test_name: str, script_file: str, points: int, sub_dir = "TestMeta", timeout=60):
     @test(points, test_name)
     def test_case():
         script = []
@@ -91,20 +94,32 @@ def discover_tests():
 @test(10, "Power on check (10% public)")
 def test_power_on_check():
     r = Runner(stop_on_line(r".*panic:.*"), stop_on_line(r".*[MP2] <FAILED>.*"))
-    r.run_qemu(shell_script(["echo Ok"]), timeout=20)
+    r.run_qemu(shell_script(["echo Ok"]), timeout=60)
     return 10
 
 discover_tests()
 
-@test(5, "Linux styled List API (Bonus)")
-def test_cache_check():
-    return 5 if analyze_slab_files() else 0
-
-@test(15, "In-cache objs check (10% public + 5% Bonus)")
+@test(10, "In-cache objs check (Public)")
 def test_cache_check():
     r = Runner(stop_on_line(r".*panic:.*"), stop_on_line(r".*[MP2] <FAILED>.*"))
-    r.run_qemu(shell_script(["mp2"]), timeout=20)
-    return check_cache(r.qemu.output)
+    r.run_qemu(shell_script(["mp2"]), timeout=60)
+    return check_cache_public(r.qemu.output)
+
+@test(5, "Linux styled List API (Bonus)")
+def test_list_check():
+    if gradelib.TOTAL < 70:
+        print("Skip bonus test since the public score < 70")
+        return 0
+    return 5 if analyze_slab_files() else 0
+
+@test(5, "In-cache objs (Bonus)")
+def test_cache_bonus_check():
+    if gradelib.TOTAL < 70:
+        print("Skip bonus test since the public score < 70")
+        return 0
+    r = Runner(stop_on_line(r".*panic:.*"), stop_on_line(r".*[MP2] <FAILED>.*"))
+    r.run_qemu(shell_script(["mp2"]), timeout=60)
+    return check_cache_bonus(r.qemu.output)
 
 def extract_addrs(output_lines):
     """Extract object address sequence from [SLAB] print_kmem_cache output."""
@@ -129,11 +144,14 @@ def calculate_inversions(indices):
 
 @test(5, "Randomized Freelist (Non-linear) (Bonus)")
 def test_rand_nonlinear():
+    if gradelib.TOTAL < 70:
+        print("Skip bonus test since the public score < 70")
+        return 0
     # Trigger a run that prints the cache status
     r = Runner(stop_on_line(r".*panic:.*"), stop_on_line(r".*[MP2] <FAILED>.*"))
     # We use a simple script that creates a cache and then prints it
     # This assumes the kernel test code 'mp2' or similar does this.
-    r.run_qemu(shell_script(["mp2"]), timeout=20)
+    r.run_qemu(shell_script(["mp2"]), timeout=60)
     
     addrs = extract_addrs(r.qemu.output.splitlines())
     if len(addrs) < 2:
@@ -149,8 +167,11 @@ def test_rand_nonlinear():
 
 @test(5, "Randomized Freelist (Entropy) (Bonus)")
 def test_rand_entropy():
+    if gradelib.TOTAL < 70:
+        print("Skip bonus test since the public score < 70")
+        return 0
     r = Runner(stop_on_line(r".*panic:.*"), stop_on_line(r".*[MP2] <FAILED>.*"))
-    r.run_qemu(shell_script(["mp2"]), timeout=20)
+    r.run_qemu(shell_script(["mp2"]), timeout=60)
     
     addrs = extract_addrs(r.qemu.output.splitlines())
     if len(addrs) < 4: # Too few samples to judge entropy
@@ -170,6 +191,9 @@ def test_rand_entropy():
 
 @test(10, "Spinlock Correctness Bonus (Bonus)")
 def test_spinlock_bonus():
+    if gradelib.TOTAL < 70:
+        print("Skip bonus test since the public score < 70")
+        return 0
     # Only award if Public test score >= 70 (approx 24 public tests * 3 = 72)
     # AND every public test passed REPEAT_TIMES/REPEAT_TIMES
     public_tests = [n for n in GRADES_HISTORY if n.startswith("public/")]
