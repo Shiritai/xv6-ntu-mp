@@ -1,0 +1,3 @@
+echo Meow | tee f1 | tee f2 | tee f3 | tee f4 | tee f5 | tee f6 | tee f7 > f8
+checkstr f7 Meow
+checkstr f8 Meow

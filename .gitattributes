@@ -1,5 +1,7 @@
 .github/** text eol=lf
-tests/**   text eol=lf
+tests/*.py   text eol=lf
+tests/*.txt   text eol=lf
+tests/*.so    binary
 *.conf     text eol=lf
 *.sh       text eol=lf
 grade/**   text eol=lf

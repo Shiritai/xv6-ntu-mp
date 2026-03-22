@@ -1,0 +1,9 @@
+echo Ok | tee f1 | tee f2 | tee f3 | tee f4 | tee f5 | tee f6 | tee f7 > f8
+checkstr f1 Ok
+checkstr f2 Ok
+checkstr f3 Ok
+checkstr f4 Ok
+checkstr f5 Ok
+checkstr f6 Ok
+checkstr f7 Ok
+checkstr f8 Ok

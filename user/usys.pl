@@ -28,6 +28,7 @@ entry("pipe");
 entry("read");
 entry("write");
 entry("close");
+entry("printfslab");
 entry("kill");
 entry("exec");
 entry("open");

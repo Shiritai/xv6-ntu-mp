@@ -1,0 +1,8 @@
+echo Ok > f1
+cat f1 > f2
+cat f2 > f3
+cat f3 > f4
+checkstr f1 Ok
+checkstr f2 Ok
+checkstr f3 Ok
+checkstr f4 Ok

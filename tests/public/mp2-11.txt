@@ -1,0 +1,1 @@
+echo Ok | tee f1 | gah . 16 | tee f2 | oak end > ok

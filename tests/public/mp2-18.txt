@@ -1,0 +1,7 @@
+mp2
+ls > f1
+mp2
+ls | tee f2 > f3
+mp2
+ls | tee f4 | tee f5 > f6
+mp2

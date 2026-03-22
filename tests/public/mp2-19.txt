@@ -1,0 +1,13 @@
+mp2
+echo NotOk > ok
+mp2
+checkstr ok NotOk
+mp2
+echo Ok | gah . 2 | oak end > ok
+mp2
+checkstr ok Ok
+mp2
+echo NotOk | gah . 1 | oak end > ok
+mp2
+checkstr ok Ok
+mp2

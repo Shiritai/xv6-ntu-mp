@@ -10,6 +10,7 @@ int pipe(int*);
 int write(int, const void*, int);
 int read(int, void*, int);
 int close(int);
+int printfslab(void);
 int kill(int);
 int exec(const char*, char**);
 int open(const char*, int);

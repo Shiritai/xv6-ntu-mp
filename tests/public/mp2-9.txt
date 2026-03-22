@@ -1,0 +1,3 @@
+echo Ok | tee f1 > f2
+checkstr f1 Ok
+checkstr f2 Ok
