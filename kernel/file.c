@@ -12,12 +12,21 @@
 #include "file.h"
 #include "stat.h"
 #include "proc.h"
+#include "slab.h"
 
 struct devsw devsw[NDEV];
 struct {
   struct spinlock lock;
   struct file file[NFILE];
 } ftable;
+ 
+struct kmem_cache *file_cache;
+
+void fileprint_metadata(void *f) {
+  struct file *file = (struct file *) f;
+  printf("tp: %d, ref: %d, readable: %d, writable: %d, pipe: %p, ip: %p, off: %d, major: %d",
+         file->type, file->ref, file->readable, file->writable, file->pipe, file->ip, file->off, file->major);
+}
 
 void
 fileinit(void)

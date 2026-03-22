@@ -15,6 +15,7 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
+#include "slab.h"
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
@@ -501,5 +502,15 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+  return 0;
+}
+
+extern struct kmem_cache *file_cache;
+extern void fileprint_metadata(void *f);
+
+uint64
+sys_printfslab(void)
+{
+  print_kmem_cache(file_cache, fileprint_metadata);
   return 0;
 }
