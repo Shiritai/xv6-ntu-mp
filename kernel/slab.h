@@ -28,9 +28,9 @@ struct slab {
  * @lock: Lock for cache management.
  */
 struct kmem_cache {
-  char name[32];        // Cache name (e.g., "file")
-  uint object_size;     // Size of a single object
-  struct spinlock lock; // Lock for cache management
+  char name[MP2_CACHE_MAX_NAME]; // Cache name (e.g., "file")
+  uint object_size;              // Size of a single object
+  struct spinlock lock;          // Lock for cache management
 
   // TODO: Add slab list(s)
   // <TYPE> full     // Completely allocated slabs (Optional)
