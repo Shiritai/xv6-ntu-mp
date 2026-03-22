@@ -12,4 +12,8 @@
 #define FSSIZE       2000  // size of file system in blocks
 #define MAXPATH      128   // maximum file path name
 #define USERSTACK    1     // user stack pages
+ 
+#define MP2_CACHE_MAX_NAME 16
+#define MP2_SLAB_SIZE 4096
+#define MP2_MIN_AVAIL_SLAB 1
 
