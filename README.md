@@ -22,6 +22,7 @@ A quick guide to navigating this repository:
 - **`doc/`**: Comprehensive documentation module.
 - **`grade/`**: Internal grading engine logic (Do not modify).
 - **`tests/`**: Contains both official public tests and your custom debug tests.
+- **`checklist.md`**: Self-check list for submission.
 - **`mp.sh`**: The centralized assignment management script—your primary interface.
 - **`student.conf`**: Your identity binding configuration.
 
@@ -41,9 +42,13 @@ For a tailored onboarding experience, explore our modular guides:
 
 > **🔄 Mastering the Cycle.** Understand how to create custom tests, interpret GitHub Actions results, and the rules of the grading cycle.
 
-### 4. Assignment Specification (e.g., `doc/mp0.md`)
+### 4. Assignment Specification
 
-> **📋 Task Requirements.** Detailed technical specifications and goals for the current Machine Problem (find the specific `mpX.md` in the current branch).
+- [`doc/mp2.md`](doc/mp2.md): MP2 Specification
+- [`doc/mp2-test.md`](doc/mp2-test.md): MP2 Testing guide
+- [`doc/mp2-guide.md`](doc/mp2-guide.md): Slab allocator Technical guide
+
+> **📋 Task Requirements.** Detailed technical specifications and goals for the current Machine Problem.
 
 ## 📚 References
 
