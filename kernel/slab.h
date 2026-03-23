@@ -34,8 +34,7 @@ struct kmem_cache {
 
   // TODO: Add slab list(s)
   // <TYPE> full     // Completely allocated slabs (Optional)
-  // <TYPE> partial  // Partially allocated slabs
-  // <TYPE> free     // Free slabs (Optional)
+  // <TYPE> partial  // Partially allocated or empty slabs
 };
 
 /**

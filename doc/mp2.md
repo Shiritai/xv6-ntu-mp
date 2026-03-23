@@ -194,7 +194,7 @@ All implemented functions must output formatted strings via `printf`. The gradin
 ##### Memory Collection
 
 > [!NOTE]
-> Voluntarily returning memory back to the machine when the number of `partial` + `free` slabs > `MP2_MIN_AVAIL_SLAB`.
+> Voluntarily returning memory back to the machine when the number of `partial` (partially allocated or empty) slabs > `MP2_MIN_AVAIL_SLAB`.
 
 ```txt
 [SLAB] Slab <slab_addr> (<name>) is freed due to save memory
@@ -223,10 +223,13 @@ This function allows the grading framework to map the memory topology and verify
 ```
 
 - `<SPACE>`: At least one space `" "` or tab `"\t"`.
-- `<slab_type>`: slab type, can be `full`, `partial`, `free`, or `cache`.
+- `<slab_type>`: slab type, can be:
+  - `full` (fully allocated)
+  - `partial` (partially allocated or empty)
+  - `cache` (internal fragmentation optimization)
 
 > [!NOTE]
-> You only need to print slabs in the `partial` state (as well as the `cache` state for internal fragmentation optimization). Slabs in the `full` or `free` states are tracked dynamically by the grading engine through the allocation history and do not need to be output.
+> You only need to print slabs in the `partial` state (as well as the `cache` state for internal fragmentation optimization). Slabs in the `full` states are tracked dynamically by the grading engine through the allocation history and do not need to be output.
 
 ##### 3. Single Slab Status
 
