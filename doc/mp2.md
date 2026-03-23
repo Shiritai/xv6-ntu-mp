@@ -355,6 +355,17 @@ To mitigate heap-based attacks, the order of objects returned by the allocator s
    - Your shuffling algorithm (e.g., Fisher-Yates) must demonstrate sufficient randomness.
    - Validation: The grading script calculates the **number of inversions** in the address sequence. A passing grade requires the result to fall within the range of **[8, 20]** (for a standard slab). This evaluation is performed over 10 trials, and you must pass at least **5 out of 10** to receive this bonus.
 
+> [!IMPORTANT]
+> **Verification Requirements for Randomization**
+>
+> To ensure a fair and consistent statistical baseline, the grading script for randomization (Non-linearity and Entropy) targets a **freshly allocated, empty slab**. The testing procedure is defined as follows:
+>
+> 1. **Initialization Sequence**: Upon booting, the test suite sequentially allocates **16 objects** (e.g., via file operations) and then immediately **frees them in the reverse order**. This sequence is designed to exhaust the `in-cache` capacity and force the allocation of regular slabs, which then remain in the `partial` list as clean, empty slabs.
+> 2. **Target Isolation**: The verification engine isolates the **last partial slab** found in the `print_kmem_cache` output. For the standard 504-byte objects used in this bonus test, the slab **MUST accommodate exactly 8 objects**.
+> 3. **Strict Enforcement**: If the identified target slab contains fewer than 8 objects in its chain, the randomization test will **fail immediately with 0 points**.
+> 
+> This policy ensures that your `struct slab` overhead is correctly managed and that the shuffling algorithm is evaluated against a fixed, reliable sample size ($N=8$).
+
 #### 🔒 Spinlock Correctness (Bonus +10%)
 
 Ensure your allocator is thread-safe and free from race conditions on multi-core systems.

@@ -135,7 +135,7 @@ def test_rand_nonlinear():
         print("Skip bonus test since the public score < 70")
         return 0
     r = Runner(stop_on_line(r".*panic:.*"), stop_on_line(r".*[MP2] <FAILED>.*"))
-    r.run_qemu(shell_script(["mp2"]), timeout=60)
+    r.run_qemu(shell_script(["echo Ok | gah . 16 | oak end > ok", "mp2"]), timeout=60)
     return check_nl(r.qemu.output.splitlines())
 
 @test(5, "Randomized Freelist (Entropy) (Bonus)")
@@ -148,7 +148,7 @@ def test_rand_entropy():
     for i in range(trials):
         reset_fs()
         r = Runner(stop_on_line(r".*panic:.*"), stop_on_line(r".*[MP2] <FAILED>.*"))
-        r.run_qemu(shell_script(["mp2"]), timeout=60)
+        r.run_qemu(shell_script(["echo Ok | gah . 16 | oak end > ok", "mp2"]), timeout=60)
         if check_et(r.qemu.output.splitlines()) == 5:
             passes += 1
     
