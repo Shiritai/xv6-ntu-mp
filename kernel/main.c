@@ -3,6 +3,13 @@
 #include "memlayout.h"
 #include "riscv.h"
 #include "defs.h"
+#include "slab.h"
+
+// Static assertions to ensure structural integrity of kmem_cache
+_Static_assert(sizeof(((struct kmem_cache *)0)->name) == MP2_CACHE_MAX_NAME, 
+               "kmem_cache::name must be a fixed-size array of MP2_CACHE_MAX_NAME bytes");
+_Static_assert(sizeof(((struct kmem_cache *)0)->object_size) >= 2, 
+               "kmem_cache::object_size must be at least 16-bit to represent MP2_SLAB_SIZE");
 
 volatile static int started = 0;
 

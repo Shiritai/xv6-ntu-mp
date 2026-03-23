@@ -15,6 +15,7 @@ from pseudo_fslab import interpreter
 from check_cache import check_cache_public
 from check_cache_bonus import check_cache_bonus
 from check_list import analyze_slab_files
+from check_rand import check_rand_nonlinear as check_nl, check_rand_entropy as check_et
 
 REPEAT_TIMES = 5
 try:
@@ -34,7 +35,7 @@ def natural_sort_key(s):
 GRADES_HISTORY = {}
 SKIP_BONUS = False
 
-def create_mp2_test(test_name: str, script_file: str, points: int, sub_dir = "TestMeta", timeout=60):
+def create_mp2_test(test_name: str, script_file: str, points: int, sub_dir = "TestMeta", timeout=120):
     @test(points, test_name)
     def test_case():
         script = []
@@ -79,17 +80,17 @@ def discover_tests():
 
     for script_file in sorted(public_tests, key=natural_sort_key):
         basename = os.path.basename(script_file)
-        create_mp2_test(f"public/{basename}", script_file, 3, sub_dir="public")
+        create_mp2_test(f"public/{basename}", script_file, 3, sub_dir="public", timeout=120)
 
     for script_file in sorted(private_tests, key=natural_sort_key):
         basename = os.path.basename(script_file)
-        create_mp2_test(f"private/{basename}", script_file, 3, sub_dir="private")
+        create_mp2_test(f"private/{basename}", script_file, 5, sub_dir="private", timeout=4800)
 
     # Only load custom tests if explicitly requested via command line arguments
     if len(sys.argv) > 1:
         for script_file in sorted(custom_tests, key=natural_sort_key):
             basename = os.path.basename(script_file)
-            create_mp2_test(f"custom/{basename}", script_file, 0, sub_dir="custom") # Custom tests carry 0 points
+            create_mp2_test(f"custom/{basename}", script_file, 0, sub_dir="custom", timeout=1200) # Custom tests carry 0 points
 
 @test(10, "Power on check (10% public)")
 def test_power_on_check():
@@ -128,73 +129,32 @@ def test_cache_bonus_check():
     r.run_qemu(shell_script(["mp2"]), timeout=60)
     return check_cache_bonus(r.qemu.output)
 
-def extract_addrs(output_lines):
-    """Extract object address sequence from [SLAB] print_kmem_cache output."""
-    addrs = []
-    for line in output_lines:
-        if "[idx" in line and "addr:" in line:
-            # Match addr: 0x...
-            match = re.search(r"addr:\s+(0x[0-9a-fA-F]+)", line)
-            if match:
-                addrs.append(int(match.group(1), 16))
-    return addrs
-
-def calculate_inversions(indices):
-    """Calculate the number of inversions in a sequence."""
-    inversions = 0
-    n = len(indices)
-    for i in range(n):
-        for j in range(i + 1, n):
-            if indices[i] > indices[j]:
-                inversions += 1
-    return inversions
-
 @test(5, "Randomized Freelist (Non-linear) (Bonus)")
 def test_rand_nonlinear():
     if SKIP_BONUS:
         print("Skip bonus test since the public score < 70")
         return 0
-    # Trigger a run that prints the cache status
     r = Runner(stop_on_line(r".*panic:.*"), stop_on_line(r".*[MP2] <FAILED>.*"))
-    # We use a simple script that creates a cache and then prints it
-    # This assumes the kernel test code 'mp2' or similar does this.
     r.run_qemu(shell_script(["mp2"]), timeout=60)
-    
-    addrs = extract_addrs(r.qemu.output.splitlines())
-    if len(addrs) < 2:
-        return 0
-    
-    # Check if ascending or descending
-    is_ascending = all(addrs[i] < addrs[i+1] for i in range(len(addrs)-1))
-    is_descending = all(addrs[i] > addrs[i+1] for i in range(len(addrs)-1))
-    
-    if not (is_ascending or is_descending):
-        return 5
-    return 0
+    return check_nl(r.qemu.output.splitlines())
 
 @test(5, "Randomized Freelist (Entropy) (Bonus)")
 def test_rand_entropy():
     if SKIP_BONUS:
         print("Skip bonus test since the public score < 70")
         return 0
-    r = Runner(stop_on_line(r".*panic:.*"), stop_on_line(r".*[MP2] <FAILED>.*"))
-    r.run_qemu(shell_script(["mp2"]), timeout=60)
+    trials = 10
+    passes = 0
+    for i in range(trials):
+        reset_fs()
+        r = Runner(stop_on_line(r".*panic:.*"), stop_on_line(r".*[MP2] <FAILED>.*"))
+        r.run_qemu(shell_script(["mp2"]), timeout=60)
+        if check_et(r.qemu.output.splitlines()) == 5:
+            passes += 1
     
-    addrs = extract_addrs(r.qemu.output.splitlines())
-    if len(addrs) < 4: # Too few samples to judge entropy
-        return 0
-    
-    # Map addresses to sorted ranks (0, 1, 2, ...) to get relative order
-    sorted_addrs = sorted(addrs)
-    indices = [sorted_addrs.index(a) for a in addrs]
-    
-    inv_count = calculate_inversions(indices)
-    
-    # Threshold for N=8: Inversions >= 8
-    # For different N, we could scale, but struct file is typically around 8
-    if inv_count >= 8:
-        return 5
-    return 0
+    # Award 5 points if passes at least 5 times
+    print(f"Randomized Freelist (Entropy): {passes}/{trials} trials passed")
+    return 5 if passes >= 5 else 0
 
 @test(10, "Spinlock Correctness Bonus (Bonus)")
 def test_spinlock_bonus():

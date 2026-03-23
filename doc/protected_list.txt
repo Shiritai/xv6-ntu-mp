@@ -1,8 +1,14 @@
 .github/workflows/grading.yml
-tests/*public*.py
+tests/public/
+tests/test_mp2.py
+tests/*.so
 mp.conf
 mp.sh
 grade/
 scripts/pre-commit
 scripts/pre-push
 tests/grading.conf
+kernel/file.h
+kernel/list.h
+kernel/main.c
+user/
