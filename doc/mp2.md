@@ -59,6 +59,7 @@ In this MP2 assignment, you will implement a **Slab Allocator** for the `xv6` op
 
 > [!NOTE]
 > **Development Environment and Toolchain**:
+>
 > This assignment utilizes Docker containers and GitHub Actions for automated validation. Before starting, please carefully review:
 >
 > 1. [`doc/setup.md`](../doc/setup.md): Understand how to initialize the development environment.
@@ -79,10 +80,12 @@ In this MP2 assignment, you will implement a **Slab Allocator** for the `xv6` op
 
 > [!NOTE]
 > **Stability and Tolerance Policy**
+>
 > To account for potential kernel non-determinism, each **Standard Integrated Test** and **Private Test** is executed **5 times**. You only need to pass **at least one** out of the five attempts to receive the full score for that specific test case.
 
 > [!NOTE]
 > **Late Submission Policy**
+>
 > Submissions after the Due Date (April 07) but before the Late Deadline (April 11) will incur a **20% daily deduction**. Submissions after the Late Deadline will not be accepted (0 points).
 
 ### 🌟 Bonus Challenges (30%)
@@ -91,6 +94,7 @@ The bonus points are calculated independently. You can choose to challenge the f
 
 > [!WARNING]
 > **Bonus Scoring Eligibility**
+>
 > Bonus points will only be calculated if your <font color=red>**Public Test score is $\ge 70$**</font>.
 
 - **[Ultimate Internal Fragmentation Bonus (+5%)](#system-integration-requirements)**: Push object capacity to the absolute limit.
@@ -102,10 +106,10 @@ The bonus points are calculated independently. You can choose to challenge the f
 
 To ensure the stability and correctness of the kernel, your implementation must adhere to the following constraints:
 
-1. **File Modification Limit**: You are allowed to modify **`student.conf`**, **`kernel/file.c`**, **`kernel/slab.h`**, and **`kernel/slab.c`**. Additionally, you are permitted to **add new header files** (`.h`) if necessary. Modifications to any other existing files are strictly prohibited and will result in a score of 0.
+1. **File Modification Limit**: You are allowed to modify **`student.conf`**, **`checklist.md`**, **`kernel/file.c`**, **`kernel/slab.h`**, and **`kernel/slab.c`**. Additionally, you are permitted to **add new header files** (`.h`) if necessary. Modifications to any other existing files are strictly prohibited and will result in a score of 0.
 2. **Name Limit**: `kmem_cache::name` must accommodate at least `MP2_CACHE_MAX_NAME` (16) bytes. The kernel will check this during boot.
 3. **Object Size Limit**: `kmem_cache::object_size` must be able to represent at least one full page size (`MP2_SLAB_SIZE`, 4096 bytes). The kernel will check this during boot.
-4. **Slab Capacity**: Your slab system must be robust enough to allow the allocation of at least **4096 elements** in total across slabs.
+4. **Slab Capacity**: Your slab system must be robust enough to allow the allocation of at least **4096 objects** in total across slabs.
 5. **Memory Source**: All memory for slabs must be obtained through `kalloc()` (one page at a time).
 
 ## ⚙️ Task Specifications
@@ -136,7 +140,7 @@ void print_kmem_cache(struct kmem_cache *cache);
 
 All implemented functions must output formatted strings via `printf`. The grading scripts rely on parsing these outputs; **ensure that spaces are correct and the format matches exactly**:
 
-#### `kmem_cache_create`
+#### [`kmem_cache_create`](../kernel/slab.c)
 
 <pre style="border: 1px solid #e8e8e8;padding: 10px;border-radius: 4px;font-size: 10px;line-height: 1.5;overflow-x: auto;white-space: pre-wrap;"><code>[SLAB] New kmem_cache (name: &lt;name&gt;, object size: &lt;object_size&gt; bytes, at: &lt;kmem_cache_addr&gt;, max objects per slab: &lt;max_objs&gt;, support in cache obj: &lt;in_cache_obj&gt;) is created
 </code></pre>
@@ -147,7 +151,7 @@ All implemented functions must output formatted strings via `printf`. The gradin
 - **`<max_objs>`**: The maximum number of objects that a single `slab` can accommodate.
 - **`<in_cache_obj>`**: If "Internal Fragmentation Optimization" is implemented, this is the maximum number of objects that fit within the `kmem_cache` page; otherwise, print `0`.
 
-#### `kmem_cache_alloc`
+#### [`kmem_cache_alloc`](../kernel/slab.c)
 
 <img src="./images/mp2-slab-alloc.png" width="400" alt="Alloc Flow">
 
@@ -173,7 +177,7 @@ All implemented functions must output formatted strings via `printf`. The gradin
 [SLAB] Object <obj_addr> in slab <slab_addr> (<name>) is allocated and initialized
 ```
 
-#### `kmem_cache_free`
+#### [`kmem_cache_free`](../kernel/slab.c)
 
 <img src="./images/mp2-slab-free.png" width="400" alt="Free Flow">
 
@@ -187,7 +191,10 @@ All implemented functions must output formatted strings via `printf`. The gradin
 [SLAB] Free <obj_addr> in slab <slab_addr> (<name>)
 ```
 
-##### Memory Collection (Voluntarily returning memory back to the machine when [partial+free] > MP2_MIN_AVAIL_SLAB)
+##### Memory Collection
+
+> [!NOTE]
+> Voluntarily returning memory back to the machine when the number of `partial` + `free` slabs > `MP2_MIN_AVAIL_SLAB`.
 
 ```txt
 [SLAB] Slab <slab_addr> (<name>) is freed due to save memory
@@ -199,7 +206,7 @@ All implemented functions must output formatted strings via `printf`. The gradin
 [SLAB] End of free
 ```
 
-#### `print_kmem_cache` (Structured Validation Output)
+#### [`print_kmem_cache`](../kernel/slab.c) (Structured Validation Output)
 
 This function allows the grading framework to map the memory topology and verify randomization metrics. The output is parsed strictly; please follow the format exactly, including spacing:
 
@@ -218,7 +225,8 @@ This function allows the grading framework to map the memory topology and verify
 - `<SPACE>`: At least one space `" "` or tab `"\t"`.
 - `<slab_type>`: slab type, can be `full`, `partial`, `free`, or `cache`.
 
-**Note: You only need to print slabs in the `partial` state (as well as the `cache` state for internal fragmentation optimization). Slabs in the `full` or `free` states are tracked dynamically by the grading engine through the allocation history and do not need to be output.**
+> [!NOTE]
+> You only need to print slabs in the `partial` state (as well as the `cache` state for internal fragmentation optimization). Slabs in the `full` or `free` states are tracked dynamically by the grading engine through the allocation history and do not need to be output.
 
 ##### 3. Single Slab Status
 
@@ -235,7 +243,7 @@ This function allows the grading framework to map the memory topology and verify
 - `<idx>`: The index of the object within its respective slab.
 - `<entry_addr>`: **Output object addresses in the order they appear in the `freelist`. The grading framework uses this sequence to evaluate randomization entropy.**
 - `<as_ptr>`: The value of the first 8 bytes of the object when interpreted as a pointer (i.e., the `next` pointer in the `freelist`).
-- `<as_obj>`: The object interpreted in its functional context. For `struct file`, pass the object address to the provided `fileprint_metadata` function to populate this field.
+- `<as_obj>`: The object interpreted in its functional context. For `struct file`, pass the object address to the provided [`fileprint_metadata`](../kernel/file.c) function to populate this field.
 
 ##### 5. Function Terminator Symbol
 
@@ -300,7 +308,7 @@ To assist with formatting consistency, below is a complete output example:
 
 ### System Integration Requirements
 
-#### Kernel System Integration (`file.c`)
+#### Kernel System Integration ([`file.c`](../kernel/file.c))
 
 In the original `xv6` implementation, the system uses a static array `ftable` in `kernel/file.c` to manage all file objects. In this assignment, you must replace this static management with your dynamic slab allocator:
 
@@ -321,7 +329,8 @@ Grading Policy: You will receive scores corresponding to how many extra `struct 
 | :---: | :---: | :---: | :---: | :---: | :---: |
 | Score (10%)<br>with extra bonus (+5%) | 0 | 2 | 5 | 10 | 10 + 5 |
 
-**Note**: It is possible to fit up to eight `struct file`s within the page containing the `struct kmem_cache`. The TAs will NOT provide hints regarding this implementation; please use your creativity to maximize memory utilization.
+> [!NOTE]
+> It is possible to fit up to eight `struct file`s within the page containing the `struct kmem_cache`. The TAs will NOT provide hints regarding this implementation; please use your creativity to maximize memory utilization.
 
 ### 🌟 Bonus Task Specifications
 

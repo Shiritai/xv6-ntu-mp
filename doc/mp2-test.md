@@ -1,6 +1,6 @@
 # MP2 Testing Commands Guide (`./mp.sh test`)
 
-This project uses a highly encapsulated `./mp.sh test` command for xv6 assignment testing. In addition to running all tests by default, the script supports powerful "**namespace substring matching**," allowing you to precisely execute desired combinations.
+This project uses a highly encapsulated `./mp.sh test` command for xv6 assignment testing. In addition to running all tests by default, the script supports "substring matching", allowing you to precisely execute desired combinations.
 
 ## Basic Usage
 
@@ -28,8 +28,8 @@ Thanks to internal namespace expansion, you can now directly provide the **relat
 ./mp.sh test custom/my-test.txt
 ```
 
-> **Effect**: Only executes your custom script located at `tests/custom/my-test.txt`.
-> **Best Practice**: You can create multiple custom test scenarios without modifying the same file repeatedly for debugging.
+- **Effect**: Executes your custom script located at [`tests/custom/my-test.txt`](../tests/custom/my-test.txt).
+- **Best Practice**: You can create multiple custom test scenarios without modifying the same file repeatedly for debugging.
 
 ## Creating Custom Tests (`tests/custom/`)
 
@@ -46,7 +46,7 @@ The file should contain a sequence of commands that you want to execute sequenti
 **Example `tests/custom/my-stress.txt`:**
 
 ```text
-echo custom_stress_test"
+echo custom_stress_test
 mp2
 echo Ok
 ```
@@ -58,7 +58,7 @@ When you run `./mp.sh test custom/my-stress.txt`, the following happens:
 1. **Compilation**: The system checks if the kernel and user programs are up to date.
 2. **Boot**: A new instance of QEMU is launched.
 3. **Execution**: The content of your `.txt` file is sent to the xv6 serial console as if you typed it.
-4. **Capture**: The entire console output is captured and saved to a log file.
+4. **Capture**: The entire console output is captured and saved to a log file. Also, the test system will report whether the test passed or failed.
 
 ### 4. Analyzing Results
 
@@ -75,9 +75,9 @@ The arguments for the test system utilize "**substring matching**" internally. Y
 - `./mp.sh test 0`
   Runs all tests containing `0` in their name (e.g., `public/mp2-0.txt` and potentially `private/mp2-0.txt`).
 - `./mp.sh test mp2-`
-  Runs all MP2 related tests.
+  Runs all tests with "mp2-" in their name.
 - `./mp.sh test public`
-  Runs all tests in the `public` directory, skipping `custom`.
+  Runs all tests in the `public` directory, skipping `custom` and the other tests such as the power on check and bonus tests.
 
 ## Viewing Test Outputs (Logs)
 
@@ -87,7 +87,7 @@ Every time you run a test, the detailed execution log is saved in the `out/` dir
 
 | Path | Description |
 | --- | --- |
-| `out/public/` | Contains logs for all public automated tests. |
+| `out/public/` | Contains logs for all public integrated tests. |
 | `out/custom/` | Contains logs for your own custom test scripts. |
 
 ### Log File Naming Convention

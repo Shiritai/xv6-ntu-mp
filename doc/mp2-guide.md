@@ -114,7 +114,7 @@ Please precisely use **Pointer Arithmetic** to pinpoint the starting address of 
 
 <img src="./images/mp2-kmem_cache.png" width="500" alt="kmem_cache management">
 
-## 🐧 Linux Styled List API
+## 🐧 Linux Styled List API ([`list.h`](../kernel/list.h))
 
 Linux uses a unique linked list implementation defined in `include/linux/list.h`. Unlike traditional linked lists that store data inside a node, Linux **embeds the list node inside the data structure**.
 
@@ -143,7 +143,7 @@ For the bonus requirements, you should use this pattern to manage the slab lists
 On a multi-core system, concurrent `alloc` or `free` calls may corrupt linked lists. Ensure you use the **spinlocks** provided by xv6 in critical sections:
 
 ```c
-// Example 1
+// Example 1: slab.c
 void *kmem_cache_api(struct kmem_cache *cache) {
     acquire(&cache->lock);
     if (...) {
@@ -157,8 +157,8 @@ void *kmem_cache_api(struct kmem_cache *cache) {
     return obj;
 }
 
-// Example 2
-struct spinlock my_file_lock; // init with initlock
+// Example 2: file.c
+struct spinlock my_file_lock; // init with initlock, you can also reuse the lock in kmem_cache
 void fileclose(struct file *f) {
     acquire(&my_file_lock);
     if (...) {
@@ -186,11 +186,8 @@ By **randomizing the `freelist`**, the kernel ensures that the resulting memory 
 
 The core goal is to ensure that the `next` pointers within a newly created slab form a **Random Permutation** of the available object slots.
 
-1. **Shuffling Algorithms**: The most common approach is the **Fisher-Yates Shuffle** (also known as the Knuth Shuffle). It produces a statistically unbiased permutation in $O(n)$ time.
+1. **Shuffling Algorithms**: The most common approach is the **Fisher-Yates Shuffle** (also known as the Knuth Shuffle). It produces a statistically unbiased permutation in $O(n)$ time. You can also use other shuffling algorithms, but they must be statistically unbiased.
 2. **Entropy Sources**: A shuffle is only as good as its seed. In a kernel environment, you might consider using hardware-based non-deterministic factors (like CPU cycle counters via `rdtsc` or timing jitter) to introduce "true" randomness into your allocator's initialization phase.
-
-> [!TIP]
-> **Challenge**: Frequent shuffling incurs performance overhead. Can you achieve high security by shuffling only once during slab creation?
 
 ### Verification: Entropy and Inversions
 
@@ -214,6 +211,6 @@ For more details on the scoring and validation criteria, please refer to the [MP
 
 ## ✨ Advanced Challenge: O(1) Operations
 
-While the standard implementation of a slab allocator is sufficient, **achieving strict O(1) time complexity for `kmem_cache_create`, `kmem_cache_alloc`, and `kmem_cache_free` is entirely possible**.
+While the standard implementation of a slab allocator is sufficient, **achieving strict O(1) time complexity for `kmem_cache_create`, `kmem_cache_alloc`, and `kmem_cache_free` is entirely possible**, and which is why the slab allocator is widely used in modern operating systems.
 
 We encourage students who are interested in performance optimization and kernel design to try and implement a fully O(1) slab allocator. Good luck!
