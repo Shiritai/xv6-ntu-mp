@@ -46,43 +46,56 @@ def test_my_logic():
 
 ## 3. Save and Upload (Git Commit & Push)
 
-Git requires a 3-step process to save and upload your code. Before you start, you should always check your current state.
+Git is an essential tool for version control and collaboration. For this assignment, you will use it to download, edit, and submit your code.
 
-1. **Check your progress (`git status`)**
+### 🛠️ Setting up Git Identity
 
-   Use this command to see which files you have modified and which are ready to be staged.
+Before you start, configure your basic Git information:
 
-   ```bash
-   git status
-   ```
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "your-email@example.com"
+```
 
-2. **Stage modified files (`git add`)**
+### 📈 Development Lifecycle with Git
 
-   ```bash
-   git add xv6/user/mp0.c xv6/Makefile student.conf
-   ```
+The following flowchart illustrates the typical commands you will use during development:
 
-   > *Tip: Use `git add .` to stage all modifications, but ensure no temporary or compiled files (like `fs.img`) are included.*
+![Git Lifecycle](./images/git.png)
 
-3. **Save with a descriptive message (`git commit`)**
+1.  **Stage modified files (`git add`)**
 
-   ```bash
-   git commit -m "feat: complete basic requirements and configure student.conf"
-   ```
+    ```bash
+    git add xv6/user/mp0.c xv6/Makefile student.conf
+    ```
 
-4. **Upload to the cloud (`git push`)**
+    > *Tip: Use `git add .` to stage all modifications, but ensure no temporary or compiled files (like `fs.img`) are included.*
 
-   ```bash
-   git push origin <branch_name>
-   ```
+2.  **Save with a descriptive message (`git commit`)**
 
-   *(e.g., `git push origin mp0`. Ensure you are pushing to the correct MP branch).*
+    ```bash
+    git commit -m "feat: complete basic requirements and configure student.conf"
+    ```
+
+3.  **Upload to the cloud (`git push`)**
+
+    ```bash
+    git push origin <branch_name>
+    ```
+
+    *(e.g., `git push origin mp0`. Ensure you are pushing to the correct MP branch).*
+
+### 🔍 Advanced Visualization: Git Graph
+
+We strongly recommend installing the [**Git Graph**](https://marketplace.visualstudio.com/items?itemName=mhutchie.git-graph) extension. It provides a beautiful visual representation of your branch history and commits.
+
+> [!TIP]
+> Frequent commits are your best defense against data loss. Use `git commit` to save your progress incrementally!
 
 ## 4. GitHub Actions: Cloud Verification
 
 Every time you `git push`, a cloud grading run is triggered automatically.
 
-1. **Navigate** to the **Actions** tab on your GitHub repo.
 2. **Click** on the most recent workflow (likely named **Grading System**).
 3. Under **Jobs** on the left, **click ✅ grade**.
 4. **Expand Execute Tests (Grading)** to see the live console and detailed test results.
