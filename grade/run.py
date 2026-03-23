@@ -121,6 +121,15 @@ def validate_student_conf(student_conf):
     github_valid = student_conf.get("GITHUB_USERNAME", "").lower() not in invalid_strs
     return id_valid and name_valid and github_valid
 
+def validate_checklist(path):
+    if not os.path.exists(path):
+        return True
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            if line.strip().startswith("- [ ] "):
+                return False
+    return True
+
 def load_target_commit():
     if os.path.exists(TARGET_COMMIT_PATH):
         with open(TARGET_COMMIT_PATH, "r") as f:
@@ -156,8 +165,12 @@ def gather_verdict():
     penalty_ratio = min(1.0, late_days * 0.2)
     student_conf = parse_student_conf()
     is_identity_valid = validate_student_conf(student_conf)
-    if not is_identity_valid:
-        penalty_ratio = 1.0 # Force zero score if identity is invalid
+    
+    checklist_path = os.path.join(os.path.dirname(__file__), "../checklist.md")
+    is_checklist_valid = validate_checklist(checklist_path)
+
+    if not is_identity_valid or not is_checklist_valid:
+        penalty_ratio = 1.0 # Force zero score if identity or checklist is invalid
     return {
         "conf": conf,
         "target_commit": target_commit,
@@ -167,6 +180,7 @@ def gather_verdict():
         "penalty_ratio": penalty_ratio,
         "student_conf": student_conf,
         "is_identity_valid": is_identity_valid,
+        "is_checklist_valid": is_checklist_valid,
     }
 
 def generate_markdown(total_score, max_score, details, md_path, verdict):
@@ -179,10 +193,14 @@ def generate_markdown(total_score, max_score, details, md_path, verdict):
     # Part 1: Information
     lines.append("## Information")
     lines.append("")
-    if not is_identity_valid:
+    if not verdict["is_identity_valid"]:
         lines.append("# ⚠️ Identity Configuration Missing!")
         lines.append("Your `student.conf` contains default or missing values.")
         lines.append("Please configure it before your final submission.")
+    elif not verdict["is_checklist_valid"]:
+        lines.append("# ⚠️ Submission Checklist Incomplete!")
+        lines.append("You have unchecked items in your `checklist.md`.")
+        lines.append("Please complete all required tasks before your final submission.")
     else:
         lines.append(f"- **Student ID**: {student_conf.get('STUDENT_ID')}")
         lines.append(f"- **Name**: {student_conf.get('STUDENT_NAME')}")
@@ -234,13 +252,21 @@ def generate_json(total_score, max_score, details, json_path, verdict):
     is_private_str = os.environ.get("REPO_IS_PRIVATE", "true").lower()
     is_private = is_private_str == "true"
     
-    if not is_identity_valid:
+    if not verdict["is_identity_valid"]:
         details.insert(0, {
             "test_case": "Identity Validation (student.conf)",
             "status": "FAIL",
             "score": 0,
             "max_score": 0,
             "output": "CRITICAL: Default identity detected in student.conf. Score forced to 0."
+        })
+    elif not verdict["is_checklist_valid"]:
+        details.insert(0, {
+            "test_case": "Checklist Validation (checklist.md)",
+            "status": "FAIL",
+            "score": 0,
+            "max_score": 0,
+            "output": "CRITICAL: Unchecked items found in checklist.md. Score forced to 0."
         })
     else:
         details.insert(0, {
@@ -377,12 +403,18 @@ if __name__ == "__main__":
     possible = gradelib.POSSIBLE
     final_score = total * (1.0 - penalty_ratio)
     
-    # 1. Identity/Late Warnings
+    # 1. Identity/Checklist/Late Warnings
     if not is_valid:
         print("\n" + "="*50)
         print(f"{color('red', '[WARN] Identity Configuration Missing!')}")
         print("Your student.conf contains default or missing values.")
         print("Please configure it before your final submission.")
+        print("="*50 + "\n")
+    elif not verdict["is_checklist_valid"]:
+        print("\n" + "="*50)
+        print(f"{color('red', '[WARN] Submission Checklist Incomplete!')}")
+        print("You have unchecked items in your checklist.md.")
+        print("Please complete all required tasks before your final submission.")
         print("="*50 + "\n")
     elif penalty_ratio > 0:
         print("\n" + "="*50)
