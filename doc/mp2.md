@@ -16,9 +16,9 @@
     </tr>
     <tr>
       <td><strong>Due Date:</strong></td>
-      <td>April 07, 23:59:59 (UTC+8)</td>
+      <td>April 06, 23:59:59 (UTC+8)</td>
       <td><strong>Late Deadline:</strong></td>
-      <td>April 11, 23:59:59 (UTC+8)</td>
+      <td>April 10, 23:59:59 (UTC+8)</td>
     </tr>
     <tr>
       <td><strong>TA Hours:</strong></td>
@@ -63,7 +63,7 @@ In this MP2 assignment, you will implement a **Slab Allocator** for the `xv6` op
 > This assignment utilizes Docker containers and GitHub Actions for automated validation. Before starting, please carefully review:
 >
 > 1. [`doc/setup.md`](../doc/setup.md): Understand how to initialize the development environment.
-> 2. [`doc/workflow.md`](../doc/workflow.md): Learn how to use `./mp.sh grade` to perform local testing and the git workflows.
+> 2. [`doc/workflow.md`](../doc/workflow.md): Learn how to use `./mp.sh grade` to perform local testing and use the git workflows to work and submit your code.
 > 3. [`doc/mp2-test.md`](./mp2-test.md): Learn how to use advanced testing commands to speed up your debugging.
 > 4. [`doc/mp2-guide.md`](./mp2-guide.md): Learn what the slab system is and more technical details behind the implementation and the verification.
 
@@ -72,7 +72,7 @@ In this MP2 assignment, you will implement a **Slab Allocator** for the `xv6` op
 ### 📌 Core Requirements (100%)
 
 - **Public Tests (80%)**
-  - **[Power on check (10%)](#️-task-specifications)**: Basic boot check. Ensure the kernel can boot up and execute simple commands (e.g., `echo Ok`).
+  - **[Power on check (10%)](#️-task-specifications)**: Basic boot check. Ensure the kernel can boot up and execute simple commands (`echo Ok`).
   - **[Standard Integrated Tests (60%)](./mp2-guide.md#-implementation-guide)**: 20 automated tests (3% each) verifying `kmem_cache` creation, allocation, and deallocation logic across various scenarios.
   - **[Internal Fragmentation Optimization (10%)](#system-integration-requirements)**: Utilize the remaining space within the `kmem_cache` page to host objects.
 - **Private Tests (20%)**
@@ -86,7 +86,7 @@ In this MP2 assignment, you will implement a **Slab Allocator** for the `xv6` op
 > [!NOTE]
 > **Late Submission Policy**
 >
-> Submissions after the Due Date (April 07) but before the Late Deadline (April 11) will incur a **20% daily deduction**. Submissions after the Late Deadline will not be accepted (0 points).
+> Submissions after the Due Date (April 06) but before the Late Deadline (April 10) will incur a **20% daily deduction**. Submissions after the Late Deadline will not be accepted (0 points).
 
 ### 🌟 Bonus Challenges (30%)
 
@@ -99,7 +99,7 @@ The bonus points are calculated independently. You can choose to challenge the f
 
 - **[Ultimate Internal Fragmentation Bonus (+5%)](#system-integration-requirements)**: Push object capacity to the absolute limit.
 - **[Linux List API Application (+5%)](#-linux-list-api-application-bonus-5)**: Use `kernel/list.h` to manage slabs.
-- **[Allocation Randomization (+10%)](#️-allocation-randomization-bonus-10)**: Non-linear `freelist` and entropy verification.
+- **[Allocation Randomization (+10%)](#️-allocation-randomization-bonus-10)**: `freelist` non-linear and entropy verifications.
 - **[Spinlock Correctness (+10%)](#-spinlock-correctness-bonus-10)**: 100% pass rate under concurrent stress.
 
 ## ⚖️ Constraints
@@ -333,7 +333,7 @@ Grading Policy: You will receive scores corresponding to how many extra `struct 
 | Score (10%)<br>with extra bonus (+5%) | 0 | 2 | 5 | 10 | 10 + 5 |
 
 > [!NOTE]
-> It is possible to fit up to eight `struct file`s within the page containing the `struct kmem_cache`. The TAs will NOT provide hints regarding this implementation; please use your creativity to maximize memory utilization.
+> It is possible to fit up to eight `struct file` objects within the page containing the `struct kmem_cache`. The TAs will NOT provide hints regarding this implementation; please use your creativity to maximize memory utilization.
 
 ### 🌟 Bonus Task Specifications
 
