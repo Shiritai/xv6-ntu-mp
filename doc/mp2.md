@@ -194,7 +194,7 @@ All implemented functions must output formatted strings via `printf`. The gradin
 ##### Memory Collection
 
 > [!NOTE]
-> Voluntarily returning memory back to the machine when the number of `partial` (partially allocated or empty) slabs > `MP2_MIN_AVAIL_SLAB`.
+> Voluntarily returning memory back to the machine when the number of `partial` (partially allocated or empty) slabs > `MP2_MIN_AVAIL_SLAB`. Note that `MP2_MIN_AVAIL_SLAB` only counts `partial` slabs and does not include `cache` or `full` slabs.
 
 ```txt
 [SLAB] Slab <slab_addr> (<name>) is freed due to save memory
@@ -229,6 +229,9 @@ This function allows the grading framework to map the memory topology and verify
   - `cache` (internal fragmentation optimization)
 
 > [!NOTE]
+> If internal fragmentation optimization is implemented, the `cache` slabs must be printed **before** the `partial` slabs in the output of `print_kmem_cache`.
+
+> [!NOTE]
 > You only need to print slabs in the `partial` state (as well as the `cache` state for internal fragmentation optimization). Slabs in the `full` states are tracked dynamically by the grading engine through the allocation history and do not need to be output.
 
 ##### 3. Single Slab Status
@@ -237,6 +240,8 @@ This function allows the grading framework to map the memory topology and verify
 [SLAB] <SPACE>[ slab <slab_addr> ] { freelist: <freelist>, nxt: <next_slab_addr> }
 ```
 
+- **`nxt`**: The address of the next slab in the linked list. Note: For the `cache` slab (in-cache slab), the `nxt` pointer should always be `0`.
+
 ##### 4. Single Core Object Status
 
 ```text
@@ -244,7 +249,7 @@ This function allows the grading framework to map the memory topology and verify
 ```
 
 - `<idx>`: The index of the object within its respective slab.
-- `<entry_addr>`: **Output object addresses in the order they appear in the `freelist`. The grading framework uses this sequence to evaluate randomization entropy.**
+- `<entry_addr>`: **Output object addresses sorted by memory address (`addr`) from lowest to highest. This ensures the grading framework can efficiently locate and verify object states.**
 - `<as_ptr>`: The value of the first 8 bytes of the object when interpreted as a pointer (i.e., the `next` pointer in the `freelist`).
 - `<as_obj>`: The object interpreted in its functional context. For `struct file`, pass the object address to the provided [`fileprint_metadata`](../kernel/file.c) function to populate this field.
 

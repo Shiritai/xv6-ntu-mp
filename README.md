@@ -47,6 +47,7 @@ For a tailored onboarding experience, explore our modular guides:
 - [`doc/mp2.md`](doc/mp2.md): MP2 Specification
 - [`doc/mp2-test.md`](doc/mp2-test.md): MP2 Testing guide
 - [`doc/mp2-guide.md`](doc/mp2-guide.md): Slab allocator Technical guide
+- [`doc/mp2-faq.md`](doc/mp2-faq.md): The frequently asked questions by the students
 
 > **📋 Task Requirements.** Detailed technical specifications and goals for the current Machine Problem.
 
