@@ -6,8 +6,8 @@ Follow these steps to create your private workspace and initialize the developme
 
 We use Docker to provide a standardized environment. Please follow the official instructions to install Docker on your operating system:
 
-- **Windows**: Install [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/). 
-  > **Important**: You must use **WSL 2** (Windows Subsystem for Linux) as the backend (a.k.a. run git/mp.sh inside WSL).
+- **Windows**: Install [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/).
+  > **Important**: You must use **WSL 2** (Windows Subsystem for Linux) as the backend (a.k.a. run git/mp.sh inside WSL). For detailed setup tips, see [**Tips for Windows Users**](./tips-windows.md).
 - **macOS**: Install [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/). Choose the correct version for your chip (Intel or Apple Silicon).
 - **Linux**: Install Docker Engine using the official instructions for your distribution (e.g., [Ubuntu](https://docs.docker.com/engine/install/ubuntu/)). Follow the [Linux post-installation steps](https://docs.docker.com/engine/install/linux-postinstall/) to configure Docker to run without `sudo`.
 
@@ -41,7 +41,7 @@ Since the new repository is `Private`, TAs cannot see your code without an invit
 Now, bring the code to your local machine.
 
 > [!NOTE]
-> **Windows Users**: Please clone the repository and run all commands **inside your WSL environment** (e.g., Ubuntu terminal), NOT in Windows PowerShell or Command Prompt.
+> **Windows Users**: Please clone the repository and run all commands **inside your WSL environment** (e.g., Ubuntu terminal), NOT in Windows PowerShell or Command Prompt. Using Windows tools to clone might corrupt the script format (CRLF vs LF). See [Detailed Windows Setup](./tips-windows.md) for a safe workflow.
 
 1. **Clone**:
 

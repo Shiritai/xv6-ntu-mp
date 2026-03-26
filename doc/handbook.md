@@ -72,7 +72,7 @@ Virtualization provides an abstracted layer from the actual hardware. Here is a 
 | Platform    | Setup Requirements                                                                                                                                    |
 | :---------- | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Linux**   | Native performance. Best experience.                                                                                                                  |
-| **Windows** | Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) with [WSL2](https://docs.microsoft.com/en-us/windows/wsl/install) backend. |
+| **Windows** | Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) with [WSL2](https://docs.microsoft.com/en-us/windows/wsl/install) backend. See [**Windows Tips**](./tips-windows.md). |
 | **macOS**   | Requires Docker Desktop. Apple Silicon is fully supported.                                                                                            |
 
 ### Emulation Strategy: QEMU and RISC-V

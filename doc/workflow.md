@@ -61,9 +61,12 @@ git config --global user.email "your-email@example.com"
 
 The following flowchart illustrates the typical commands you will use during development:
 
+> [!WARNING]
+> **Windows Users**: Before you start, ensure you are working **inside WSL2**. Running Git commands from Windows can automatically convert your line endings to CRLF, which will break the OS build. See [**Avoiding CRLF on Windows**](./tips-windows.md#2-core-rule-avoid-crlf-issues) for details.
+
 ![Git Lifecycle](./images/git.png)
 
-1.  **Stage modified files (`git add`)**
+1. Stage modified files (`git add`)
 
     ```bash
     git add xv6/user/mp0.c xv6/Makefile student.conf
@@ -71,13 +74,13 @@ The following flowchart illustrates the typical commands you will use during dev
 
     > *Tip: Use `git add .` to stage all modifications, but ensure no temporary or compiled files (like `fs.img`) are included.*
 
-2.  **Save with a descriptive message (`git commit`)**
+2. Save with a descriptive message (`git commit`)
 
     ```bash
     git commit -m "feat: complete basic requirements and configure student.conf"
     ```
 
-3.  **Upload to the cloud (`git push`)**
+3. Upload to the cloud (`git push`)
 
     ```bash
     git push origin <branch_name>
@@ -96,6 +99,7 @@ We strongly recommend installing the [**Git Graph**](https://marketplace.visuals
 
 Every time you `git push`, a cloud grading run is triggered automatically.
 
+1. **Navigate** to your repository's **Actions** tab.
 2. **Click** on the most recent workflow (likely named **Grading System**).
 3. Under **Jobs** on the left, **click ✅ grade**.
 4. **Expand Execute Tests (Grading)** to see the live console and detailed test results.
