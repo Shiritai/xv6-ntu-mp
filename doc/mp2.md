@@ -242,7 +242,7 @@ This function allows the grading framework to map the memory topology and verify
 
 - **`nxt`**: The address of the next slab in the linked list. Note: For the `cache` slab (in-cache slab), the `nxt` pointer should always be `0`.
 
-##### 4. Single Core Object Status
+##### 4. Single Kernel Object Status
 
 ```text
 [SLAB] <SPACE>[ idx <idx> ] { addr: <entry_addr>, as_ptr: <as_ptr>, as_obj: {<as_obj>} }

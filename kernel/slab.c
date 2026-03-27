@@ -6,7 +6,7 @@
 #include "defs.h"
 #include "slab.h"
 
-void print_kmem_cache(struct kmem_cache *cache, void (*slab_obj_printer)(void *))
+void print_kmem_cache(struct kmem_cache *cache, void (*print_fn)(void *))
 {
   // TODO: Implement print_kmem_cache
   printf("[SLAB] TODO: print_kmem_cache is not yet implemented \n");
