@@ -132,8 +132,6 @@ check_docker() {
     # If GITHUB_ACTIONS is set, disable TTY to avoid 'the input device is not a TTY' errors
     if [ -t 1 ] && [ -z "$GITHUB_ACTIONS" ]; then
         DOCKER_CMD_OPTS+=" -it"
-    else
-        IMAGE_NAME="${GITHUB_UPSTREAM}/${DOCKER_IMAGE}:-ntuos/mp2}" # Default fallback
     fi
 
     # Architecture check for Apple Silicon / ARM64
@@ -228,7 +226,7 @@ ensure_docker_start_cmd() {
         START_IMAGE=""
         info "Simulation Mode: Docker bypassed."
     else
-        START_IMAGE="$DOCKER_CMD run $DOCKER_CMD_OPTS -v $(realpath "$SCRIPT_DIR"):/home/student/xv6 -w /home/student/xv6 -u $(id -u):$(id -g) --rm $IMAGE_NAME"
+        START_IMAGE="$DOCKER_CMD run $DOCKER_CMD_OPTS -v $(realpath "$SCRIPT_DIR"):/home/student/xv6 -w /home/student/xv6 -u $(id -u):$(id -g) --name $ASSIGNMENT $IMAGE_NAME"
     fi
 }
 
@@ -309,6 +307,10 @@ case "$1" in
         info "Cleaning build artifacts..."
         $START_IMAGE make clean
         chown_if_need "."
+        ;;
+    "reset")
+        info "Removing container $ASSIGNMENT..."
+        $DOCKER_CMD rm -f $ASSIGNMENT
         ;;
     *)
         echo "Usage: $0 {init|qemu|test|grade|clean}"
