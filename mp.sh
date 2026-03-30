@@ -294,6 +294,16 @@ case "$1" in
         $START_IMAGE make qemu
         chown_if_need "."
         ;;
+    "bash")
+        info "Starting BASH in $IMAGE_NAME..."
+        $START_IMAGE bash
+        chown_if_need "."
+        ;;
+    "debug")
+        info "Starting QEMU-GDB in $IMAGE_NAME..."
+        $START_IMAGE bash -c "tmux new-session -d 'make qemu-gdb' \\; split-window -h 'gdb-multiarch -q' \\; attach"
+        chown_if_need "."
+        ;;
     "test"|"grade")
         check_ta_commit
         info "Running tests for $ASSIGNMENT..."
@@ -309,7 +319,7 @@ case "$1" in
         chown_if_need "."
         ;;
     "reset")
-        info "Removing container $ASSIGNMENT..."
+        info "Resetting $IMAGE_NAME..."
         $DOCKER_CMD rm -f $ASSIGNMENT
         ;;
     *)
