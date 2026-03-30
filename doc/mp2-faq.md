@@ -59,12 +59,22 @@ Yes, please include the max_objs field for both partial slabs and in-cache slabs
 ## Q6: Verification of Slab Randomization
 
 **Student Question:**
-If the printed blocks are sorted by memory address (i.e., the addr field increases linearly), wouldn't the randomization verification always appear linear?
+- If the printed blocks are sorted by memory address (i.e., the addr field increases linearly), wouldn't the randomization verification always appear linear?
+- For in-cache objects, are they required to be linked non-linearly or even meet the entropy requirement so as to get bonus points? Or can I just implement this randomness for standard slabs?
 
 **TA Answer:**
 The verification is based on the relationship between two specific fields: `addr` and `as_ptr`.
 - `addr` / `idx`: These represent the memory location of a specific block in slab. Printing them in increasing order provides a map of the slab's layout.
 - `as_ptr`: This field stores the pointer to the next available block, zero when no available block exists.
+- For in-cache slab, it's not mandatory, but the TA encourages you to implement randomization for the in-cache slab as well.
+
+## Q7: About memory layout
+
+**Student Question:**
+Can we assume that the pages obtained by `kalloc()` are all properly aligned in the physical memory? That is, will the address of any page be from `k*4096` to `(k+1)*4096` where `k` is some non-negative integer?
+
+**TA Answer:**
+Yes, you can make that assumption. In fact, it's exactly the key to implementing a certain API efficiently in O(1) time.
 
 > [!TIP]
 > **Continuous Updates**
