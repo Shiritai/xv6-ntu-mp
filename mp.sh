@@ -389,7 +389,7 @@ ensure_docker_start_cmd() {
         START_IMAGE=()
         info "Simulation Mode: Docker bypassed."
     else
-        START_IMAGE=("${DOCKER_CMD[@]}" run "${DOCKER_CMD_OPTS[@]}" -v "$(realpath "$SCRIPT_DIR"):/home/student/xv6" -w /home/student/xv6 -u "$(id -u):$(id -g)" --rm "$IMAGE_NAME")
+        START_IMAGE=("${DOCKER_CMD[@]}" run "${DOCKER_CMD_OPTS[@]}" -v "$(realpath "$SCRIPT_DIR"):/home/student/xv6" -w /home/student/xv6 -u "$(id -u):$(id -g)" --name "$ASSIGNMENT" "$IMAGE_NAME")
     fi
 }
 
@@ -465,11 +465,14 @@ case "$1" in
         "${START_IMAGE[@]}" python3 grade/run.py "$@"
         chown_if_need "."
         ;;
-
     "clean")
         info "Cleaning build artifacts..."
         "${START_IMAGE[@]}" make clean
         chown_if_need "."
+        ;;
+    "reset")
+        info "Resetting $IMAGE_NAME..."
+        $DOCKER_CMD rm -f $ASSIGNMENT
         ;;
     "snapshot")
         # Already handled early
