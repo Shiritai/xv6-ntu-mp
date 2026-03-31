@@ -42,9 +42,9 @@ fi
 # Configuration Defaults
 # If GITHUB_ACTIONS is set, change to ghcr.io to avoid rate limit
 if [ -t 1 ] && [ -z "$GITHUB_ACTIONS" ]; then
-    IMAGE_NAME="${DOCKER_UPSTREAM}/${DOCKER_IMAGE}:-ntuos/mp2}" # Default fallback
+    IMAGE_NAME="${DOCKER_UPSTREAM:+$DOCKER_UPSTREAM/}${DOCKER_IMAGE:-ntuos/mp2}" # Default fallback
 else
-    IMAGE_NAME="${GITHUB_UPSTREAM}/${DOCKER_IMAGE}:-ntuos/mp2}" # Default fallback
+    IMAGE_NAME="${GITHUB_UPSTREAM:+$GITHUB_UPSTREAM/}${DOCKER_IMAGE:-ntuos/mp2}" # Default fallback
 fi
 
 # ------------------------------------------------------------------------------
