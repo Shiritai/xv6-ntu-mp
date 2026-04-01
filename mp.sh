@@ -343,6 +343,10 @@ case "$1" in
         snapshot
         exit 0
         ;;
+    "clean"|"reset"|"bash"|"debug")
+        # Lightweight commands: only need docker, skip update checks
+        check_os && check_docker && check_hooks || exit 1
+        ;;
     "sync"|*)
         check_environment || exit 1
         if [ "$1" == "sync" ]; then
