@@ -128,6 +128,7 @@ check_docker() {
 
     # 2.3 Configure Daemon Options
     DOCKER_CMD_OPTS=()
+    DOCKER_RUN_OPTS=()
 
     # Check for TTY (interactive mode)
     # If GITHUB_ACTIONS is set, disable TTY to avoid 'the input device is not a TTY' errors
@@ -155,10 +156,10 @@ check_docker() {
     # Podman specific fix
     if [[ "${DOCKER_CMD[*]}" == *"podman"* ]]; then
         # Fix permission mapping for podman
-        DOCKER_CMD_OPTS+=(--security-opt label=disable)
+        DOCKER_RUN_OPTS+=(--security-opt label=disable)
         # If not root, keep id
         if [[ "${DOCKER_CMD[*]}" != *"sudo"* ]]; then
-             DOCKER_CMD_OPTS+=(--userns=keep-id)
+             DOCKER_RUN_OPTS+=(--userns=keep-id)
         fi
     fi
 }
@@ -399,7 +400,7 @@ prepare_docker_start_cmd() {
 
     case "$1" in
         "run")
-            START_IMAGE=("${DOCKER_CMD[@]}" run "${DOCKER_CMD_OPTS[@]}" -v "$(realpath "$SCRIPT_DIR"):/home/student/xv6" -w /home/student/xv6 -u "$(id -u):$(id -g)" --rm "$IMAGE_NAME")
+            START_IMAGE=("${DOCKER_CMD[@]}" run "${DOCKER_CMD_OPTS[@]}" "${DOCKER_RUN_OPTS[@]}" -v "$(realpath "$SCRIPT_DIR"):/home/student/xv6" -w /home/student/xv6 -u "$(id -u):$(id -g)" --rm "$IMAGE_NAME")
             ;;
         "start")
             local state
@@ -409,7 +410,7 @@ prepare_docker_start_cmd() {
             elif [ "$state" = "false" ]; then
                 "${DOCKER_CMD[@]}" start "$CONTAINER_NAME" > /dev/null 2>&1
             else
-                "${DOCKER_CMD[@]}" run -d "${DOCKER_CMD_OPTS[@]}" -v "$(realpath "$SCRIPT_DIR"):/home/student/xv6" -w /home/student/xv6 -u "$(id -u):$(id -g)" --name "$CONTAINER_NAME" "$IMAGE_NAME" sleep infinity > /dev/null 2>&1
+                "${DOCKER_CMD[@]}" run -d "${DOCKER_CMD_OPTS[@]}" "${DOCKER_RUN_OPTS[@]}" -v "$(realpath "$SCRIPT_DIR"):/home/student/xv6" -w /home/student/xv6 -u "$(id -u):$(id -g)" --name "$CONTAINER_NAME" "$IMAGE_NAME" sleep infinity > /dev/null 2>&1
             fi
             START_IMAGE=("${DOCKER_CMD[@]}" exec "${DOCKER_CMD_OPTS[@]}" "$CONTAINER_NAME")
             ;;
