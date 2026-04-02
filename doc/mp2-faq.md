@@ -76,6 +76,14 @@ Can we assume that the pages obtained by `kalloc()` are all properly aligned in 
 **TA Answer:**
 Yes, you can make that assumption. In fact, it's exactly the key to implementing a certain API efficiently in O(1) time.
 
+### Q8: Action Failure After Submission (Docker Hub Rate Limit)
+
+**Student Question:**
+I encountered a failure in GitHub Actions after a submission. What could be the cause of this error?
+
+**TA Answer:**
+If you notice that some Actions fail while others run normally, it is likely due to hitting Docker Hub's rate limit for pulling container images. This is a temporary network-related issue. To resolve it, please wait for a few minutes and then click **"Re-run all jobs"** in the Actions tab to re-trigger the workflow.
+
 > [!TIP]
 > **Continuous Updates**
 >
