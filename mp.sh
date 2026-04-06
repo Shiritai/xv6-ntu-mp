@@ -40,11 +40,9 @@ else
 fi
 
 # Configuration Defaults
-# If GITHUB_ACTIONS is set, change to ghcr.io to avoid rate limit
+# GitHub Action will use mp.conf to set DOCKER_IMAGE
 if [ -t 1 ] && [ -z "$GITHUB_ACTIONS" ]; then
-    IMAGE_NAME="${DOCKER_UPSTREAM:+$DOCKER_UPSTREAM/}${DOCKER_IMAGE:-ntuos/mp2}" # Default fallback
-else
-    IMAGE_NAME="${GITHUB_UPSTREAM:+$GITHUB_UPSTREAM/}${DOCKER_IMAGE:-ntuos/mp2}" # Default fallback
+    IMAGE_NAME="${DOCKER_IMAGE:-ntuos/mp2}"
 fi
 CONTAINER_NAME="ntuos2026-$ASSIGNMENT"
 
@@ -53,6 +51,10 @@ CONTAINER_NAME="ntuos2026-$ASSIGNMENT"
 # ------------------------------------------------------------------------------
 
 check_os() {
+    # Skip os check in GITHUB_ACTIONS
+    if [ -n "$GITHUB_ACTIONS" ]; then
+        return
+    fi
     local os_name
     os_name=$(uname -s)
     local kernel_release
@@ -86,8 +88,8 @@ check_os() {
 }
 
 check_docker() {
-    # Simulation Mode Bypass
-    if [ -n "$SIMULATION_MODE" ]; then
+    # Simulation Mode and GitHub Action Bypass
+    if [ -n "$GITHUB_ACTIONS" ] || [ -n "$SIMULATION_MODE" ]; then
         return
     fi
 
@@ -397,6 +399,11 @@ prepare_docker_start_cmd() {
         info "Simulation Mode: Docker bypassed."
         return 0
     fi
+    if [ -n "$GITHUB_ACTIONS" ]; then
+        START_IMAGE=()
+        info "GitHub Action: Docker bypassed."
+        return 0
+    fi
 
     case "$1" in
         "run")
@@ -515,6 +522,7 @@ case "$1" in
         prepare_docker_start_cmd rm
         "${START_IMAGE[@]}"
         ;;
+
     "snapshot")
         # Already handled early
         ;;
