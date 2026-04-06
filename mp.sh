@@ -43,6 +43,8 @@ fi
 # GitHub Action will use mp.conf to set DOCKER_IMAGE
 if [ -t 1 ] && [ -z "$GITHUB_ACTIONS" ]; then
     IMAGE_NAME="${DOCKER_IMAGE:-ntuos/mp2}"
+else
+    IMAGE_NAME="${ACTION_IMAGE:-ntuos/mp2}"
 fi
 CONTAINER_NAME="ntuos2026-$ASSIGNMENT"
 
