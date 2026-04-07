@@ -36,16 +36,16 @@ jobs:
 
       - name: Verify Student Identity
         id: verify
-        env:
-          # Pass TA Emails via Env (or read from mp.conf inside script)
-          # The script will read mp.conf directly.
-          PYTHONUNBUFFERED: "1"
         run: |
           fail=false
           if ! python3 grade/verify_committer.py; then
             fail=true
           fi
           echo "fail=$fail" >> "$GITHUB_OUTPUT"
+        env:
+          # Pass TA Emails via Env (or read from mp.conf inside script)
+          # The script will read mp.conf directly.
+          PYTHONUNBUFFERED: "1"
 
       - id: vars
         if: steps.verify.outputs.fail != 'true'
@@ -79,28 +79,8 @@ jobs:
       has_bonus: ${{ steps.discover.outputs.has_bonus }}
 
     steps:
-      - name: Optimize Git and Checkout
-        run: |
-          # Disable compression for faster network transfer.
-          git config --global core.compression 0
-          # Turn off fsync
-          git config --global core.fsync -all
-
       - name: Checkout Repository
         uses: actions/checkout@v6
-        with:
-          sparse-checkout: |
-            conf/
-            grade/
-            kernel/
-            mkfs/
-            user/
-            .gdbinit.tmpl-riscv
-            Makefile
-            mp.conf
-            mp.sh
-            test-xv6.py
-            tests/
 
       - name: Build xv6
         run: make
@@ -139,40 +119,22 @@ jobs:
     container:
       image: ${{ needs.mp-setup.outputs.image }}
       options: ${{ needs.mp-setup.outputs.options }}
+      # The things below are only used for private image
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     permissions:
       packages: read
       contents: read
+      # The things above are only used for private image
     strategy:
       fail-fast: false
       matrix:
         test: ${{ fromJson(needs.build-discover.outputs.test_matrix) }}
 
     steps:
-      - name: Optimize Git and Checkout
-        run: |
-          # Disable compression for faster network transfer.
-          git config --global core.compression 0
-          # Turn off fsync
-          git config --global core.fsync -all
-
       - name: Checkout Repository
         uses: actions/checkout@v6
-        with:
-          sparse-checkout: |
-            conf/
-            grade/
-            kernel/
-            mkfs/
-            user/
-            .gdbinit.tmpl-riscv
-            Makefile
-            mp.conf
-            mp.sh
-            test-xv6.py
-            tests/
 
       - name: Download Build Artifacts
         uses: actions/download-artifact@v8
@@ -188,6 +150,7 @@ jobs:
             "${{ matrix.test.pattern }}"
         env:
           PYTHONUNBUFFERED: "1"
+          # TODO: Can be moved to mp-setup, we only need it once
           REPO_IS_PRIVATE: ${{ github.event.repository.private }}
 
       - name: Upload Test Result
@@ -208,36 +171,18 @@ jobs:
     container:
       image: ${{ needs.mp-setup.outputs.image }}
       options: ${{ needs.mp-setup.outputs.options }}
+      # The things below are only used for private image
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     permissions:
       packages: read
       contents: read
+      # The things above are only used for private image
 
     steps:
-      - name: Optimize Git and Checkout
-        run: |
-          # Disable compression for faster network transfer.
-          git config --global core.compression 0
-          # Turn off fsync
-          git config --global core.fsync -all
-
       - name: Checkout Repository
         uses: actions/checkout@v6
-        with:
-          sparse-checkout: |
-            conf/
-            grade/
-            kernel/
-            mkfs/
-            user/
-            .gdbinit.tmpl-riscv
-            Makefile
-            mp.conf
-            mp.sh
-            test-xv6.py
-            tests/
 
       - name: Download Build Artifacts
         uses: actions/download-artifact@v8
@@ -268,6 +213,7 @@ jobs:
             "*Bonus*" "*bonus*" "*threshold*"
         env:
           PYTHONUNBUFFERED: "1"
+          # TODO: Can be moved to mp-setup, we only need it once
           REPO_IS_PRIVATE: ${{ github.event.repository.private }}
 
       - name: Upload Bonus Results
@@ -284,7 +230,7 @@ jobs:
   report:
     needs: [mp-setup, build-discover, test, bonus-test]
     if: always()
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
 
     steps:
       - name: Checkout Repository
@@ -334,6 +280,7 @@ jobs:
           fi
 
       - name: Upload Final Report
+        # TODO: should we always have a report?
         if: always() && needs.mp-setup.outputs.fail != 'true'
         uses: actions/upload-artifact@v7
         with:

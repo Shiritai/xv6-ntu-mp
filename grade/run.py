@@ -194,7 +194,10 @@ def generate_markdown(total_score, max_score, details, md_path, verdict):
     student_conf = verdict["student_conf"]
     is_identity_valid = verdict["is_identity_valid"]
     required_repo_name = verdict["repo_name"]
-    student_repo_name = REPO_FULLNAME.removeprefix(USERNAME).removeprefix("/")
+    if REPO_FULLNAME:
+        student_repo_name = REPO_FULLNAME.removeprefix(USERNAME).removeprefix("/")
+    else
+        student_repo_name = required_repo_name
 
     lines = []
 
@@ -370,6 +373,7 @@ if __name__ == "__main__":
         gradelib.TOTAL = args.inject_total
     if args.inject_possible is not None:
         gradelib.POSSIBLE = args.inject_possible
+    # TODO: check if all mp can deal with it
     if args.inject_history:
         try:
             with open(args.inject_history, "r") as f:

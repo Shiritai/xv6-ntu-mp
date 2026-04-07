@@ -46,7 +46,7 @@ if [ -t 1 ] && [ -z "$GITHUB_ACTIONS" ]; then
 else
     IMAGE_NAME="${ACTION_IMAGE:-ntuos/mp2}"
 fi
-CONTAINER_NAME="ntuos2026-$ASSIGNMENT"
+CONTAINER_NAME="$REPOSITORY_NAME"
 
 # ------------------------------------------------------------------------------
 # 2. Environment Checks
