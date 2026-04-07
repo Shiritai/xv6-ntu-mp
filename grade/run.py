@@ -169,7 +169,8 @@ def gather_verdict():
     penalty_ratio = min(1.0, late_days * 0.2)
     student_conf = parse_student_conf()
     is_identity_valid = validate_student_conf(student_conf)
-    
+    hide_mistake = student_conf.get("HIDE_STUDENT_CONF_MISTAKE", "").strip().lower() == "true"
+
     checklist_path = os.path.join(os.path.dirname(__file__), "../checklist.md")
     is_checklist_valid = validate_checklist(checklist_path)
     repo_name = conf.get("REPOSITORY_NAME", "Ask TA")
@@ -177,6 +178,7 @@ def gather_verdict():
     if not is_identity_valid or not is_checklist_valid:
         penalty_ratio = 1.0 # Force zero score if identity or checklist is invalid
     return {
+        "hide_mistake": hide_mistake,
         "conf": conf,
         "target_commit": target_commit,
         "commit_ts": commit_ts,
@@ -218,11 +220,12 @@ def generate_markdown(total_score, max_score, details, md_path, verdict):
         written_username = student_conf.get('GITHUB_USERNAME')
         lines.append(f"- **GitHub Username**: {written_username}")
         # In CI, verify if both are correct
-        if USERNAME and USERNAME != written_username:
-            lines.append(f"- *Actual GitHub Username*: **{USERNAME}**")
-        if student_repo_name != required_repo_name:
-            lines.append(f"- **Current Repository Name**: {student_repo_name}")
-            lines.append(f"- *Required Repository Name*: **{required_repo_name}**")
+        if not verdict.get("hide_mistake"):
+            if USERNAME and USERNAME != written_username:
+                lines.append(f"- *Actual GitHub Username*: **{USERNAME}**")
+            if student_repo_name != required_repo_name:
+                lines.append(f"- **Current Repository Name**: {student_repo_name}")
+                lines.append(f"- *Required Repository Name*: **{required_repo_name}**")
     lines.append("")
 
     # Part 2: Grades (mermaid xychart)
