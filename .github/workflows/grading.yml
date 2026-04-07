@@ -257,6 +257,21 @@ jobs:
           path: .
         continue-on-error: true
 
+      - name: Record Build Failure
+        if: needs.build-discover.result == 'failure' && needs.mp-setup.outputs.fail != 'true'
+        run: |
+          mkdir -p results
+          cat > results/build-fail.json << 'ENDJSON'
+          {
+            "test_case": "Build/Setup",
+            "status": "FAIL",
+            "score": 0,
+            "max_score": 0,
+            "order": -1,
+            "output": "Compilation failed (make error)"
+          }
+          ENDJSON
+
       - name: Aggregate Results
         if: needs.mp-setup.outputs.fail != 'true'
         run: |
