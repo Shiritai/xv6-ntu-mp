@@ -58,8 +58,10 @@ def run_script_test(test_name, script_path, points=10, timeout=30):
 
 def get_test_rank(filename):
     name = os.path.basename(filename).lower()
-    if 'public' in name: return 0
-    if 'private' in name: return 2
+    if 'public' in name:
+        return 0
+    if 'private' in name:
+        return 2
     return 1
 
 def natural_sort_key(s):
@@ -194,11 +196,10 @@ def gather_verdict():
 def generate_markdown(total_score, max_score, details, md_path, verdict):
     penalty_ratio = verdict["penalty_ratio"]
     student_conf = verdict["student_conf"]
-    is_identity_valid = verdict["is_identity_valid"]
     required_repo_name = verdict["repo_name"]
     if REPO_FULLNAME:
         student_repo_name = REPO_FULLNAME.removeprefix(USERNAME).removeprefix("/")
-    else
+    else:
         student_repo_name = required_repo_name
 
     lines = []
@@ -222,10 +223,13 @@ def generate_markdown(total_score, max_score, details, md_path, verdict):
         # In CI, verify if both are correct
         if not verdict.get("hide_mistake"):
             if USERNAME and USERNAME != written_username:
-                lines.append(f"- *Actual GitHub Username*: **{USERNAME}**")
+                lines.append("> [!CAUTION]")
+                lines.append(f">- **Actual GitHub Username**: **{USERNAME}**")
             if student_repo_name != required_repo_name:
-                lines.append(f"- **Current Repository Name**: {student_repo_name}")
-                lines.append(f"- *Required Repository Name*: **{required_repo_name}**")
+                if USERNAME and USERNAME == written_username:
+                    lines.append("> [!CAUTION]")
+                lines.append(f">- **GitHub Repository Name**: {student_repo_name}")
+                lines.append(f">- **Required Repository Name**: **{required_repo_name}**")
     lines.append("")
 
     # Part 2: Grades (mermaid xychart)
