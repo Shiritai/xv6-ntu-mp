@@ -46,6 +46,7 @@ if [ -t 1 ] && [ -z "$GITHUB_ACTIONS" ]; then
 else
     IMAGE_NAME="${ACTION_IMAGE:-ntuos/mp2}"
 fi
+
 CONTAINER_NAME="$REPOSITORY_NAME"
 
 # ------------------------------------------------------------------------------
@@ -510,7 +511,8 @@ case "$1" in
     "bash")
         info "Starting BASH in $IMAGE_NAME..."
         prepare_docker_start_cmd start
-        "${START_IMAGE[@]}" bash
+        shift
+        "${START_IMAGE[@]}" bash "$@"
         chown_if_need "."
         ;;
     "debug")
