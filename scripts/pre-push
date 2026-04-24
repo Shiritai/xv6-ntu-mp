@@ -14,9 +14,12 @@ fi
 
 PROTECTED_LIST="doc/protected_list.txt"
 
-# Intercept TA updates before pushing
+# Detect unsynced TA updates before pushing.
+# MUST use sync-check (non-interactive) — pre-push receives the ref list on
+# stdin, so any `read` from an interactive sync would consume git's data,
+# corrupting the hook and bypassing file protection below.
 if [ -f "./mp.sh" ]; then
-    ./mp.sh sync || exit 1
+    ./mp.sh sync-check || exit 1
 fi
 
 if [ ! -f "$PROTECTED_LIST" ]; then

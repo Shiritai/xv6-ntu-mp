@@ -22,17 +22,11 @@ run_test() {
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
 }
 
-# 1. Run Core Tests
-for t in "$TEST_DIR/core/"*_test.sh; do
-    [ -e "$t" ] || continue
+# Discover every *_test.sh under TEST_DIR (one level deep, any subdir).
+# New categories (e.g. grade/) are picked up automatically — no edit needed.
+while IFS= read -r -d '' t; do
     run_test "$t"
-done
-
-# 2. Run Sync/Integration Tests
-for t in "$TEST_DIR/sync/"*_test.sh; do
-    [ -e "$t" ] || continue
-    run_test "$t"
-done
+done < <(find "$TEST_DIR" -mindepth 2 -name '*_test.sh' -type f -print0 | sort -z)
 
 echo -e "${BOLD}--- Test Summary ---${NC}"
 echo "Total Suites: $TOTAL_TESTS"

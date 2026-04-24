@@ -40,13 +40,23 @@ else
 fi
 
 # Configuration Defaults
-IMAGE_NAME="${DOCKER_IMAGE:-ntuos/mp2}" # Default fallback
+# GitHub Action will use mp.conf to set DOCKER_IMAGE
+if [ -t 1 ] && [ -z "$GITHUB_ACTIONS" ]; then
+    IMAGE_NAME="${DOCKER_IMAGE:-ntuos/mp2}"
+else
+    IMAGE_NAME="${ACTION_IMAGE:-ntuos/mp2}"
+fi
+CONTAINER_NAME="ntuos2026-$ASSIGNMENT"
 
 # ------------------------------------------------------------------------------
 # 2. Environment Checks
 # ------------------------------------------------------------------------------
 
 check_os() {
+    # Skip os check in GITHUB_ACTIONS
+    if [ -n "$GITHUB_ACTIONS" ]; then
+        return
+    fi
     local os_name
     os_name=$(uname -s)
     local kernel_release
@@ -80,8 +90,8 @@ check_os() {
 }
 
 check_docker() {
-    # Simulation Mode Bypass
-    if [ -n "$SIMULATION_MODE" ]; then
+    # Simulation Mode and GitHub Action Bypass
+    if [ -n "$GITHUB_ACTIONS" ] || [ -n "$SIMULATION_MODE" ]; then
         return
     fi
 
@@ -122,6 +132,7 @@ check_docker() {
 
     # 2.3 Configure Daemon Options
     DOCKER_CMD_OPTS=()
+    DOCKER_RUN_OPTS=()
 
     # Check for TTY (interactive mode)
     # If GITHUB_ACTIONS is set, disable TTY to avoid 'the input device is not a TTY' errors
@@ -149,10 +160,10 @@ check_docker() {
     # Podman specific fix
     if [[ "${DOCKER_CMD[*]}" == *"podman"* ]]; then
         # Fix permission mapping for podman
-        DOCKER_CMD_OPTS+=(--security-opt label=disable)
+        DOCKER_RUN_OPTS+=(--security-opt label=disable)
         # If not root, keep id
         if [[ "${DOCKER_CMD[*]}" != *"sudo"* ]]; then
-             DOCKER_CMD_OPTS+=(--userns=keep-id)
+             DOCKER_RUN_OPTS+=(--userns=keep-id)
         fi
     fi
 }
@@ -219,81 +230,91 @@ snapshot() {
     return 0
 }
 
-check_updates() {
-    # Check update phase 0
-    # Deadline Compliance Check
-    if [ -z "$DEADLINE" ]; then
-        return 0
-    fi
-    
-    # Skip if in grading mode or GitHub Actions
-    if [ -n "$OFFICIAL_GRADING" ] || [ -n "$GITHUB_ACTIONS" ]; then
-        return 0
-    fi
+# Non-interactive detection of pending TA updates.
+# Returns: 0 when nothing to sync (or check should be skipped),
+#          1 when TA updates are pending (fills globals below).
+# Globals set on detection:
+#   TA_UPDATES_RAW, TA_UPDATES_BRANCH, TA_UPDATES_AUTHOR_REGEX
+detect_ta_updates() {
+    TA_UPDATES_RAW=""
+    TA_UPDATES_BRANCH=""
+    TA_UPDATES_AUTHOR_REGEX=""
 
-    local current_ts
+    # Phase 0: Deadline & mode gates
+    [ -z "$DEADLINE" ] && return 0
+    [ -n "$OFFICIAL_GRADING" ] && return 0
+    [ -n "$GITHUB_ACTIONS" ] && return 0
+
+    local current_ts deadline_ts
     current_ts=$(date +%s)
-    local deadline_ts
     deadline_ts=$(date -d "$DEADLINE" +%s 2>/dev/null)
-    
-    # If deadline passed, silent early exit
     if [ -n "$deadline_ts" ] && [ "$current_ts" -gt "$deadline_ts" ]; then
         return 0
     fi
 
-    # Check update phase 1
-    # TA Update Detection
-    if ! command -v git >/dev/null 2>&1; then
-        return 0
-    fi
+    command -v git >/dev/null 2>&1 || return 0
 
     local current_branch
     current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) || return 0
-    
-    # Fetch from origin (student's secondary remote usually, but here assumed same as TA upstream)
-    # We use a short timeout (3s)
+
     if command -v timeout >/dev/null 2>&1; then
         timeout 3s git fetch origin "$current_branch" --quiet 2>/dev/null || return 0
     else
         git fetch origin "$current_branch" --quiet 2>/dev/null || return 0
     fi
 
-    if [ -z "$TA_EMAILS" ]; then
-        return 0
-    fi
-    
+    [ -z "$TA_EMAILS" ] && return 0
+
     local author_regex
     author_regex=$(echo "$TA_EMAILS" | sed 's/ /\\|/g' | tr -d '"')
 
     local raw_updates
     raw_updates=$(git log HEAD..origin/"$current_branch" --author="$author_regex" --oneline 2>/dev/null)
-    
-    # If no TA commits, silent early exit
-    if [ -z "$raw_updates" ]; then
+    [ -z "$raw_updates" ] && return 0
+
+    TA_UPDATES_RAW="$raw_updates"
+    TA_UPDATES_BRANCH="$current_branch"
+    TA_UPDATES_AUTHOR_REGEX="$author_regex"
+    return 1
+}
+
+# Read-only gate used by git hooks. Never mutates, never prompts.
+# Exits 0 if safe to proceed, 1 if TA updates pending (student must run sync manually).
+sync_check() {
+    if detect_ta_updates; then
+        return 0
+    fi
+    error "Unsynced TA updates detected on branch '$TA_UPDATES_BRANCH':"
+    echo "$TA_UPDATES_RAW" | sed 's/^/  /' >&2
+    hint "Run './mp.sh sync' in a terminal before committing/pushing."
+    return 1
+}
+
+check_updates() {
+    if detect_ta_updates; then
         return 0
     fi
 
-    # Check update phase 2
-    # Interactive Prompt or GUI Block
-    if [ ! -t 1 ] && [ -z "$IGNORE_TTY_CHECK" ]; then
-        # Non-TTY environment (GUI/IDE)
-        # Using stderr for errors to avoid breaking capture if any
-        echo -e "${RED}[ERROR] Unsynced TA updates detected.${NC}" >&2
-        echo -e "${BOLD}[HINT]  Please run './mp.sh sync' in your terminal to safely apply updates with an automatic snapshot.${NC}" >&2
+    # Refuse interactive flow inside git hooks — pre-push hook has git's ref
+    # list on stdin, so `read` would consume that instead of user input.
+    # Also refuse when stdin is not a TTY (GUI clients / IDE source control).
+    if [ -n "$GIT_DIR" ] || [ -n "$GIT_INDEX_FILE" ] || { [ ! -t 0 ] && [ -z "$IGNORE_TTY_CHECK" ]; }; then
+        error "Unsynced TA updates detected on branch '$TA_UPDATES_BRANCH'."
+        echo "$TA_UPDATES_RAW" | sed 's/^/  /' >&2
+        hint "Please run './mp.sh sync' in your terminal to safely apply updates with an automatic snapshot."
         exit 1
     fi
 
-    # Clean regex for display
+    # Interactive TTY Mode
     local display_authors
     display_authors=$(echo "$TA_EMAILS" | tr ' ' ', ')
 
-    # Interactive TTY Mode
     echo -e "\n${YELLOW}[WARNING] New TA updates detected (Released by: $display_authors)!${NC}" >&2
     echo -e "The following changes were released since your last sync:" >&2
-    git log HEAD..origin/"$current_branch" --author="$author_regex" --oneline --color=always | sed 's/^/  /' >&2
+    git log HEAD..origin/"$TA_UPDATES_BRANCH" --author="$TA_UPDATES_AUTHOR_REGEX" --oneline --color=always | sed 's/^/  /' >&2
     echo "" >&2
     echo -e "Files to be updated:" >&2
-    git diff --name-status HEAD...origin/"$current_branch" --color=always | sed 's/^/  /' >&2
+    git diff --name-status HEAD...origin/"$TA_UPDATES_BRANCH" --color=always | sed 's/^/  /' >&2
     echo "" >&2
 
     echo -ne "${BOLD}Would you like to create a SNAPSHOT and sync now? [y/N]: ${NC}" >&2
@@ -303,7 +324,7 @@ check_updates() {
         if snap_branch=$(snapshot); then
             info "Merging TA updates..."
             # Stage 1: Fast-forward or Merge TA changes (priority to TA)
-            if git merge origin/"$current_branch" -X theirs -m "chore: merge TA updates" --no-verify; then
+            if git merge origin/"$TA_UPDATES_BRANCH" -X theirs -m "chore: merge TA updates" --no-verify; then
                 info "Restoring your local work..."
                 # Stage 2: Merge student work back from snapshot (priority to TA)
                 if git merge "$snap_branch" -X ours -m "chore: restore local work after sync" --no-verify >/dev/null 2>&1; then
@@ -336,6 +357,15 @@ case "$1" in
     "snapshot")
         snapshot
         exit 0
+        ;;
+    "sync-check")
+        # Non-interactive gate for git hooks. No docker, no env checks.
+        sync_check
+        exit $?
+        ;;
+    "clean"|"reset"|"bash"|"debug")
+        # Lightweight commands: only need docker, skip update checks
+        check_os && check_docker && check_hooks || exit 1
         ;;
     "sync"|*)
         check_environment || exit 1
@@ -379,17 +409,40 @@ chown_if_need() {
     fi
 }
 
-ensure_docker_start_cmd() {
+# Prepare execution command
+prepare_docker_start_cmd() {
     if [ -n "$SIMULATION_MODE" ]; then
         START_IMAGE=()
         info "Simulation Mode: Docker bypassed."
-    else
-        START_IMAGE=("${DOCKER_CMD[@]}" run "${DOCKER_CMD_OPTS[@]}" -v "$(realpath "$SCRIPT_DIR"):/home/student/xv6" -w /home/student/xv6 -u "$(id -u):$(id -g)" --rm "$IMAGE_NAME")
+        return 0
     fi
-}
+    if [ -n "$GITHUB_ACTIONS" ]; then
+        START_IMAGE=()
+        info "GitHub Action: Docker bypassed."
+        return 0
+    fi
 
-# Prepare execution command
-ensure_docker_start_cmd
+    case "$1" in
+        "run")
+            START_IMAGE=("${DOCKER_CMD[@]}" run "${DOCKER_CMD_OPTS[@]}" "${DOCKER_RUN_OPTS[@]}" -v "$(realpath "$SCRIPT_DIR"):/home/student/xv6" -w /home/student/xv6 -u "$(id -u):$(id -g)" --rm "$IMAGE_NAME")
+            ;;
+        "start")
+            local state
+            state=$("${DOCKER_CMD[@]}" container inspect -f '{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null) || state="missing"
+            if [ "$state" = "true" ]; then
+                : # already running
+            elif [ "$state" = "false" ]; then
+                "${DOCKER_CMD[@]}" start "$CONTAINER_NAME" > /dev/null 2>&1
+            else
+                "${DOCKER_CMD[@]}" run -d "${DOCKER_CMD_OPTS[@]}" "${DOCKER_RUN_OPTS[@]}" -v "$(realpath "$SCRIPT_DIR"):/home/student/xv6" -w /home/student/xv6 -u "$(id -u):$(id -g)" --name "$CONTAINER_NAME" "$IMAGE_NAME" sleep infinity > /dev/null 2>&1
+            fi
+            START_IMAGE=("${DOCKER_CMD[@]}" exec "${DOCKER_CMD_OPTS[@]}" "$CONTAINER_NAME")
+            ;;
+        "rm")
+            START_IMAGE=("${DOCKER_CMD[@]}" rm -f "$CONTAINER_NAME")
+            ;;
+    esac
+}
 
 # ------------------------------------------------------------------------------
 # 4. Grading & Sanitization Logic
@@ -449,23 +502,45 @@ case "$1" in
         ;;
     "qemu")
         info "Starting QEMU in $IMAGE_NAME..."
+        prepare_docker_start_cmd run
         "${START_IMAGE[@]}" make qemu
         chown_if_need "."
         ;;
     "test"|"grade")
         check_ta_commit
         info "Running tests for $ASSIGNMENT..."
+        prepare_docker_start_cmd run
         # Pass arguments to run.py
         shift
         "${START_IMAGE[@]}" python3 grade/run.py "$@"
         chown_if_need "."
         ;;
-
     "clean")
         info "Cleaning build artifacts..."
+        prepare_docker_start_cmd run
         "${START_IMAGE[@]}" make clean
         chown_if_need "."
         ;;
+
+    "bash")
+        info "Starting BASH in $IMAGE_NAME..."
+        prepare_docker_start_cmd start
+        shift
+        "${START_IMAGE[@]}" bash "$@"
+        chown_if_need "."
+        ;;
+    "debug")
+        info "Starting QEMU-GDB in $IMAGE_NAME..."
+        prepare_docker_start_cmd start
+        "${START_IMAGE[@]}" bash -c "tmux new-session -d 'make qemu-gdb' \\; split-window -h 'gdb-multiarch -q' \\; attach"
+        chown_if_need "."
+        ;;
+    "reset")
+        info "Resetting $IMAGE_NAME..."
+        prepare_docker_start_cmd rm
+        "${START_IMAGE[@]}"
+        ;;
+
     "snapshot")
         # Already handled early
         ;;
@@ -473,7 +548,7 @@ case "$1" in
         # Already handled early
         ;;
     *)
-        echo "Usage: $0 {init|qemu|test|grade|clean|snapshot|sync}"
+        echo "Usage: $0 {init|qemu|test|grade|clean|bash|debug|reset|snapshot|sync|sync-check}"
         exit 1
         ;;
 esac
