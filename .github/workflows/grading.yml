@@ -91,24 +91,6 @@ jobs:
         env:
           PYTHONUNBUFFERED: "1"
 
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: xv6-build
-          retention-days: 1
-          path: |
-            kernel/kernel
-            kernel/kernel.sym
-            kernel/kernel.asm
-            kernel/*.o
-            kernel/*.d
-            user/_*
-            user/*.o
-            user/*.d
-            mkfs/mkfs
-            fs.img
-            target_commit.json
-
   # ---------------------------------------------------------------------------
   # Run each regular test in parallel
   # ---------------------------------------------------------------------------
@@ -119,14 +101,6 @@ jobs:
     container:
       image: ${{ needs.mp-setup.outputs.image }}
       options: ${{ needs.mp-setup.outputs.options }}
-      # The things below are only used for private image
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    permissions:
-      packages: read
-      contents: read
-      # The things above are only used for private image
     strategy:
       fail-fast: false
       matrix:
@@ -136,16 +110,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v6
 
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v8
-        with:
-          name: xv6-build
-
       - name: Run Test — ${{ matrix.test.name }}
         run: |
           mkdir -p results
           python3 grade/run.py \
-            --skip-make \
             --json "results/${{ matrix.test.slug }}.json" \
             "${{ matrix.test.pattern }}"
         env:
@@ -171,23 +139,10 @@ jobs:
     container:
       image: ${{ needs.mp-setup.outputs.image }}
       options: ${{ needs.mp-setup.outputs.options }}
-      # The things below are only used for private image
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    permissions:
-      packages: read
-      contents: read
-      # The things above are only used for private image
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
-
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v8
-        with:
-          name: xv6-build
 
       - name: Download All Test Results
         uses: actions/download-artifact@v8
@@ -205,7 +160,6 @@ jobs:
       - name: Run Bonus Tests
         run: |
           python3 grade/run.py \
-            --skip-make \
             --inject-total "${{ steps.public_score.outputs.total }}" \
             --inject-possible "${{ steps.public_score.outputs.possible }}" \
             --inject-history grades_history.json \
@@ -236,9 +190,6 @@ jobs:
       - name: Checkout Repository
         if: needs.mp-setup.outputs.fail != 'true'
         uses: actions/checkout@v6
-        with:
-          sparse-checkout: |
-            grade/
 
       - name: Download All Test Results
         if: needs.mp-setup.outputs.fail != 'true'
@@ -301,3 +252,11 @@ jobs:
         with:
           name: grading-report
           path: report.json
+
+      - name: Delete Temporary Artifacts
+        if: needs.mp-setup.outputs.fail != 'true'
+        uses: geekyeggo/delete-artifact@176a747ab7e287e3ff4787bf8a148716375ca118 # v6.0.0
+        with:
+          name: |
+              result-*
+              bonus-results
