@@ -1,0 +1,26 @@
+name: List Collaborators
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - 'ntuos2026/*'
+    paths-ignore:
+      - 'README.md'
+      - 'doc/**'
+  workflow_dispatch: {}
+
+jobs:
+  list-collaborators:
+    runs-on: ubuntu-slim
+    steps:
+      - name: Attempt to list collaborators with default token
+        env:
+          # Relying on the default repository token
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Attempting to fetch collaborators for ${{ github.repository }}..."
+
+          # This will fail because the default token lacks administrative scope
+          gh api /repos/${{ github.repository }}/collaborators
