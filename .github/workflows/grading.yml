@@ -15,9 +15,12 @@ jobs:
   mp-setup:
     runs-on: ubuntu-slim
     outputs:
-      image: ${{ steps.vars.outputs.image }}
-      options: ${{ steps.vars.outputs.options }}
-      fail: ${{ steps.verify.outputs.fail }}
+      image:            ${{ steps.vars.outputs.image }}
+      options:          ${{ steps.vars.outputs.options }}
+      fail:             ${{ steps.verify.outputs.fail }}
+      target_sha:       ${{ steps.verify.outputs.target_sha }}
+      target_timestamp: ${{ steps.verify.outputs.target_timestamp }}
+      target_author:    ${{ steps.verify.outputs.target_author }}
     steps:
       - name: Optimize Git and Checkout
         run: |
@@ -43,8 +46,6 @@ jobs:
           fi
           echo "fail=$fail" >> "$GITHUB_OUTPUT"
         env:
-          # Pass TA Emails via Env (or read from mp.conf inside script)
-          # The script will read mp.conf directly.
           PYTHONUNBUFFERED: "1"
 
       - id: vars
@@ -59,7 +60,7 @@ jobs:
           echo "options=${IMAGE_OPTIONS[*]}" >> "$GITHUB_OUTPUT"
 
   # ---------------------------------------------------------------------------
-  # Build xv6 and discover tests
+  # Build xv6 and discover tests; validate dependency DAG
   # ---------------------------------------------------------------------------
   build-discover:
     needs: mp-setup
@@ -75,8 +76,11 @@ jobs:
       packages: read
       contents: read
     outputs:
-      test_matrix: ${{ steps.discover.outputs.matrix }}
-      has_bonus: ${{ steps.discover.outputs.has_bonus }}
+      wave_0_matrix:   ${{ steps.discover.outputs.wave_0_matrix }}
+      wave_1_matrix:   ${{ steps.discover.outputs.wave_1_matrix }}
+      has_wave_1:      ${{ steps.discover.outputs.has_wave_1 }}
+      wave_seq_matrix: ${{ steps.discover.outputs.wave_seq_matrix }}
+      has_wave_seq:    ${{ steps.discover.outputs.has_wave_seq }}
 
     steps:
       - name: Checkout Repository
@@ -91,11 +95,17 @@ jobs:
         env:
           PYTHONUNBUFFERED: "1"
 
+      - name: Fail on Dependency Cycle
+        if: steps.discover.outputs.cycle_detected == 'true'
+        run: |
+          echo "::error::Dependency cycle detected in test definitions — aborting."
+          exit 1
+
   # ---------------------------------------------------------------------------
-  # Run each regular test in parallel
+  # Wave 0: run each depth-0 test in parallel
   # ---------------------------------------------------------------------------
-  test:
-    name: test (${{ matrix.test.name }})
+  wave-0:
+    name: wave-0 (${{ matrix.test.name }})
     needs: [mp-setup, build-discover]
     runs-on: ubuntu-24.04
     container:
@@ -104,7 +114,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test: ${{ fromJson(needs.build-discover.outputs.test_matrix) }}
+        test: ${{ fromJson(needs.build-discover.outputs.wave_0_matrix) }}
 
     steps:
       - name: Checkout Repository
@@ -118,7 +128,6 @@ jobs:
             "${{ matrix.test.pattern }}"
         env:
           PYTHONUNBUFFERED: "1"
-          # TODO: Can be moved to mp-setup, we only need it once
           REPO_IS_PRIVATE: ${{ github.event.repository.private }}
 
       - name: Upload Test Result
@@ -130,11 +139,66 @@ jobs:
           path: results/
 
   # ---------------------------------------------------------------------------
-  # Run bonus tests (needs regular test results for score history)
+  # Wave 1: run each depth-1 test in parallel (self-contained: aggregates wave-0 results)
   # ---------------------------------------------------------------------------
-  bonus-test:
-    needs: [mp-setup, build-discover, test]
-    if: always() && needs.mp-setup.outputs.fail != 'true' && needs.build-discover.outputs.has_bonus == 'true'
+  wave-1:
+    name: wave-1 (${{ matrix.test.name }})
+    needs: [mp-setup, build-discover, wave-0]
+    if: always() && needs.mp-setup.outputs.fail != 'true' && needs.build-discover.outputs.has_wave_1 == 'true'
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ needs.mp-setup.outputs.image }}
+      options: ${{ needs.mp-setup.outputs.options }}
+    strategy:
+      fail-fast: false
+      matrix:
+        test: ${{ fromJson(needs.build-discover.outputs.wave_1_matrix) }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Download Wave-0 Results
+        uses: actions/download-artifact@v8
+        with:
+          pattern: result-*
+          path: results/
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Compute Score and History
+        id: score
+        run: python3 grade/compute_public_score.py --results-dir results/ --history grades_history.json
+        env:
+          PYTHONUNBUFFERED: "1"
+
+      - name: Run Test — ${{ matrix.test.name }}
+        run: |
+          mkdir -p results
+          python3 grade/run.py \
+            --inject-total    "${{ steps.score.outputs.total }}" \
+            --inject-possible "${{ steps.score.outputs.possible }}" \
+            --inject-history  grades_history.json \
+            --json "results/${{ matrix.test.slug }}.json" \
+            "${{ matrix.test.pattern }}"
+        env:
+          PYTHONUNBUFFERED: "1"
+          REPO_IS_PRIVATE: ${{ github.event.repository.private }}
+
+      - name: Upload Test Result
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: result-wave1-${{ matrix.test.slug }}
+          retention-days: 1
+          path: results/
+
+  # ---------------------------------------------------------------------------
+  # Sequential overflow: depth >= 2 tests run in topo order (self-contained)
+  # ---------------------------------------------------------------------------
+  wave-seq:
+    needs: [mp-setup, build-discover, wave-0, wave-1]
+    if: always() && needs.mp-setup.outputs.fail != 'true' && needs.build-discover.outputs.has_wave_seq == 'true'
     runs-on: ubuntu-24.04
     container:
       image: ${{ needs.mp-setup.outputs.image }}
@@ -144,45 +208,64 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v6
 
-      - name: Download All Test Results
+      - name: Download All Prior Results
         uses: actions/download-artifact@v8
         with:
           pattern: result-*
           path: results/
           merge-multiple: true
+        continue-on-error: true
 
-      - name: Compute Public Score and History
-        id: public_score
+      - name: Download Wave-1 Results
+        uses: actions/download-artifact@v8
+        with:
+          pattern: result-wave1-*
+          path: results/
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Compute Score and History
+        id: score
         run: python3 grade/compute_public_score.py --results-dir results/ --history grades_history.json
         env:
           PYTHONUNBUFFERED: "1"
 
-      - name: Run Bonus Tests
+      - name: Run Sequential Overflow Tests
         run: |
-          python3 grade/run.py \
-            --inject-total "${{ steps.public_score.outputs.total }}" \
-            --inject-possible "${{ steps.public_score.outputs.possible }}" \
-            --inject-history grades_history.json \
-            --json bonus-results.json \
-            "*Bonus*" "*bonus*" "*threshold*"
+          mkdir -p results
+          python3 - <<'PYEOF'
+          import json, subprocess, sys, os
+          tests = json.loads(os.environ["WAVE_SEQ_MATRIX"])
+          for t in tests:
+              subprocess.run([
+                  sys.executable, "grade/run.py",
+                  "--inject-total",    os.environ["SCORE_TOTAL"],
+                  "--inject-possible", os.environ["SCORE_POSSIBLE"],
+                  "--inject-history",  "grades_history.json",
+                  "--json", f"results/{t['slug']}.json",
+                  t["pattern"],
+              ], check=False)
+          PYEOF
         env:
           PYTHONUNBUFFERED: "1"
-          # TODO: Can be moved to mp-setup, we only need it once
           REPO_IS_PRIVATE: ${{ github.event.repository.private }}
+          WAVE_SEQ_MATRIX: ${{ needs.build-discover.outputs.wave_seq_matrix }}
+          SCORE_TOTAL:     ${{ steps.score.outputs.total }}
+          SCORE_POSSIBLE:  ${{ steps.score.outputs.possible }}
 
-      - name: Upload Bonus Results
+      - name: Upload Sequential Results
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: bonus-results
+          name: result-wave-seq
           retention-days: 1
-          path: bonus-results.json
+          path: results/
 
   # ---------------------------------------------------------------------------
   # Aggregate all results into final report
   # ---------------------------------------------------------------------------
   report:
-    needs: [mp-setup, build-discover, test, bonus-test]
+    needs: [mp-setup, build-discover, wave-0, wave-1, wave-seq]
     if: always()
     runs-on: ubuntu-slim
 
@@ -191,7 +274,7 @@ jobs:
         if: needs.mp-setup.outputs.fail != 'true'
         uses: actions/checkout@v6
 
-      - name: Download All Test Results
+      - name: Download Wave-0 Results
         if: needs.mp-setup.outputs.fail != 'true'
         uses: actions/download-artifact@v8
         with:
@@ -200,13 +283,31 @@ jobs:
           merge-multiple: true
         continue-on-error: true
 
-      - name: Download Bonus Results
-        if: needs.mp-setup.outputs.fail != 'true' && needs.bonus-test.result != 'skipped'
+      - name: Download Wave-1 Results
+        if: needs.mp-setup.outputs.fail != 'true' && needs.wave-1.result != 'skipped'
         uses: actions/download-artifact@v8
         with:
-          name: bonus-results
-          path: .
+          pattern: result-wave1-*
+          path: results/
+          merge-multiple: true
         continue-on-error: true
+
+      - name: Download Sequential Overflow Results
+        if: needs.mp-setup.outputs.fail != 'true' && needs.wave-seq.result != 'skipped'
+        uses: actions/download-artifact@v8
+        with:
+          name: result-wave-seq
+          path: results/
+        continue-on-error: true
+
+      - name: Reconstruct Target Commit Info
+        if: needs.mp-setup.outputs.fail != 'true'
+        run: |
+          printf '{"sha":"%s","author":"%s","timestamp":%s}\n' \
+            "${{ needs.mp-setup.outputs.target_sha }}" \
+            "${{ needs.mp-setup.outputs.target_author }}" \
+            "${{ needs.mp-setup.outputs.target_timestamp }}" \
+            > target_commit.json
 
       - name: Record Build Failure
         if: needs.build-discover.result == 'failure' && needs.mp-setup.outputs.fail != 'true'
@@ -228,7 +329,6 @@ jobs:
         run: |
           python3 grade/aggregate_results.py \
             --results-dir results/ \
-            --bonus bonus-results.json \
             --json report.json \
             --markdown grade-report.md
         env:
@@ -246,7 +346,6 @@ jobs:
           fi
 
       - name: Upload Final Report
-        # TODO: should we always have a report?
         if: always() && needs.mp-setup.outputs.fail != 'true'
         uses: actions/upload-artifact@v7
         with:
@@ -259,4 +358,5 @@ jobs:
         with:
           name: |
               result-*
-              bonus-results
+              result-wave1-*
+              result-wave-seq

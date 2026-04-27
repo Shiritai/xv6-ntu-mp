@@ -384,12 +384,7 @@ if __name__ == "__main__":
     if args.inject_history:
         try:
             with open(args.inject_history, "r") as f:
-                history = json.load(f)
-            # Inject into test_mp2 module if loaded
-            for mod_name in list(sys.modules):
-                mod = sys.modules[mod_name]
-                if hasattr(mod, "GRADES_HISTORY"):
-                    mod.GRADES_HISTORY.update(history)
+                gradelib.GRADES_HISTORY = json.load(f)
         except (IOError, json.JSONDecodeError) as e:
             print(f"Warning: could not load history: {e}", file=sys.stderr)
 

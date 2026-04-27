@@ -65,32 +65,14 @@ def main():
     parser = argparse.ArgumentParser(description="Aggregate test results")
     parser.add_argument("--results-dir", required=True,
                         help="Directory containing per-test result JSONs")
-    parser.add_argument("--bonus", default=None,
-                        help="Path to bonus test results JSON")
     parser.add_argument("--json", required=True,
                         help="Path to output final report.json")
     parser.add_argument("--markdown", required=True,
                         help="Path to output final grade-report.md")
     args = parser.parse_args()
 
-    # Collect all per-test results
+    # Collect all per-test results (wave-0, wave-1, and sequential overflow all land here)
     details = load_result_files(args.results_dir)
-
-    # Collect bonus results if provided
-    if args.bonus and os.path.exists(args.bonus):
-        try:
-            with open(args.bonus, "r") as f:
-                data = json.load(f)
-            if "scores" in data and "details" in data["scores"]:
-                for d in data["scores"]["details"]:
-                    tc = d.get("test_case", "")
-                    if "Identity Validation" in tc or "Checklist Validation" in tc:
-                        continue
-                    details.append(d)
-            elif isinstance(data, list):
-                details.extend(data)
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"Warning: could not load bonus results: {e}", file=sys.stderr)
 
     # Sort to maintain stable, canonical order
     details = sort_details(details)

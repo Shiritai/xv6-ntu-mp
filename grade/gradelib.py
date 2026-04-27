@@ -11,16 +11,41 @@ __all__ = []
 #
 
 __all__ += ["test", "end_part", "run_tests", "get_current_test"]
+__all__ += ["is_enabled_on_score", "registered_titles"]
 
 TESTS = []
 TOTAL = POSSIBLE = 0
 PART_TOTAL = PART_POSSIBLE = 0
 CURRENT_TEST = None
+GRADES_HISTORY = {}  # title → actual score; populated by run_test or --inject-history
 # Global flag to control if registered tests are official (count towards score)
 # This is set by the runner when loading test files.
 IS_OFFICIAL_MODE = True
 
-def test(points, title=None, parent=None):
+def is_enabled_on_score():
+    """Return True if the current test's enable_on threshold is met.
+
+    Sums GRADES_HISTORY scores for each title in the current test's needs list
+    and compares against enable_on. Returns True when no threshold is set,
+    or when GRADES_HISTORY is empty (local run before any history is injected).
+    """
+    test_fn = CURRENT_TEST
+    if test_fn is None:
+        return True
+    threshold = getattr(test_fn, 'enable_on', None)
+    if threshold is None:
+        return True
+    needs = getattr(test_fn, 'needs', [])
+    if not needs or not GRADES_HISTORY:
+        return True
+    score = sum(GRADES_HISTORY.get(t, 0) for t in needs)
+    return score >= threshold
+
+def registered_titles():
+    """Return titles of all currently registered tests, in registration order."""
+    return [t.title for t in TESTS if getattr(t, 'title', '')]
+
+def test(points, title=None, parent=None, needs=None, enable_on=None):
     """Decorator for declaring test functions.  If title is None, the
     title of the test will be derived from the function name by
     stripping the leading "test_" and replacing underscores with
@@ -85,6 +110,7 @@ def test(points, title=None, parent=None):
 
             run_test.ok = not fail
             run_test.score = real_point if not fail else 0
+            GRADES_HISTORY[title] = run_test.score
             return run_test.ok
 
         # Record test metadata on the test wrapper function
@@ -96,6 +122,8 @@ def test(points, title=None, parent=None):
         run_test.score = 0
         run_test.on_finish = []
         run_test.official = IS_OFFICIAL_MODE
+        run_test.needs = needs or []
+        run_test.enable_on = enable_on
         TESTS.append(run_test)
         return run_test
     return register_test
