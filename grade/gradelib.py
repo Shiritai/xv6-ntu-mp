@@ -60,7 +60,6 @@ def test(points, title=None, parent=None, needs=None, enable_on=None):
 
         def run_test():
             global TOTAL, POSSIBLE, CURRENT_TEST
-            is_official = run_test.official
 
             # Handle test dependencies
             if run_test.complete:
@@ -91,8 +90,7 @@ def test(points, title=None, parent=None, needs=None, enable_on=None):
             if _point is not None and isinstance(_point, int) and _point <= points:
                 real_point = _point
             # Display and handle test result
-            if is_official:
-                POSSIBLE += points
+            POSSIBLE += points
             if points:
                 print(f"{title}: {color('red', 'FAIL') if fail or real_point == 0 else color('yellow', 'PARTIAL') if real_point != points else color('green', 'OK')} {f'({real_point}/{points})'}", end=' ')
             if time.time() - start > 0.1:
@@ -101,8 +99,7 @@ def test(points, title=None, parent=None, needs=None, enable_on=None):
             if fail:
                 print("    %s" % fail.replace("\n", "\n    "))
             else:
-                if is_official:
-                    TOTAL += real_point
+                TOTAL += real_point
                 print()
             for callback in run_test.on_finish:
                 callback(fail)

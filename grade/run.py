@@ -35,7 +35,7 @@ def load_grading_config():
         patterns = ["*.py", "*.txt"]
     return patterns
 
-def is_test_official(filename, patterns):
+def matches_grading_conf(filename, patterns):
     basename = os.path.basename(filename)
     for p in patterns:
         if fnmatch.fnmatch(basename, p):
@@ -69,17 +69,20 @@ def natural_sort_key(s):
             for text in re.split('([0-9]+)', s)]
 
 def load_python_tests(test_dir, patterns):
-    sys.path.append(os.path.abspath(test_dir))
+    # grading.conf is the single whitelist: files not matched are not loaded
+    # at all (not merely unscored). This prevents student-authored .py in
+    # tests/ from executing arbitrary code at import time and tampering with
+    # gradelib globals, test registrations, or scoring accumulators.
     py_files = glob.glob(os.path.join(test_dir, "*.py"))
+    py_files = [f for f in py_files if matches_grading_conf(f, patterns)]
     py_files = sorted(py_files, key=lambda p: (get_test_rank(p), natural_sort_key(p)))
     for py_file in py_files:
         if os.path.basename(py_file) == "setup.py":
             continue
-        
-        # Set official mode based on grading.conf
-        gradelib.IS_OFFICIAL_MODE = is_test_official(py_file, patterns)
-        
-        module_name = os.path.basename(py_file)[:-3]
+
+        # Namespaced module name to avoid sys.modules collisions with stdlib
+        # or gradelib itself (e.g. a file named gradelib.py in tests/).
+        module_name = "_mp_test_" + os.path.basename(py_file)[:-3]
         spec = importlib.util.spec_from_file_location(module_name, py_file)
         if spec and spec.loader:
             module = importlib.util.module_from_spec(spec)
@@ -88,11 +91,9 @@ def load_python_tests(test_dir, patterns):
 
 def load_script_tests(test_dir, patterns):
     txt_files = glob.glob(os.path.join(test_dir, "*.txt"))
+    txt_files = [f for f in txt_files if matches_grading_conf(f, patterns)]
     txt_files = sorted(txt_files, key=lambda p: (get_test_rank(p), natural_sort_key(p)))
     for txt_file in txt_files:
-        # Set official mode based on grading.conf
-        gradelib.IS_OFFICIAL_MODE = is_test_official(txt_file, patterns)
-        
         test_name = os.path.basename(txt_file)[:-4]
         run_script_test(test_name, txt_file)
 
@@ -368,9 +369,6 @@ if __name__ == "__main__":
     patterns = load_grading_config()
     load_script_tests(TEST_DIR, patterns)
     load_python_tests(TEST_DIR, patterns)
-    
-    # Reset official mode for safety
-    gradelib.IS_OFFICIAL_MODE = True
 
     # Initialize options for gradelib since we bypass run_tests()
     gradelib.options = argparse.Namespace(color="auto", verbose=False)

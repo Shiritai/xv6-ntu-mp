@@ -35,3 +35,14 @@ inject_mp_sh() {
     cp -r "$PROJECT_ROOT/scripts" "$target_dir/"
     chmod +x "$target_dir/mp.sh"
 }
+
+# Copy the grading harness (grade/ + a minimal tests/) into a sandbox target,
+# so grade/run.py can be invoked inside the sandbox without touching the real
+# project tree.
+inject_grade() {
+    local target_dir="$1"
+    cp -r "$PROJECT_ROOT/grade" "$target_dir/"
+    # Strip any stale pyc — the sandbox python uses the copied source.
+    rm -rf "$target_dir/grade/__pycache__"
+    mkdir -p "$target_dir/tests"
+}

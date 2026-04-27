@@ -14,9 +14,12 @@ fi
 
 PROTECTED_LIST="doc/protected_list.txt"
 
-# [DOUBLE DEFENSE] Intercept TA updates before committing
+# [DOUBLE DEFENSE] Detect unsynced TA updates before committing.
+# Uses sync-check (read-only, non-interactive) — interactive sync is unsafe
+# inside hooks: GUI clients may have no stdin TTY, and running `read` here
+# would either hang or read unintended data.
 if [ -f "./mp.sh" ]; then
-    ./mp.sh sync || exit 1
+    ./mp.sh sync-check || exit 1
 fi
 
 if [ ! -f "$PROTECTED_LIST" ]; then
