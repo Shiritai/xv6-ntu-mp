@@ -69,12 +69,6 @@ jobs:
     container:
       image: ${{ needs.mp-setup.outputs.image }}
       options: ${{ needs.mp-setup.outputs.options }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    permissions:
-      packages: read
-      contents: read
     outputs:
       wave_0_matrix:   ${{ steps.discover.outputs.wave_0_matrix }}
       wave_1_matrix:   ${{ steps.discover.outputs.wave_1_matrix }}
@@ -216,14 +210,6 @@ jobs:
           merge-multiple: true
         continue-on-error: true
 
-      - name: Download Wave-1 Results
-        uses: actions/download-artifact@v8
-        with:
-          pattern: result-wave1-*
-          path: results/
-          merge-multiple: true
-        continue-on-error: true
-
       - name: Compute Score and History
         id: score
         run: python3 grade/compute_public_score.py --results-dir results/ --history grades_history.json
@@ -274,30 +260,13 @@ jobs:
         if: needs.mp-setup.outputs.fail != 'true'
         uses: actions/checkout@v6
 
-      - name: Download Wave-0 Results
+      - name: Download All Results
         if: needs.mp-setup.outputs.fail != 'true'
         uses: actions/download-artifact@v8
         with:
           pattern: result-*
           path: results/
           merge-multiple: true
-        continue-on-error: true
-
-      - name: Download Wave-1 Results
-        if: needs.mp-setup.outputs.fail != 'true' && needs.wave-1.result != 'skipped'
-        uses: actions/download-artifact@v8
-        with:
-          pattern: result-wave1-*
-          path: results/
-          merge-multiple: true
-        continue-on-error: true
-
-      - name: Download Sequential Overflow Results
-        if: needs.mp-setup.outputs.fail != 'true' && needs.wave-seq.result != 'skipped'
-        uses: actions/download-artifact@v8
-        with:
-          name: result-wave-seq
-          path: results/
         continue-on-error: true
 
       - name: Reconstruct Target Commit Info
@@ -358,5 +327,3 @@ jobs:
         with:
           name: |
               result-*
-              result-wave1-*
-              result-wave-seq
