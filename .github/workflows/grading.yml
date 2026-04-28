@@ -239,19 +239,7 @@ jobs:
       - name: Run Sequential Overflow Tests
         run: |
           mkdir -p results
-          python3 - <<'PYEOF'
-          import json, subprocess, sys, os
-          tests = json.loads(os.environ["WAVE_SEQ_MATRIX"])
-          for t in tests:
-              subprocess.run([
-                  sys.executable, "grade/run.py",
-                  "--inject-total",    os.environ["SCORE_TOTAL"],
-                  "--inject-possible", os.environ["SCORE_POSSIBLE"],
-                  "--inject-history",  "grades_history.json",
-                  "--json", f"results/{t['slug']}.json",
-                  t["pattern"],
-              ], check=False)
-          PYEOF
+          python3 grade/run_seq.py
         env:
           PYTHONUNBUFFERED: "1"
           REPO_IS_PRIVATE: ${{ github.event.repository.private }}
