@@ -234,6 +234,7 @@ def generate_markdown(total_score, max_score, details, md_path, verdict):
         missing_tas = verdict.get("missing_ta_usernames", [])
         if missing_tas:
             joined = ", ".join(f"**{ta}**" for ta in missing_tas)
+            lines.append("")
             lines.append("> [!NOTE]")
             lines.append(f"> Missing TA collaborators: {joined}.")
     lines.append("")
