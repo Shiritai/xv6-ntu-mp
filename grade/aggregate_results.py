@@ -6,6 +6,7 @@ import os
 import glob
 import json
 import argparse
+import subprocess
 
 # Reuse verdict/report logic from run.py
 sys.path.insert(0, os.path.dirname(__file__))
@@ -15,6 +16,28 @@ from run import (
     generate_json,
     parse_mp_conf,
 )
+
+
+def get_missing_ta_collaborators(conf):
+    """Return TA usernames from conf that are not repository collaborators.
+
+    Returns an empty list outside of GitHub Actions or when the gh call fails.
+    """
+    ta_usernames = conf.get("TA_USERNAMES", "").split()
+    if not ta_usernames:
+        return []
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    if not repo:
+        return []
+    try:
+        result = subprocess.run(
+            ["gh", "api", f"/repos/{repo}/collaborators", "--jq", ".[].login"],
+            capture_output=True, text=True, timeout=30,
+        )
+        collaborators = set(result.stdout.strip().splitlines())
+    except Exception:
+        return []
+    return [ta for ta in ta_usernames if ta not in collaborators]
 
 
 def load_result_files(results_dir):
@@ -89,6 +112,8 @@ def main():
     print(f"Aggregated {len(details)} test results")
     print(f"Raw Score: {total_score}/{max_score}")
     print(f"Final Score: {final_score}/{max_score}")
+
+    verdict["missing_ta_usernames"] = get_missing_ta_collaborators(verdict["conf"])
 
     # Generate reports
     generate_markdown(total_score, max_score, details, args.markdown, verdict)
