@@ -12,47 +12,266 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  grade:
-    runs-on: ubuntu-latest
-    
+  mp-setup:
+    runs-on: ubuntu-slim
+    outputs:
+      image: ${{ steps.vars.outputs.image }}
+      options: ${{ steps.vars.outputs.options }}
+      fail: ${{ steps.verify.outputs.fail }}
     steps:
+      - name: Optimize Git and Checkout
+        run: |
+          # Disable compression for faster network transfer.
+          git config --global core.compression 0
+          # Turn off fsync
+          git config --global core.fsync -all
+
       - name: Checkout Repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 0 # Need full history for commit verification
-
-      - name: Trust Git Directory
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
-
+          sparse-checkout: |
+            mp.conf
+            grade/verify_committer.py
 
       - name: Verify Student Identity
         id: verify
         run: |
-          # Use the sanitized grade runner to verify identity
-          python3 grade/verify_committer.py
+          fail=false
+          if ! python3 grade/verify_committer.py; then
+            fail=true
+          fi
+          echo "fail=$fail" >> "$GITHUB_OUTPUT"
         env:
           # Pass TA Emails via Env (or read from mp.conf inside script)
           # The script will read mp.conf directly.
           PYTHONUNBUFFERED: "1"
 
-      - name: Execute Tests (Grading)
-        id: test
+      - id: vars
+        if: steps.verify.outputs.fail != 'true'
         run: |
-          ./mp.sh grade --json report.json --markdown grade-report.md
+          source mp.conf
+          IMAGE_NAME="${ACTION_IMAGE:-ntuos/mpx}"
+          IMAGE_OPTIONS=(
+            "--user root"
+          )
+          echo "image=$IMAGE_NAME" >> "$GITHUB_OUTPUT"
+          echo "options=${IMAGE_OPTIONS[*]}" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  # Build xv6 and discover tests
+  # ---------------------------------------------------------------------------
+  build-discover:
+    needs: mp-setup
+    if: needs.mp-setup.outputs.fail != 'true'
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ needs.mp-setup.outputs.image }}
+      options: ${{ needs.mp-setup.outputs.options }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      packages: read
+      contents: read
+    outputs:
+      test_matrix: ${{ steps.discover.outputs.matrix }}
+      has_bonus: ${{ steps.discover.outputs.has_bonus }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Restore Student Files at target_sha
         env:
+          TARGET_SHA: ${{ needs.mp-setup.outputs.target_sha }}
+        run: bash scripts/restore-target-files
+
+      - name: Build xv6
+        run: make
+
+      - name: Discover Tests
+        id: discover
+        run: python3 grade/discover.py
+        env:
+          PYTHONUNBUFFERED: "1"
+
+  # ---------------------------------------------------------------------------
+  # Run each regular test in parallel
+  # ---------------------------------------------------------------------------
+  test:
+    name: test (${{ matrix.test.name }})
+    needs: [mp-setup, build-discover]
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ needs.mp-setup.outputs.image }}
+      options: ${{ needs.mp-setup.outputs.options }}
+    strategy:
+      fail-fast: false
+      matrix:
+        test: ${{ fromJson(needs.build-discover.outputs.test_matrix) }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Restore Student Files at target_sha
+        env:
+          TARGET_SHA: ${{ needs.mp-setup.outputs.target_sha }}
+        run: bash scripts/restore-target-files
+
+      - name: Run Test — ${{ matrix.test.name }}
+        run: |
+          mkdir -p results
+          python3 grade/run.py \
+            --json "results/${{ matrix.test.slug }}.json" \
+            "${{ matrix.test.pattern }}"
+        env:
+          PYTHONUNBUFFERED: "1"
+          # TODO: Can be moved to mp-setup, we only need it once
+          REPO_IS_PRIVATE: ${{ github.event.repository.private }}
+
+      - name: Upload Test Result
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: result-${{ matrix.test.slug }}
+          retention-days: 1
+          path: results/
+
+  # ---------------------------------------------------------------------------
+  # Run bonus tests (needs regular test results for score history)
+  # ---------------------------------------------------------------------------
+  bonus-test:
+    needs: [mp-setup, build-discover, test]
+    if: always() && needs.mp-setup.outputs.fail != 'true' && needs.build-discover.outputs.has_bonus == 'true'
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ needs.mp-setup.outputs.image }}
+      options: ${{ needs.mp-setup.outputs.options }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Restore Student Files at target_sha
+        env:
+          TARGET_SHA: ${{ needs.mp-setup.outputs.target_sha }}
+        run: bash scripts/restore-target-files
+
+      - name: Download All Test Results
+        uses: actions/download-artifact@v8
+        with:
+          pattern: result-*
+          path: results/
+          merge-multiple: true
+
+      - name: Compute Public Score and History
+        id: public_score
+        run: python3 grade/compute_public_score.py --results-dir results/ --history grades_history.json
+        env:
+          PYTHONUNBUFFERED: "1"
+
+      - name: Run Bonus Tests
+        run: |
+          python3 grade/run.py \
+            --inject-total "${{ steps.public_score.outputs.total }}" \
+            --inject-possible "${{ steps.public_score.outputs.possible }}" \
+            --inject-history grades_history.json \
+            --json bonus-results.json \
+            "*Bonus*" "*bonus*" "*threshold*"
+        env:
+          PYTHONUNBUFFERED: "1"
+          # TODO: Can be moved to mp-setup, we only need it once
+          REPO_IS_PRIVATE: ${{ github.event.repository.private }}
+
+      - name: Upload Bonus Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bonus-results
+          retention-days: 1
+          path: bonus-results.json
+
+  # ---------------------------------------------------------------------------
+  # Aggregate all results into final report
+  # ---------------------------------------------------------------------------
+  report:
+    needs: [mp-setup, build-discover, test, bonus-test]
+    if: always()
+    runs-on: ubuntu-slim
+
+    steps:
+      - name: Checkout Repository
+        if: needs.mp-setup.outputs.fail != 'true'
+        uses: actions/checkout@v6
+
+      - name: Download All Test Results
+        if: needs.mp-setup.outputs.fail != 'true'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: result-*
+          path: results/
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Download Bonus Results
+        if: needs.mp-setup.outputs.fail != 'true' && needs.bonus-test.result != 'skipped'
+        uses: actions/download-artifact@v8
+        with:
+          name: bonus-results
+          path: .
+        continue-on-error: true
+
+      - name: Record Build Failure
+        if: needs.build-discover.result == 'failure' && needs.mp-setup.outputs.fail != 'true'
+        run: |
+          mkdir -p results
+          cat > results/build-fail.json << 'ENDJSON'
+          {
+            "test_case": "Build/Setup",
+            "status": "FAIL",
+            "score": 0,
+            "max_score": 0,
+            "order": -1,
+            "output": "Compilation failed (make error)"
+          }
+          ENDJSON
+
+      - name: Aggregate Results
+        if: needs.mp-setup.outputs.fail != 'true'
+        run: |
+          python3 grade/aggregate_results.py \
+            --results-dir results/ \
+            --bonus bonus-results.json \
+            --json report.json \
+            --markdown grade-report.md
+        env:
+          PYTHONUNBUFFERED: "1"
           REPO_IS_PRIVATE: ${{ github.event.repository.private }}
 
       - name: Add Visual Summary
         if: always()
         run: |
-          if [ -f grade-report.md ]; then
-            cat grade-report.md >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.mp-setup.outputs.fail }}" = "true" ]; then
+            echo "## Grading Skipped" >> "$GITHUB_STEP_SUMMARY"
+            echo "Fail to compile or Commits by TAs are not graded." >> "$GITHUB_STEP_SUMMARY"
+          elif [ -f grade-report.md ]; then
+            cat grade-report.md >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Upload Artifact
-        if: always()
+      - name: Upload Final Report
+        # TODO: should we always have a report?
+        if: always() && needs.mp-setup.outputs.fail != 'true'
         uses: actions/upload-artifact@v7
         with:
           name: grading-report
           path: report.json
+
+      - name: Delete Temporary Artifacts
+        if: needs.mp-setup.outputs.fail != 'true'
+        uses: geekyeggo/delete-artifact@176a747ab7e287e3ff4787bf8a148716375ca118 # v6.0.0
+        with:
+          name: |
+              result-*
+              bonus-results
