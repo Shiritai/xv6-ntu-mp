@@ -51,7 +51,7 @@ def find_student_commit(commits, ta_emails):
      or we look for the first non-TA ancestor).
     """
     for commit in commits:
-        if commit['email'] not in ta_emails:
+        if commit['email'] not in ta_emails and commit['parents']:
             return commit
     return None
 
