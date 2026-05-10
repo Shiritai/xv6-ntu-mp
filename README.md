@@ -1,53 +1,52 @@
-# xv6-ntu-mp
+# 💻 xv6-ntu-mp: Operating Systems CSIE 3310
 
-This is the repository for the Operating Systems course (CSIE 3310) at National Taiwan University, Spring 2026. It contains the source code for the machine problems (MPs).
+Welcome to the official repository for the Operating Systems course at National Taiwan University. This platform provides a modern, automated development environment for xv6 assignments.
 
-## Template Repository
+## 🌟 Why This New System?
 
-This is the universal template repository used as the foundation for all homework assignments.
+In the past, students often struggled with complex, manual toolchain setups that varied across operating systems, leading to "it works on my machine" frustrations. The **xv6-ntu-mp** system replaces this with a modern, integrated approach:
 
-*   **Environment & Architecture:** [doc/environment.md](doc/environment.md)
-*   **Homework Submission Guide:** [doc/submit-guide.md](doc/submit-guide.md)
-*   **Original xv6 README:** [README](https://github.com/mit-pdos/xv6-riscv/blob/riscv/README)
+- **Unified & Transparent Environment**: We leverage **Docker** and **GitHub Actions** to provide a strictly identical development and grading environment for everyone—from your local laptop to the cloud.
+- **Instant Professional Feedback**: No more waiting for manual TA checks. Automated cloud grading provides immediate scores and detailed logs as soon as you push your code.
+- **Human-Centric Guidance**: Instead of simple "blocking" errors, our system includes Git hooks and protective scripts that act as a development assistant, catching common mistakes (like missing identity or accidental file overwrites) before they become grading issues.
+- **Continuous Learning Loop**: Even after the deadline, private tests are released into your repository. This allows you to identify subtle concurrency bugs or edge cases and continue refining your skills long after the assignment is over.
 
-## Quick Start
+## 📂 Project Structure
 
-We provide a script `mp.sh` to help you build and run xv6 using Docker. This ensures a consistent environment across different platforms.
+A quick guide to navigating this repository:
 
-### 1. Build and Run xv6 (QEMU)
+- **`xv6/`**: The core source code of the operating system.
+  - **`user/`**: Where you add and modify user programs.
+  - **`kernel/`**: The core kernel logic (process management, traps, etc.).
+  - **`Makefile`**: Standard build configuration for the xv6 kernel.
+- **`doc/`**: Comprehensive documentation module.
+- **`grade/`**: Internal grading engine logic (Do not modify).
+- **`tests/`**: Contains both official public tests and your custom debug tests.
+- **`mp.sh`**: The centralized assignment management script—your primary interface.
+- **`student.conf`**: Your identity binding configuration.
 
-```bash
-./mp.sh qemu
-```
+## ⚡ Documentation Guide
 
-### 2. Run Tests
+For a tailored onboarding experience, explore our modular guides:
 
-```bash
-./mp.sh grade
-```
+### 1. [Onboarding & Initialization (doc/setup.md)](doc/setup.md)
 
-### 3. Clean Build Artifacts
+> **🆕 Start Here.** Learn how to fork the template, invite TAs, and initialize your local workspace.
 
-```bash
-./mp.sh clean
-```
+### 2. [Developer Handbook (doc/handbook.md)](doc/handbook.md)
 
-### 4. Grading System
-Our grading system uses a **Late-Release Plaintext Test** model:
-1.  **Development Phase**: Running `./mp.sh grade` or pushing to your repository will only execute the **Public Tests**.
-2.  **Grading Phase**: After the deadline and late submission period, the TA will release the **Private Tests** (as plaintext `.py` files) directly to your repository and trigger the official grading CI.
-3.  **Sanitization**: The CI will automatically sanitize your environment by re-downloading the trusted `mp.sh` and `Makefile` from this template repository to ensure fairness.
+> **🛠️ Technical Reference.** Dive into `mp.sh` commands, QEMU shortcuts, and the system architecture diagram.
 
----
+### 3. [Submission & Grading Workflow (doc/workflow.md)](doc/workflow.md)
 
-## Original xv6-riscv Introduction
+> **🔄 Mastering the Cycle.** Understand how to create custom tests, interpret GitHub Actions results, and the rules of the grading cycle.
 
-xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix Version 6 (v6). xv6 loosely follows the structure and style of v6, but is implemented for a modern RISC-V multiprocessor using ANSI C.
+### 4. Assignment Specification (e.g., `doc/mp0.md`)
 
-ACKNOWLEDGMENTS
+> **📋 Task Requirements.** Detailed technical specifications and goals for the current Machine Problem (find the specific `mpX.md` in the current branch).
 
-xv6 is inspired by John Lions's Commentary on UNIX 6th Edition (Peer to Peer Communications; ISBN: 1-57398-013-7; 1st edition (June 14, 2000)). See also https://pdos.csail.mit.edu/6.828/, which provides pointers to on-line resources for v6.
+## 📚 References
 
-The following people have made contributions: Russ Cox (context switching, locking), Cliff Frey (MP), Xiao Yu (MP), Nickolai Zeldovich, and Austin Clements.
-
-We are also grateful for the bug reports and patches contributed by many others.
+- **[xv6: A Simple Unix-like OS (PDF)](https://pdos.csail.mit.edu/6.828/2020/xv6/book-riscv-rev1.pdf)**: The primary textbook for the course.
+- **[GitHub: xv6-riscv Upstream](https://github.com/mit-pdos/xv6-riscv)**: Original MIT source code.
+- **[RISC-V ISA Reference](https://riscv.org/technical/specifications/)**: For deep-dives into the architecture.

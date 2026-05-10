@@ -1,0 +1,12 @@
+.github/** text eol=lf
+tests/**   text eol=lf
+*.conf     text eol=lf
+*.sh       text eol=lf
+grade/**   text eol=lf
+scripts/** text eol=lf
+doc/protected_list.txt text eol=lf
+# uncomment when necessary
+#Makefile   text eol=lf
+#user/**    text eol=lf
+#kernel/**  text eol=lf
+#mkfs/**    text eol=lf

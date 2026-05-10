@@ -1,0 +1,89 @@
+#!/usr/bin/env -S LC_ALL=C bash
+# Pre-push hook to protect critical files
+
+# Only use colors when outputting to a terminal
+if [ -t 1 ]; then
+    RED='\033[0;31m'
+    YELLOW='\033[1;33m'
+    RESET='\033[0m'
+else
+    RED=''
+    YELLOW=''
+    RESET=''
+fi
+
+PROTECTED_LIST="doc/protected_list.txt"
+
+# Detect unsynced TA updates before pushing.
+# MUST use sync-check (non-interactive) — pre-push receives the ref list on
+# stdin, so any `read` from an interactive sync would consume git's data,
+# corrupting the hook and bypassing file protection below.
+if [ -f "./mp.sh" ]; then
+    ./mp.sh sync-check || exit 1
+fi
+
+if [ ! -f "$PROTECTED_LIST" ]; then
+    exit 1
+fi
+
+# pre-push receives: <local ref> <local sha1> <remote ref> <remote sha1> on stdin
+check_student_identity() {
+    local conf="student.conf"
+    if [ ! -f "$conf" ]; then
+        return 0
+    fi
+    
+    if grep -q "b00000000" "$conf" || grep -q "Your Name" "$conf" || grep -q "your-github-id" "$conf"; then
+        echo -e "${RED}[ERROR] Default identity detected in student.conf!${RESET}"
+        echo -e "Please fill out your real info (Student ID, Name, GitHub ID) before pushing."
+        echo ""
+        exit 1
+    fi
+}
+
+check_student_identity
+
+while read local_ref local_sha remote_ref remote_sha; do
+    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+        # Handle deletion
+        continue
+    fi
+
+    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+        # New branch: compare with main if possible, but let's just use HEAD diff for simplicity
+        # or compare with origin/main if it exists.
+        # To be safe, we check all files in the current checkout.
+        RANGE="$local_sha"
+    else
+        RANGE="$remote_sha..$local_sha"
+    fi
+
+    # Get list of changed files in this push range
+    CHANGED_FILES=$(git diff --name-only $RANGE 2>/dev/null)
+    
+    VIOLATIONS=()
+    while IFS= read -r pattern || [[ -n "$pattern" ]]; do
+        [[ "$pattern" =~ ^#.* ]] && continue 
+        [[ -z "$pattern" ]] && continue      
+        
+        for file in $CHANGED_FILES; do
+            # DO NOT quote $pattern here, as we WANT glob matching.
+            if [[ "$file" == $pattern ]]; then
+                VIOLATIONS+=("$file")
+            fi
+        done
+    done < "$PROTECTED_LIST"
+
+    if [ ${#VIOLATIONS[@]} -ne 0 ]; then
+        echo -e "${RED}[ERROR] Push rejected! Protected files have been modified:${RESET}"
+        for v in "${VIOLATIONS[@]}"; do
+            echo -e "  - $v"
+        done
+        echo ""
+        echo -e "${YELLOW}[HINT] These files are overwritten during official grading. DO NOT push modifications.${RESET}"
+        echo -e "${YELLOW}      If you must push these, use 'git push --no-verify'.${RESET}"
+        exit 1
+    fi
+done
+
+exit 0
