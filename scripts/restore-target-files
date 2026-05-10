@@ -1,0 +1,29 @@
+#!/usr/bin/env -S LC_ALL=C bash
+# Restore files listed in TARGET_FILES (mp.conf) from the student's target commit.
+# Expects TARGET_SHA to be set in the environment.
+
+set -euo pipefail
+
+git config --global --add safe.directory "$(pwd)"
+
+source mp.conf
+
+if [[ -z "${TARGET_FILES+set}" || "${#TARGET_FILES[@]}" -eq 0 ]]; then
+  echo "TARGET_FILES is empty or unset — skipping restore."
+  exit 0
+fi
+
+if [[ -z "${TARGET_SHA:-}" ]]; then
+  echo "Error: TARGET_SHA is not set." >&2
+  exit 1
+fi
+
+git fetch --depth=1 origin "$TARGET_SHA"
+
+prefixed=()
+for pattern in "${TARGET_FILES[@]}"; do
+  prefixed+=(":(glob)${pattern}")
+done
+
+git restore --source="$TARGET_SHA" --worktree -- "${prefixed[@]}"
+echo "Restored ${#TARGET_FILES[@]} pattern(s) from $TARGET_SHA."
