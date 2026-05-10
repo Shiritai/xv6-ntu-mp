@@ -164,6 +164,11 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v6
 
+      - name: Restore Student Files at target_sha
+        env:
+          TARGET_SHA: ${{ needs.mp-setup.outputs.target_sha }}
+        run: bash scripts/restore-target-files
+
       - name: Download Stage-0 Results
         uses: actions/download-artifact@v8
         with:
