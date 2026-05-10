@@ -231,6 +231,12 @@ def generate_markdown(total_score, max_score, details, md_path, verdict):
                     lines.append("> [!CAUTION]")
                 lines.append(f">- **GitHub Repository Name**: {student_repo_name}")
                 lines.append(f">- **Required Repository Name**: **{required_repo_name}**")
+        missing_tas = verdict.get("missing_ta_usernames", [])
+        if missing_tas:
+            joined = ", ".join(f"**{ta}**" for ta in missing_tas)
+            lines.append("")
+            lines.append("> [!NOTE]")
+            lines.append(f"> Missing TA collaborators: {joined}.")
     lines.append("")
 
     # Part 2: Grades (mermaid xychart)
