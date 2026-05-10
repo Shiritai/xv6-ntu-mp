@@ -82,6 +82,11 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v6
 
+      - name: Restore Student Files at target_sha
+        env:
+          TARGET_SHA: ${{ needs.mp-setup.outputs.target_sha }}
+        run: bash scripts/restore-target-files
+
       - name: Build xv6
         run: make
 
@@ -109,6 +114,11 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
+
+      - name: Restore Student Files at target_sha
+        env:
+          TARGET_SHA: ${{ needs.mp-setup.outputs.target_sha }}
+        run: bash scripts/restore-target-files
 
       - name: Run Test — ${{ matrix.test.name }}
         run: |
@@ -143,6 +153,11 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
+
+      - name: Restore Student Files at target_sha
+        env:
+          TARGET_SHA: ${{ needs.mp-setup.outputs.target_sha }}
+        run: bash scripts/restore-target-files
 
       - name: Download All Test Results
         uses: actions/download-artifact@v8
