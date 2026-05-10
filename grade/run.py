@@ -18,6 +18,9 @@ CONF_PATH = os.path.join(os.path.dirname(__file__), "../mp.conf")
 GRADING_CONF_PATH = os.path.join(os.path.dirname(__file__), "../tests/grading.conf")
 TARGET_COMMIT_PATH = "target_commit.json"
 STUDENT_CONF_PATH = os.path.join(os.path.dirname(__file__), "../student.conf")
+# https://docs.github.com/en/actions/reference/workflows-and-actions/variables
+USERNAME = os.environ.get("GITHUB_REPOSITORY_OWNER", None)
+REPO_FULLNAME = os.environ.get("GITHUB_REPOSITORY", None)
 
 def load_grading_config():
     patterns = []
@@ -81,6 +84,7 @@ def load_python_tests(test_dir, patterns):
         spec = importlib.util.spec_from_file_location(module_name, py_file)
         if spec and spec.loader:
             module = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = module
             spec.loader.exec_module(module)
 
 def load_script_tests(test_dir, patterns):
@@ -169,6 +173,7 @@ def gather_verdict():
     
     checklist_path = os.path.join(os.path.dirname(__file__), "../checklist.md")
     is_checklist_valid = validate_checklist(checklist_path)
+    repo_name = conf.get("REPOSITORY_NAME", "Ask TA")
 
     if not is_identity_valid or not is_checklist_valid:
         penalty_ratio = 1.0 # Force zero score if identity or checklist is invalid
@@ -182,12 +187,18 @@ def gather_verdict():
         "student_conf": student_conf,
         "is_identity_valid": is_identity_valid,
         "is_checklist_valid": is_checklist_valid,
+        "repo_name": repo_name,
     }
 
 def generate_markdown(total_score, max_score, details, md_path, verdict):
     penalty_ratio = verdict["penalty_ratio"]
     student_conf = verdict["student_conf"]
     is_identity_valid = verdict["is_identity_valid"]
+    required_repo_name = verdict["repo_name"]
+    if REPO_FULLNAME:
+        student_repo_name = REPO_FULLNAME.removeprefix(USERNAME).removeprefix("/")
+    else
+        student_repo_name = required_repo_name
 
     lines = []
 
@@ -205,7 +216,14 @@ def generate_markdown(total_score, max_score, details, md_path, verdict):
     else:
         lines.append(f"- **Student ID**: {student_conf.get('STUDENT_ID')}")
         lines.append(f"- **Name**: {student_conf.get('STUDENT_NAME')}")
-        lines.append(f"- **GitHub Username**: {student_conf.get('GITHUB_USERNAME')}")
+        written_username = student_conf.get('GITHUB_USERNAME')
+        lines.append(f"- **GitHub Username**: {written_username}")
+        # In CI, verify if both are correct
+        if USERNAME and USERNAME != written_username:
+            lines.append(f"- *Actual GitHub Username*: **{USERNAME}**")
+        if student_repo_name != required_repo_name:
+            lines.append(f"- **Current Repository Name**: {student_repo_name}")
+            lines.append(f"- *Required Repository Name*: **{required_repo_name}**")
     lines.append("")
 
     # Part 2: Grades (mermaid xychart)
@@ -232,6 +250,9 @@ def generate_markdown(total_score, max_score, details, md_path, verdict):
         lines.append(f'    bar [{bar_max}]')
         lines.append(f'    bar [{bar_actual}]')
         lines.append("```")
+        lines.append("")
+
+        lines.append(f"- Total Score: {total_score * multiplier:.1f}/{max_score}")
     lines.append("")
 
     with open(md_path, "w") as f:
@@ -322,6 +343,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--json", help="Path to output report.json")
     parser.add_argument("--markdown", help="Path to output report.md")
+    parser.add_argument("--skip-make", action="store_true",
+                        help="Skip xv6 compilation (use pre-built artifacts)")
+    parser.add_argument("--inject-total", type=int, default=None,
+                        help="Pre-set gradelib.TOTAL (for bonus tests in CI)")
+    parser.add_argument("--inject-possible", type=int, default=None,
+                        help="Pre-set gradelib.POSSIBLE (for bonus tests in CI)")
+    parser.add_argument("--inject-history", default=None,
+                        help="Path to JSON file mapping test names to pass_counts")
     args, unknown = parser.parse_known_args()
 
     # Ensure test directory exists
@@ -337,11 +366,30 @@ if __name__ == "__main__":
     # Initialize options for gradelib since we bypass run_tests()
     gradelib.options = argparse.Namespace(color="auto", verbose=False)
 
+    # Inject pre-computed state for bonus tests in CI matrix mode
+    if args.inject_total is not None:
+        gradelib.TOTAL = args.inject_total
+    if args.inject_possible is not None:
+        gradelib.POSSIBLE = args.inject_possible
+    # TODO: check if all mp can deal with it
+    if args.inject_history:
+        try:
+            with open(args.inject_history, "r") as f:
+                history = json.load(f)
+            # Inject into test_mp2 module if loaded
+            for mod_name in list(sys.modules):
+                mod = sys.modules[mod_name]
+                if hasattr(mod, "GRADES_HISTORY"):
+                    mod.GRADES_HISTORY.update(history)
+        except (IOError, json.JSONDecodeError) as e:
+            print(f"Warning: could not load history: {e}", file=sys.stderr)
+
     # Run tests via gradelib
     # gradelib.run_tests() calls sys.exit? No, checks `no_error`.
     # But it calculates TOTAL/POSSIBLE global vars.
     try:
-        gradelib.make() # We assume gradelib handles make
+        if not args.skip_make: # Only in CI, we ensure the maked artifacts
+            gradelib.make() # We assume gradelib handles make
         gradelib.reset_fs()
         
         # Execute tests
@@ -370,13 +418,28 @@ if __name__ == "__main__":
             
             no_error = ok and no_error
             
-            # Capture result
-            details.append({
-                "test_case": getattr(test_func, "title", test_func.__name__),
+            # Capture result (include order + pass_count for CI aggregation)
+            title = getattr(test_func, "title", test_func.__name__)
+            # Preserve original registration order from gradelib.TESTS
+            try:
+                order = gradelib.TESTS.index(test_func)
+            except ValueError:
+                order = 9999
+            result_entry = {
+                "test_case": title,
                 "status": "PASS" if ok else "FAIL",
                 "score": getattr(test_func, "score", 0),
                 "max_score": getattr(test_func, "points", 0),
-            })
+                "order": order,
+            }
+            # Try to get pass_count from GRADES_HISTORY 
+            # TODO: make a specification for this
+            for mod_name in list(sys.modules):
+                mod = sys.modules[mod_name]
+                if hasattr(mod, "GRADES_HISTORY") and title in mod.GRADES_HISTORY:
+                    result_entry["pass_count"] = mod.GRADES_HISTORY[title]
+                    break
+            details.append(result_entry)
 
     except BaseException as e:
         print(f"Execution/Compilation Error: {e}")
