@@ -34,11 +34,12 @@ def main():
     possible = sum(d.get("max_score", 0) for d in details)
     print(f"Public total: {total}/{possible}")
 
-    # Build GRADES_HISTORY from pass_count data
+    # Build GRADES_HISTORY as title → actual score
     history = {}
     for d in details:
-        if "pass_count" in d:
-            history[d["test_case"]] = d["pass_count"]
+        tc = d.get("test_case", "")
+        if tc:
+            history[tc] = d.get("score", 0)
 
     with open(args.history, "w") as f:
         json.dump(history, f)
