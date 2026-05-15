@@ -40,23 +40,14 @@ else
 fi
 
 # Configuration Defaults
-# GitHub Action will use mp.conf to set DOCKER_IMAGE
-if [ -t 1 ] && [ -z "$GITHUB_ACTIONS" ]; then
-    IMAGE_NAME="${DOCKER_IMAGE:-ntuos/mpx}"
-else
-    IMAGE_NAME="${ACTION_IMAGE:-ntuos/mpx}"
-fi
-CONTAINER_NAME="$REPOSITORY_NAME"
+IMAGE_NAME="${DOCKER_IMAGE:-ntuos/mpx}" # Default fallback
+CONTAINER_NAME="${REPOSITORY_NAME:-ntuos2026-$ASSIGNMENT}"
 
 # ------------------------------------------------------------------------------
 # 2. Environment Checks
 # ------------------------------------------------------------------------------
 
 check_os() {
-    # Skip os check in GITHUB_ACTIONS
-    if [ -n "$GITHUB_ACTIONS" ]; then
-        return
-    fi
     local os_name
     os_name=$(uname -s)
     local kernel_release
@@ -90,8 +81,8 @@ check_os() {
 }
 
 check_docker() {
-    # Simulation Mode and GitHub Action Bypass
-    if [ -n "$GITHUB_ACTIONS" ] || [ -n "$SIMULATION_MODE" ]; then
+    # Simulation Mode Bypass
+    if [ -n "$SIMULATION_MODE" ]; then
         return
     fi
 
@@ -414,11 +405,6 @@ prepare_docker_start_cmd() {
     if [ -n "$SIMULATION_MODE" ]; then
         START_IMAGE=()
         info "Simulation Mode: Docker bypassed."
-        return 0
-    fi
-    if [ -n "$GITHUB_ACTIONS" ]; then
-        START_IMAGE=()
-        info "GitHub Action: Docker bypassed."
         return 0
     fi
 
