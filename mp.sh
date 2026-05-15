@@ -40,7 +40,7 @@ else
 fi
 
 # Configuration Defaults
-IMAGE_NAME="${DOCKER_IMAGE:-ntuos/mp2}" # Default fallback
+IMAGE_NAME="${DOCKER_IMAGE:-ntuos/mpx}" # Default fallback
 CONTAINER_NAME="${REPOSITORY_NAME:-ntuos2026-$ASSIGNMENT}"
 
 # ------------------------------------------------------------------------------
