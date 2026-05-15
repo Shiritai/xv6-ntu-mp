@@ -114,12 +114,14 @@ jobs:
         run: |
           mkdir -p results
           python3 grade/run.py \
-            --json "results/${{ matrix.test.slug }}.json" \
-            "${{ matrix.test.pattern }}"
+            --json "results/${SLUG}.json" \
+            "${PATTERN}"
         env:
           PYTHONUNBUFFERED: "1"
           # TODO: Can be moved to mp-setup, we only need it once
           REPO_IS_PRIVATE: ${{ github.event.repository.private }}
+          SLUG: ${{ matrix.test.slug }}
+          PATTERN: ${{ matrix.test.pattern }}
 
       - name: Upload Test Result
         if: always()
