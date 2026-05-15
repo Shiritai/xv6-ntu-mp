@@ -197,7 +197,7 @@ def generate_markdown(total_score, max_score, details, md_path, verdict):
     required_repo_name = verdict["repo_name"]
     if REPO_FULLNAME:
         student_repo_name = REPO_FULLNAME.removeprefix(USERNAME).removeprefix("/")
-    else
+    else:
         student_repo_name = required_repo_name
 
     lines = []
