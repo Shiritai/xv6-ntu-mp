@@ -1,0 +1,62 @@
+name: Public Visibility Alert
+
+on:
+  public:
+
+permissions:
+  issues: write
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Load mp.conf
+        run: |
+          while IFS= read -r line || [ -n "$line" ]; do
+            [[ -z "$line" || "$line" == \#* ]] && continue
+            echo "${line//\"/}" >> $GITHUB_ENV
+            [[ "$line" == DEADLINE=* ]] && break
+          done < mp.conf
+
+      - name: Create alert issue
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const deadline = process.env.DEADLINE;
+
+            const now = new Date();
+            const deadlineDate = new Date(deadline);
+            const publishDate = new Date(deadlineDate.getTime() + 5 * 24 * 60 * 60 * 1000);
+
+            let emoji;
+            if (now >= publishDate) {
+              emoji = '✅';
+            } else if (now >= deadlineDate) {
+              emoji = '⚠️';
+            } else {
+              emoji = '🚨';
+            }
+
+            let mentions = '';
+            try {
+              const { data: collaborators } = await github.rest.repos.listCollaborators({
+                owner,
+                repo
+              });
+              mentions = collaborators.map(c => c.login).filter(u => u !== owner).map(u => `@${u}`).join(' ');
+            } catch (e) {
+              core.warning(`Could not list collaborators: ${e.message}`);
+            }
+
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title: `${emoji} Repository is now PUBLIC!`,
+              body: `This repository has been made public.\n\n- Time: ${now.toISOString()}\n\n${mentions}`
+            });
