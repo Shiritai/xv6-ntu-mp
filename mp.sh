@@ -179,11 +179,46 @@ check_hooks() {
     fi
 }
 
-check_environment() {
-    check_os && \
-    check_docker && \
-    check_hooks && \
-    check_updates
+# ------------------------------------------------------------------------------
+# Command capability tiers
+#
+# Each subcommand declares one requirement level; ensure_capability runs
+# exactly the preconditions that level needs. Commands that never touch a
+# container (init, snapshot, sync-check, sync) therefore skip every Docker
+# check instead of paying for it.
+#
+#   none    no checks                           init
+#   git     git-based, no container             snapshot, sync-check, sync
+#   docker  OS + Docker engine + hook notice    clean, reset, bash, debug
+#   synced  docker tier + pending-update gate    qemu, test, grade
+# ------------------------------------------------------------------------------
+cmd_requirement() {
+    case "$1" in
+        init)                     echo "none"   ;;
+        snapshot|sync-check|sync) echo "git"    ;;
+        clean|reset|bash|debug)   echo "docker" ;;
+        qemu|test|grade)          echo "synced" ;;
+        *)                        echo "unknown" ;;
+    esac
+}
+
+ensure_capability() {
+    case "$1" in
+        none|git)
+            : # nothing to verify
+            ;;
+        docker)
+            check_os
+            check_docker
+            check_hooks
+            ;;
+        synced)
+            check_os
+            check_docker
+            check_hooks
+            check_updates  # interactive sync gate before a real run
+            ;;
+    esac
 }
 
 snapshot() {
@@ -340,33 +375,6 @@ check_updates() {
     fi
 }
 
-# Run Checks early (Skip for init)
-case "$1" in
-    "init"|"")
-        # For init or no command, skip blocking environment checks
-        ;;
-    "snapshot")
-        snapshot
-        exit 0
-        ;;
-    "sync-check")
-        # Non-interactive gate for git hooks. No docker, no env checks.
-        sync_check
-        exit $?
-        ;;
-    "clean"|"reset"|"bash"|"debug")
-        # Lightweight commands: only need docker, skip update checks
-        check_os && check_docker && check_hooks || exit 1
-        ;;
-    "sync"|*)
-        check_environment || exit 1
-        if [ "$1" == "sync" ]; then
-            info "Your repository is up to date."
-            exit 0
-        fi
-        ;;
-esac
-
 # ------------------------------------------------------------------------------
 # 3. Helper Functions
 # ------------------------------------------------------------------------------
@@ -460,14 +468,21 @@ check_ta_commit() {
 
 
 # ------------------------------------------------------------------------------
-# 5. Main Logic
+# 5. Dispatch
 # ------------------------------------------------------------------------------
+
+REQUIREMENT=$(cmd_requirement "$1")
+if [ "$REQUIREMENT" = "unknown" ]; then
+    echo "Usage: $0 {init|qemu|test|grade|clean|bash|debug|reset|snapshot|sync|sync-check}"
+    exit 1
+fi
+ensure_capability "$REQUIREMENT"
 
 case "$1" in
     "init")
         info "Initializing environment for $ASSIGNMENT..."
         mkdir -p "$SCRIPT_DIR/.git/hooks"
-        
+
         # Install hooks from scripts/
         hook_count=0
         if [ -d "$SCRIPT_DIR/scripts" ]; then
@@ -478,13 +493,24 @@ case "$1" in
                 fi
             done
         fi
-        
+
         if [ $hook_count -eq 0 ]; then
             warn "No hook templates found in scripts/."
         else
             info "Successfully installed $hook_count Git hooks."
         fi
         info "Initialization complete."
+        ;;
+    "snapshot")
+        snapshot
+        ;;
+    "sync-check")
+        sync_check
+        exit $?
+        ;;
+    "sync")
+        check_updates
+        info "Your repository is up to date."
         ;;
     "qemu")
         info "Starting QEMU in $IMAGE_NAME..."
@@ -496,7 +522,6 @@ case "$1" in
         check_ta_commit
         info "Running tests for $ASSIGNMENT..."
         prepare_docker_start_cmd run
-        # Pass arguments to run.py
         shift
         "${START_IMAGE[@]}" python3 grade/run.py "$@"
         chown_if_need "."
@@ -507,7 +532,6 @@ case "$1" in
         "${START_IMAGE[@]}" make clean
         chown_if_need "."
         ;;
-
     "bash")
         info "Starting BASH in $IMAGE_NAME..."
         prepare_docker_start_cmd start
@@ -525,16 +549,5 @@ case "$1" in
         info "Resetting $IMAGE_NAME..."
         prepare_docker_start_cmd rm
         "${START_IMAGE[@]}"
-        ;;
-
-    "snapshot")
-        # Already handled early
-        ;;
-    "sync")
-        # Already handled early
-        ;;
-    *)
-        echo "Usage: $0 {init|qemu|test|grade|clean|bash|debug|reset|snapshot|sync|sync-check}"
-        exit 1
         ;;
 esac
