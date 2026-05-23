@@ -124,7 +124,9 @@ def validate_student_conf(student_conf):
 
 def validate_checklist(path):
     if not os.path.exists(path):
-        return True
+        # Fail closed: the template ships checklist.md, so a missing file
+        # means it was deleted. A missing checklist cannot count as complete.
+        return False
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
             if line.strip().startswith("- [ ] "):
