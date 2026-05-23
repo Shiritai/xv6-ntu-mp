@@ -81,7 +81,12 @@ def get_pushed_at(sha):
 
     Commit-embedded timestamps are forgeable (git commit --date= /
     GIT_COMMITTER_DATE); only a server-stamped time can anchor lateness.
-    source is one of: 'graphql', 'actions_runs', 'unavailable'.
+
+    For a student repo the grading workflow runs on push, so the earliest
+    workflow_run.created_at observed for this head SHA is effectively the push
+    receipt time — set by GitHub, not the client.
+
+    source is one of: 'actions_runs', 'unavailable'.
     """
     token = os.environ.get("GITHUB_TOKEN")
     repo = os.environ.get("GITHUB_REPOSITORY", "")
@@ -89,22 +94,6 @@ def get_pushed_at(sha):
         return None, "unavailable"
     owner, name = repo.split("/", 1)
 
-    # Primary: GraphQL Commit.pushedDate — set when GitHub first received the
-    # commit object via push, on any ref, independent of workflow triggers.
-    try:
-        query = ("query($o:String!,$n:String!,$oid:GitObjectID!){"
-                 "repository(owner:$o,name:$n){object(oid:$oid){"
-                 "...on Commit{pushedDate}}}}")
-        payload = {"query": query,
-                   "variables": {"o": owner, "n": name, "oid": sha}}
-        data = _api_json("https://api.github.com/graphql", token, payload)
-        obj = ((data.get("data") or {}).get("repository") or {}).get("object") or {}
-        if obj.get("pushedDate"):
-            return _iso_to_epoch(obj["pushedDate"]), "graphql"
-    except Exception as e:
-        print(f"pushedDate via GraphQL failed: {e}", file=sys.stderr)
-
-    # Fallback: earliest workflow run observed for this head SHA.
     try:
         url = (f"https://api.github.com/repos/{owner}/{name}"
                f"/actions/runs?head_sha={sha}&per_page=100")
@@ -114,7 +103,7 @@ def get_pushed_at(sha):
         if times:
             return min(times), "actions_runs"
     except Exception as e:
-        print(f"pushedDate via Actions runs failed: {e}", file=sys.stderr)
+        print(f"workflow_run lookup failed: {e}", file=sys.stderr)
 
     return None, "unavailable"
 
