@@ -162,13 +162,26 @@ def gather_verdict():
     conf = parse_mp_conf()
     target_commit = load_target_commit()
     commit_ts = target_commit.get("timestamp") if target_commit else 0
+
+    # Submission time: prefer the GitHub-stamped push time. Committer time is
+    # forgeable (git commit --date=) so it is only a fallback, and the report
+    # flags any run that had to fall back so it can be reviewed manually.
+    pushed_at = target_commit.get("pushed_at") if target_commit else None
+    pushed_src = target_commit.get("pushed_at_source", "unavailable") if target_commit else "unavailable"
+    if pushed_at:
+        submission_ts = pushed_at
+        submission_verified = True
+    else:
+        submission_ts = commit_ts
+        submission_verified = False
+
     deadline = conf.get("DEADLINE", "")
-    late_days = calculate_lateness(deadline, commit_ts)
+    late_days = calculate_lateness(deadline, submission_ts)
     # Penalty Policy: 20% per day.
     penalty_ratio = min(1.0, late_days * 0.2)
     student_conf = parse_student_conf()
     is_identity_valid = validate_student_conf(student_conf)
-    
+
     checklist_path = os.path.join(os.path.dirname(__file__), "../checklist.md")
     is_checklist_valid = validate_checklist(checklist_path)
 
@@ -178,6 +191,9 @@ def gather_verdict():
         "conf": conf,
         "target_commit": target_commit,
         "commit_ts": commit_ts,
+        "submission_ts": submission_ts,
+        "submission_verified": submission_verified,
+        "pushed_at_source": pushed_src,
         "deadline": deadline,
         "late_days": late_days,
         "penalty_ratio": penalty_ratio,
@@ -209,6 +225,15 @@ def generate_markdown(total_score, max_score, details, md_path, verdict):
         lines.append(f"- **Name**: {student_conf.get('STUDENT_NAME')}")
         lines.append(f"- **GitHub Username**: {student_conf.get('GITHUB_USERNAME')}")
     lines.append("")
+
+    # Lateness is anchored to the GitHub-stamped push time. If that was not
+    # available, lateness fell back to the forgeable committer time — flag it.
+    if verdict["target_commit"] and not verdict["submission_verified"]:
+        lines.append("> [!WARNING]")
+        lines.append("> Submission time could not be verified from GitHub. "
+                     "Lateness is based on the commit's own timestamp, which is "
+                     "forgeable — this submission needs manual time review.")
+        lines.append("")
 
     # Part 2: Grades (mermaid xychart)
     lines.append("## Grades")
@@ -291,6 +316,7 @@ def generate_json(total_score, max_score, details, json_path, verdict):
             "sha": target_commit.get("sha", "unknown") if target_commit else "unknown",
             "author": target_commit.get("author", "unknown") if target_commit else "unknown",
             "timestamp": datetime.datetime.fromtimestamp(commit_ts).isoformat() if commit_ts else "",
+            "pushed_at": datetime.datetime.fromtimestamp(verdict["submission_ts"]).isoformat() if verdict["submission_ts"] else "",
             "is_late": late_days > 0
         },
         "student_info": {
@@ -306,7 +332,9 @@ def generate_json(total_score, max_score, details, json_path, verdict):
             "penalty_policy": "20% per day",
             "penalty_ratio": penalty_ratio,
             "identity_failed": not is_identity_valid,
-            "is_private": is_private
+            "is_private": is_private,
+            "submission_time_verified": verdict["submission_verified"],
+            "submission_time_source": verdict["pushed_at_source"]
         },
         "scores": {
             "raw_total": total_score,

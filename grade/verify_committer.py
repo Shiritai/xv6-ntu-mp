@@ -4,6 +4,8 @@ import subprocess
 import sys
 import json
 import re
+import datetime
+import urllib.request
 
 def load_config():
     """Reads TA_EMAILS from conf/mp.conf"""
@@ -55,6 +57,67 @@ def find_student_commit(commits, ta_emails):
             return commit
     return None
 
+def _iso_to_epoch(iso):
+    """Parse a GitHub ISO-8601 timestamp (e.g. 2026-06-29T12:00:00Z) to epoch."""
+    dt = datetime.datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    return int(dt.timestamp())
+
+def _api_json(url, token, data=None):
+    """Minimal GitHub API call. Returns parsed JSON, or raises."""
+    headers = {
+        "Authorization": f"bearer {token}",
+        "User-Agent": "xv6-ntu-mp-grader",
+        "Accept": "application/vnd.github+json",
+    }
+    if data is not None:
+        headers["Content-Type"] = "application/json"
+        data = json.dumps(data).encode()
+    req = urllib.request.Request(url, data=data, headers=headers)
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return json.load(resp)
+
+def get_pushed_at(sha):
+    """Return (epoch, source) for the authoritative GitHub push time of `sha`.
+
+    Commit-embedded timestamps are forgeable (git commit --date= /
+    GIT_COMMITTER_DATE); only a server-stamped time can anchor lateness.
+    source is one of: 'graphql', 'actions_runs', 'unavailable'.
+    """
+    token = os.environ.get("GITHUB_TOKEN")
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    if not token or "/" not in repo:
+        return None, "unavailable"
+    owner, name = repo.split("/", 1)
+
+    # Primary: GraphQL Commit.pushedDate — set when GitHub first received the
+    # commit object via push, on any ref, independent of workflow triggers.
+    try:
+        query = ("query($o:String!,$n:String!,$oid:GitObjectID!){"
+                 "repository(owner:$o,name:$n){object(oid:$oid){"
+                 "...on Commit{pushedDate}}}}")
+        payload = {"query": query,
+                   "variables": {"o": owner, "n": name, "oid": sha}}
+        data = _api_json("https://api.github.com/graphql", token, payload)
+        obj = ((data.get("data") or {}).get("repository") or {}).get("object") or {}
+        if obj.get("pushedDate"):
+            return _iso_to_epoch(obj["pushedDate"]), "graphql"
+    except Exception as e:
+        print(f"pushedDate via GraphQL failed: {e}", file=sys.stderr)
+
+    # Fallback: earliest workflow run observed for this head SHA.
+    try:
+        url = (f"https://api.github.com/repos/{owner}/{name}"
+               f"/actions/runs?head_sha={sha}&per_page=100")
+        data = _api_json(url, token)
+        times = [_iso_to_epoch(r["created_at"])
+                 for r in data.get("workflow_runs", []) if r.get("created_at")]
+        if times:
+            return min(times), "actions_runs"
+    except Exception as e:
+        print(f"pushedDate via Actions runs failed: {e}", file=sys.stderr)
+
+    return None, "unavailable"
+
 def main():
     try:
         ta_emails = load_config()
@@ -65,21 +128,30 @@ def main():
         
         if target:
             print(f"Found Target Student Commit: {target['hash']} by {target['email']}")
+
+            # Authoritative submission time (forgery-resistant). null when no
+            # server evidence is available — the grader flags such cases.
+            pushed_at, pushed_src = get_pushed_at(target['hash'])
+            print(f"Push time: {pushed_at} (source: {pushed_src})")
+
             # Output for GitHub Actions
             if "GITHUB_OUTPUT" in os.environ:
                 with open(os.environ["GITHUB_OUTPUT"], "a") as f:
                     f.write(f"target_sha={target['hash']}\n")
                     f.write(f"target_timestamp={target['timestamp']}\n")
                     f.write(f"target_author={target['email']}\n")
-            
+                    f.write(f"target_pushed_at={pushed_at if pushed_at else ''}\n")
+
             # Write to a JSON snippet for report inclusion
             with open("target_commit.json", "w") as f:
                 json.dump({
                     "sha": target['hash'],
                     "author": target['email'],
-                    "timestamp": target['timestamp']
+                    "timestamp": target['timestamp'],      # committer time (forgeable; display only)
+                    "pushed_at": pushed_at,                 # authoritative epoch, or null
+                    "pushed_at_source": pushed_src
                 }, f)
-                
+
             sys.exit(0)
         else:
             print("Error: No valid student commit found (All commits are from TA).")
