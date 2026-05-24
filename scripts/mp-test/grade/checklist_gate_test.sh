@@ -1,8 +1,8 @@
 #!/bin/bash
 # checklist_gate_test.sh — validate_checklist fails closed on absence.
 #
-# The template ships checklist.md, so a missing file means it was deleted by
-# the student and must NOT count as completed. Earlier the function returned
+# The template ships checklist.md.template. TAs must rename and edit it.
+# If checklist.md is missing, it must NOT count as completed. Earlier the function returned
 # True when the file was absent, silently bypassing the gate (audit C2).
 
 LIB_DIR=$(realpath "$(dirname "$(readlink -f "$0")")/../lib")
