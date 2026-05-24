@@ -44,35 +44,25 @@ def get_commits():
     return commits
 
 def find_student_commit(commits, ta_emails):
-    """
-    Finds the latest commit that is NOT from a TA.
-    Simple strategy: Iterate from newest to oldest. 
-    If a commit is by a TA, skip it.
-    If a commit is a Merge Commit (2+ parents), check if it brings in student changes.
-    (For simplicity in V0, we assume the Merge Commit itself is the target if authored by student,
-     or we look for the first non-TA ancestor).
+    """Return the newest commit not authored by a TA and not a root commit.
+
+    Walks `commits` (assumed newest first, as `git log` emits) and picks the
+    first whose committer email is not in `ta_emails` and which has at least
+    one parent — root commits (typically the template's initial TA-authored
+    commit) are skipped even when the email check happens to pass.
     """
     for commit in commits:
         if commit['email'] not in ta_emails and commit['parents']:
             return commit
     return None
 
-def _iso_to_epoch(iso):
-    """Parse a GitHub ISO-8601 timestamp (e.g. 2026-06-29T12:00:00Z) to epoch."""
-    dt = datetime.datetime.fromisoformat(iso.replace("Z", "+00:00"))
-    return int(dt.timestamp())
-
-def _api_json(url, token, data=None):
-    """Minimal GitHub API call. Returns parsed JSON, or raises."""
-    headers = {
+def _api_get_json(url, token):
+    """GET a GitHub REST endpoint and return parsed JSON, or raise."""
+    req = urllib.request.Request(url, headers={
         "Authorization": f"bearer {token}",
         "User-Agent": "xv6-ntu-mp-grader",
         "Accept": "application/vnd.github+json",
-    }
-    if data is not None:
-        headers["Content-Type"] = "application/json"
-        data = json.dumps(data).encode()
-    req = urllib.request.Request(url, data=data, headers=headers)
+    })
     with urllib.request.urlopen(req, timeout=15) as resp:
         return json.load(resp)
 
@@ -97,9 +87,13 @@ def get_pushed_at(sha):
     try:
         url = (f"https://api.github.com/repos/{owner}/{name}"
                f"/actions/runs?head_sha={sha}&per_page=100")
-        data = _api_json(url, token)
-        times = [_iso_to_epoch(r["created_at"])
-                 for r in data.get("workflow_runs", []) if r.get("created_at")]
+        data = _api_get_json(url, token)
+        times = []
+        for run in data.get("workflow_runs", []):
+            iso = run.get("created_at")
+            if iso:
+                times.append(int(datetime.datetime.fromisoformat(
+                    iso.replace("Z", "+00:00")).timestamp()))
         if times:
             return min(times), "actions_runs"
     except Exception as e:
