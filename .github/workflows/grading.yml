@@ -14,7 +14,10 @@ on:
 jobs:
   grade:
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read   # checkout the repo
+      actions: read    # query workflow_runs for the authoritative push time
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
@@ -24,20 +27,30 @@ jobs:
       - name: Trust Git Directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-
-
       - name: Verify Student Identity
         id: verify
         run: |
-          # Use the sanitized grade runner to verify identity
-          python3 grade/verify_committer.py
+          # Resolve the commit to grade and its authoritative push time.
+          # Translate the exit code into a step output so downstream steps can
+          # render a useful summary instead of a silent red X (audit C3).
+          if python3 grade/verify_committer.py; then
+            echo "fail=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "fail=true"  >> "$GITHUB_OUTPUT"
+          fi
         env:
-          # Pass TA Emails via Env (or read from mp.conf inside script)
-          # The script will read mp.conf directly.
+          GITHUB_TOKEN: ${{ github.token }}
           PYTHONUNBUFFERED: "1"
+
+      - name: Pin Graded Sources to Target Commit
+        if: steps.verify.outputs.fail != 'true'
+        env:
+          TARGET_SHA: ${{ steps.verify.outputs.target_sha }}
+        run: bash scripts/pin-graded-sources
 
       - name: Execute Tests (Grading)
         id: test
+        if: steps.verify.outputs.fail != 'true'
         run: |
           ./mp.sh grade --json report.json --markdown grade-report.md
         env:
@@ -46,12 +59,21 @@ jobs:
       - name: Add Visual Summary
         if: always()
         run: |
-          if [ -f grade-report.md ]; then
-            cat grade-report.md >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.verify.outputs.fail }}" = "true" ]; then
+            {
+              echo "## Grading Skipped"
+              echo
+              echo "No student commit could be identified for this run "
+              echo "(all commits are TA-authored, or no parented commit exists)."
+              echo "If this is a freshly created repo, push your first commit "
+              echo "as the student and grading will run."
+            } >> "$GITHUB_STEP_SUMMARY"
+          elif [ -f grade-report.md ]; then
+            cat grade-report.md >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload Artifact
-        if: always()
+        if: always() && steps.verify.outputs.fail != 'true'
         uses: actions/upload-artifact@v7
         with:
           name: grading-report

@@ -5,4 +5,5 @@ mp.sh
 grade/
 scripts/pre-commit
 scripts/pre-push
+scripts/pin-graded-sources
 tests/grading.conf

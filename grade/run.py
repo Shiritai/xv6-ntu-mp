@@ -124,7 +124,9 @@ def validate_student_conf(student_conf):
 
 def validate_checklist(path):
     if not os.path.exists(path):
-        return True
+        # Fail closed: the template ships checklist.md, so a missing file
+        # means it was deleted. A missing checklist cannot count as complete.
+        return False
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
             if line.strip().startswith("- [ ] "):
@@ -132,10 +134,16 @@ def validate_checklist(path):
     return True
 
 def load_target_commit():
-    if os.path.exists(TARGET_COMMIT_PATH):
+    if not os.path.exists(TARGET_COMMIT_PATH):
+        return None
+    try:
         with open(TARGET_COMMIT_PATH, "r") as f:
             return json.load(f)
-    return None
+    except (IOError, json.JSONDecodeError) as e:
+        # Degrade gracefully — a malformed file should look like "no target
+        # commit info" to gather_verdict, not crash the whole grade run.
+        print(f"Warning: target_commit.json unreadable: {e}", file=sys.stderr)
+        return None
 
 def calculate_lateness(deadline_iso, commit_timestamp):
     if not deadline_iso or not commit_timestamp:
@@ -160,13 +168,23 @@ def gather_verdict():
     conf = parse_mp_conf()
     target_commit = load_target_commit()
     commit_ts = target_commit.get("timestamp") if target_commit else 0
+
+    # Submission time MUST be a server-stamped value (workflow_run.created_at
+    # via verify_committer). Committer timestamp is forgeable so we never let
+    # it drive lateness — when no server time is available, late_days stays 0
+    # and submission_time_verified=false flags the run for manual review.
+    pushed_at = target_commit.get("pushed_at") if target_commit else None
+    pushed_src = target_commit.get("pushed_at_source", "unavailable") if target_commit else "unavailable"
+    submission_verified = pushed_at is not None
+    submission_ts = pushed_at if submission_verified else 0
+
     deadline = conf.get("DEADLINE", "")
-    late_days = calculate_lateness(deadline, commit_ts)
+    late_days = calculate_lateness(deadline, submission_ts) if submission_verified else 0
     # Penalty Policy: 20% per day.
     penalty_ratio = min(1.0, late_days * 0.2)
     student_conf = parse_student_conf()
     is_identity_valid = validate_student_conf(student_conf)
-    
+
     checklist_path = os.path.join(os.path.dirname(__file__), "../checklist.md")
     is_checklist_valid = validate_checklist(checklist_path)
 
@@ -176,6 +194,9 @@ def gather_verdict():
         "conf": conf,
         "target_commit": target_commit,
         "commit_ts": commit_ts,
+        "submission_ts": submission_ts,
+        "submission_verified": submission_verified,
+        "pushed_at_source": pushed_src,
         "deadline": deadline,
         "late_days": late_days,
         "penalty_ratio": penalty_ratio,
@@ -207,6 +228,17 @@ def generate_markdown(total_score, max_score, details, md_path, verdict):
         lines.append(f"- **Name**: {student_conf.get('STUDENT_NAME')}")
         lines.append(f"- **GitHub Username**: {student_conf.get('GITHUB_USERNAME')}")
     lines.append("")
+
+    # Lateness is anchored strictly to the GitHub-stamped push time. When that
+    # is unavailable, late_days stays 0 (we refuse to penalise from a forgeable
+    # source) — flag it loudly so official grading does the time check by hand.
+    if verdict["target_commit"] and not verdict["submission_verified"]:
+        lines.append("> [!CAUTION]")
+        lines.append("> Submission time could not be verified from GitHub "
+                     "(no `workflow_run` for this commit). Lateness was NOT "
+                     "computed — this submission requires manual time review "
+                     "before any grade is final.")
+        lines.append("")
 
     # Part 2: Grades (mermaid xychart)
     lines.append("## Grades")
@@ -289,6 +321,9 @@ def generate_json(total_score, max_score, details, json_path, verdict):
             "sha": target_commit.get("sha", "unknown") if target_commit else "unknown",
             "author": target_commit.get("author", "unknown") if target_commit else "unknown",
             "timestamp": datetime.datetime.fromtimestamp(commit_ts).isoformat() if commit_ts else "",
+            # Authoritative push time when verified; empty string when not, so
+            # report consumers can tell "we did not have this" apart from "zero".
+            "pushed_at": datetime.datetime.fromtimestamp(verdict["submission_ts"]).isoformat() if verdict["submission_verified"] else "",
             "is_late": late_days > 0
         },
         "student_info": {
@@ -304,7 +339,9 @@ def generate_json(total_score, max_score, details, json_path, verdict):
             "penalty_policy": "20% per day",
             "penalty_ratio": penalty_ratio,
             "identity_failed": not is_identity_valid,
-            "is_private": is_private
+            "is_private": is_private,
+            "submission_time_verified": verdict["submission_verified"],
+            "submission_time_source": verdict["pushed_at_source"]
         },
         "scores": {
             "raw_total": total_score,

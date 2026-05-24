@@ -4,6 +4,8 @@ import subprocess
 import sys
 import json
 import re
+import datetime
+import urllib.request
 
 def load_config():
     """Reads TA_EMAILS from conf/mp.conf"""
@@ -42,18 +44,62 @@ def get_commits():
     return commits
 
 def find_student_commit(commits, ta_emails):
-    """
-    Finds the latest commit that is NOT from a TA.
-    Simple strategy: Iterate from newest to oldest. 
-    If a commit is by a TA, skip it.
-    If a commit is a Merge Commit (2+ parents), check if it brings in student changes.
-    (For simplicity in V0, we assume the Merge Commit itself is the target if authored by student,
-     or we look for the first non-TA ancestor).
+    """Return the newest commit not authored by a TA and not a root commit.
+
+    Walks `commits` (assumed newest first, as `git log` emits) and picks the
+    first whose committer email is not in `ta_emails` and which has at least
+    one parent — root commits (typically the template's initial TA-authored
+    commit) are skipped even when the email check happens to pass.
     """
     for commit in commits:
         if commit['email'] not in ta_emails and commit['parents']:
             return commit
     return None
+
+def _api_get_json(url, token):
+    """GET a GitHub REST endpoint and return parsed JSON, or raise."""
+    req = urllib.request.Request(url, headers={
+        "Authorization": f"bearer {token}",
+        "User-Agent": "xv6-ntu-mp-grader",
+        "Accept": "application/vnd.github+json",
+    })
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return json.load(resp)
+
+def get_pushed_at(sha):
+    """Return (epoch, source) for the authoritative GitHub push time of `sha`.
+
+    Commit-embedded timestamps are forgeable (git commit --date= /
+    GIT_COMMITTER_DATE); only a server-stamped time can anchor lateness.
+
+    For a student repo the grading workflow runs on push, so the earliest
+    workflow_run.created_at observed for this head SHA is effectively the push
+    receipt time — set by GitHub, not the client.
+
+    source is one of: 'actions_runs', 'unavailable'.
+    """
+    token = os.environ.get("GITHUB_TOKEN")
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    if not token or "/" not in repo:
+        return None, "unavailable"
+    owner, name = repo.split("/", 1)
+
+    try:
+        url = (f"https://api.github.com/repos/{owner}/{name}"
+               f"/actions/runs?head_sha={sha}&per_page=100")
+        data = _api_get_json(url, token)
+        times = []
+        for run in data.get("workflow_runs", []):
+            iso = run.get("created_at")
+            if iso:
+                times.append(int(datetime.datetime.fromisoformat(
+                    iso.replace("Z", "+00:00")).timestamp()))
+        if times:
+            return min(times), "actions_runs"
+    except Exception as e:
+        print(f"workflow_run lookup failed: {e}", file=sys.stderr)
+
+    return None, "unavailable"
 
 def main():
     try:
@@ -65,21 +111,30 @@ def main():
         
         if target:
             print(f"Found Target Student Commit: {target['hash']} by {target['email']}")
+
+            # Authoritative submission time (forgery-resistant). null when no
+            # server evidence is available — the grader flags such cases.
+            pushed_at, pushed_src = get_pushed_at(target['hash'])
+            print(f"Push time: {pushed_at} (source: {pushed_src})")
+
             # Output for GitHub Actions
             if "GITHUB_OUTPUT" in os.environ:
                 with open(os.environ["GITHUB_OUTPUT"], "a") as f:
                     f.write(f"target_sha={target['hash']}\n")
                     f.write(f"target_timestamp={target['timestamp']}\n")
                     f.write(f"target_author={target['email']}\n")
-            
+                    f.write(f"target_pushed_at={pushed_at if pushed_at else ''}\n")
+
             # Write to a JSON snippet for report inclusion
             with open("target_commit.json", "w") as f:
                 json.dump({
                     "sha": target['hash'],
                     "author": target['email'],
-                    "timestamp": target['timestamp']
+                    "timestamp": target['timestamp'],      # committer time (forgeable; display only)
+                    "pushed_at": pushed_at,                 # authoritative epoch, or null
+                    "pushed_at_source": pushed_src
                 }, f)
-                
+
             sys.exit(0)
         else:
             print("Error: No valid student commit found (All commits are from TA).")
