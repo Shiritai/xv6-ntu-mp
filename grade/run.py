@@ -134,10 +134,16 @@ def validate_checklist(path):
     return True
 
 def load_target_commit():
-    if os.path.exists(TARGET_COMMIT_PATH):
+    if not os.path.exists(TARGET_COMMIT_PATH):
+        return None
+    try:
         with open(TARGET_COMMIT_PATH, "r") as f:
             return json.load(f)
-    return None
+    except (IOError, json.JSONDecodeError) as e:
+        # Degrade gracefully — a malformed file should look like "no target
+        # commit info" to gather_verdict, not crash the whole grade run.
+        print(f"Warning: target_commit.json unreadable: {e}", file=sys.stderr)
+        return None
 
 def calculate_lateness(deadline_iso, commit_timestamp):
     if not deadline_iso or not commit_timestamp:

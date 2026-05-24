@@ -27,6 +27,15 @@ fi
 mapfile -t PROTECTED < <(git show "$GRADING_SHA:doc/protected_list.txt" \
                          | sed 's/#.*//' | grep -vE '^[[:space:]]*$')
 
+# Fail closed: if the protected list comes back empty (file missing, parse
+# broken, git show silently succeeded with empty output) we must abort rather
+# than restore everything from target_sha — including the harness.
+if [ "${#PROTECTED[@]}" -eq 0 ]; then
+    echo "Error: protected_list.txt from $GRADING_SHA is empty or unreadable." >&2
+    echo "Refusing to restore from $TARGET_SHA without a known harness boundary." >&2
+    exit 1
+fi
+
 is_protected() {
     local f="$1" p
     for p in "${PROTECTED[@]}"; do
