@@ -169,20 +169,17 @@ def gather_verdict():
     target_commit = load_target_commit()
     commit_ts = target_commit.get("timestamp") if target_commit else 0
 
-    # Submission time: prefer the GitHub-stamped push time. Committer time is
-    # forgeable (git commit --date=) so it is only a fallback, and the report
-    # flags any run that had to fall back so it can be reviewed manually.
+    # Submission time MUST be a server-stamped value (workflow_run.created_at
+    # via verify_committer). Committer timestamp is forgeable so we never let
+    # it drive lateness — when no server time is available, late_days stays 0
+    # and submission_time_verified=false flags the run for manual review.
     pushed_at = target_commit.get("pushed_at") if target_commit else None
     pushed_src = target_commit.get("pushed_at_source", "unavailable") if target_commit else "unavailable"
-    if pushed_at:
-        submission_ts = pushed_at
-        submission_verified = True
-    else:
-        submission_ts = commit_ts
-        submission_verified = False
+    submission_verified = pushed_at is not None
+    submission_ts = pushed_at if submission_verified else 0
 
     deadline = conf.get("DEADLINE", "")
-    late_days = calculate_lateness(deadline, submission_ts)
+    late_days = calculate_lateness(deadline, submission_ts) if submission_verified else 0
     # Penalty Policy: 20% per day.
     penalty_ratio = min(1.0, late_days * 0.2)
     student_conf = parse_student_conf()
@@ -232,13 +229,15 @@ def generate_markdown(total_score, max_score, details, md_path, verdict):
         lines.append(f"- **GitHub Username**: {student_conf.get('GITHUB_USERNAME')}")
     lines.append("")
 
-    # Lateness is anchored to the GitHub-stamped push time. If that was not
-    # available, lateness fell back to the forgeable committer time — flag it.
+    # Lateness is anchored strictly to the GitHub-stamped push time. When that
+    # is unavailable, late_days stays 0 (we refuse to penalise from a forgeable
+    # source) — flag it loudly so official grading does the time check by hand.
     if verdict["target_commit"] and not verdict["submission_verified"]:
-        lines.append("> [!WARNING]")
-        lines.append("> Submission time could not be verified from GitHub. "
-                     "Lateness is based on the commit's own timestamp, which is "
-                     "forgeable — this submission needs manual time review.")
+        lines.append("> [!CAUTION]")
+        lines.append("> Submission time could not be verified from GitHub "
+                     "(no `workflow_run` for this commit). Lateness was NOT "
+                     "computed — this submission requires manual time review "
+                     "before any grade is final.")
         lines.append("")
 
     # Part 2: Grades (mermaid xychart)
@@ -322,7 +321,9 @@ def generate_json(total_score, max_score, details, json_path, verdict):
             "sha": target_commit.get("sha", "unknown") if target_commit else "unknown",
             "author": target_commit.get("author", "unknown") if target_commit else "unknown",
             "timestamp": datetime.datetime.fromtimestamp(commit_ts).isoformat() if commit_ts else "",
-            "pushed_at": datetime.datetime.fromtimestamp(verdict["submission_ts"]).isoformat() if verdict["submission_ts"] else "",
+            # Authoritative push time when verified; empty string when not, so
+            # report consumers can tell "we did not have this" apart from "zero".
+            "pushed_at": datetime.datetime.fromtimestamp(verdict["submission_ts"]).isoformat() if verdict["submission_verified"] else "",
             "is_late": late_days > 0
         },
         "student_info": {
